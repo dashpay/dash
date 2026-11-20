@@ -12,7 +12,6 @@
 
 #include <chainparams.h>
 #include <logging.h>
-#include <timedata.h>
 #include <util/time.h>
 #include <validation.h>
 
@@ -128,7 +127,7 @@ std::optional<const CGovernanceObject> GovernanceSigner::CreateGovernanceTrigger
     LOCK(::cs_main);
 
     // Check if identical trigger (equal DataHash()) is already created (signed by other masternode)
-    CGovernanceObject gov_sb(uint256(), 1, GetAdjustedTime(), uint256(), sb_opt.value().GetHexStrData());
+    CGovernanceObject gov_sb(uint256(), 1, NodeClock::now(), uint256(), sb_opt.value().GetHexStrData());
     if (auto identical_sb = m_govman.FindGovernanceObjectByDataHash(gov_sb.GetDataHash())) {
         // Somebody submitted a trigger with the same data, support it instead of submitting a duplicate
         return std::make_optional<CGovernanceObject>(*identical_sb);
@@ -291,7 +290,7 @@ void GovernanceSigner::VoteGovernanceTriggers(const std::optional<const CGoverna
 bool GovernanceSigner::VoteFundingTrigger(const uint256& nHash, const vote_outcome_enum_t outcome)
 {
     CGovernanceVote vote(m_mn_activeman.GetOutPoint(), nHash, VOTE_SIGNAL_FUNDING, outcome);
-    vote.SetTime(GetAdjustedTime());
+    vote.SetTime(NodeClock::now());
     vote.SetSignature(m_mn_activeman.SignBasic(vote.GetSignatureHash()));
 
     CGovernanceException exception;

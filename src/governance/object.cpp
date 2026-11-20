@@ -13,7 +13,6 @@
 #include <key_io.h>
 #include <logging.h>
 #include <node/interface_ui.h>
-#include <timedata.h>
 #include <tinyformat.h>
 #include <util/moneystr.h>
 #include <util/std23.h>
@@ -144,7 +143,7 @@ bool ValidateStartEndEpoch(const UniValue& objJSON, bool fCheckExpiration, std::
         return false;
     }
 
-    const auto now{std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime())};
+    const auto now{std::chrono::time_point_cast<std::chrono::seconds>(NodeClock::now())};
     if (fCheckExpiration && NodeSeconds{std::chrono::seconds{nEndEpoch}} <= now) {
         strErrorMessages += "expired;";
         return false;
@@ -442,7 +441,7 @@ bool CGovernanceObject::ProcessVote(CMasternodeMetaMan& mn_metaman, bool fRateCh
 
     auto vote_time_update{currentInstance.last_update};
     if (fRateChecksEnabled) {
-        const auto now{std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime())};
+        const auto now{std::chrono::time_point_cast<std::chrono::seconds>(NodeClock::now())};
         if (currentInstance.last_update > now - GOVERNANCE_UPDATE_MIN) {
             std::string msg{strprintf("CGovernanceObject::%s -- Masternode voting too often, MN outpoint = %s, "
                                       "governance object hash = %s, last update = %d, current time = %d",

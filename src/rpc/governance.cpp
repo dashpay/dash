@@ -19,9 +19,9 @@
 #include <rpc/server.h>
 #include <rpc/server_util.h>
 #include <rpc/util.h>
-#include <timedata.h>
 #include <util/check.h>
 #include <util/strencodings.h>
+#include <util/time.h>
 #include <validation.h>
 #include <wallet/rpc/util.h>
 
@@ -163,7 +163,7 @@ static RPCHelpMan gobject_check()
 
     std::string strDataHex = request.params[0].get_str();
 
-    CGovernanceObject govobj(hashParent, nRevision, GetAdjustedTime(), uint256(), strDataHex);
+    CGovernanceObject govobj(hashParent, nRevision, NodeClock::now(), uint256(), strDataHex);
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
         std::string strValidationError;

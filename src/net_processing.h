@@ -7,7 +7,6 @@
 #define BITCOIN_NET_PROCESSING_H
 
 #include <net.h>
-#include <timedata.h>
 #include <validationinterface.h>
 #include <version.h>
 
@@ -182,8 +181,6 @@ public:
         //! Whether or not the internal RNG behaves deterministically (this is
         //! a test-only option).
         bool deterministic_rng{false};
-        //! Maximum allowed median peer time offset adjustment, in seconds
-        int64_t max_time_adjustment{DEFAULT_MAX_TIME_ADJUSTMENT};
     };
 
     /**

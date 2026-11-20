@@ -11,7 +11,7 @@
 #include <util/std23.h>
 
 #include <chainparams.h>
-#include <timedata.h>
+#include <util/time.h>
 #include <validation.h>
 
 namespace llmq
@@ -156,7 +156,7 @@ void CDKGDebugManager::ResetLocalSessionStatus(Consensus::LLMQType llmqType, int
     }
 
     localStatus.sessions.erase(it);
-    localStatus.time = GetAdjustedTime();
+    localStatus.time = NodeClock::now();
 }
 
 void CDKGDebugManager::InitLocalSessionStatus(const Consensus::LLMQParams& llmqParams, int quorumIndex, const uint256& quorumHash, int quorumHeight)
@@ -188,7 +188,7 @@ void CDKGDebugManager::UpdateLocalSessionStatus(Consensus::LLMQType llmqType, in
     }
 
     if (func(it->second)) {
-        localStatus.time = GetAdjustedTime();
+        localStatus.time = NodeClock::now();
     }
 }
 
@@ -202,7 +202,7 @@ void CDKGDebugManager::UpdateLocalMemberStatus(Consensus::LLMQType llmqType, int
     }
 
     if (func(it->second.members.at(memberIdx))) {
-        localStatus.time = GetAdjustedTime();
+        localStatus.time = NodeClock::now();
     }
 }
 

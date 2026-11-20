@@ -22,7 +22,6 @@
 #include <script/standard.h>
 #include <streams.h>
 #include <test/util/bls.h>
-#include <timedata.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <util/time.h>
@@ -138,7 +137,7 @@ struct GovernanceVoteSetup : public TestChainSetup {
                                                              *m_node.mn_sync, m_node.gov_collateral_index.get());
         BOOST_REQUIRE(m_node.govman->LoadCache(/*load_cache=*/false));
 
-        proposal_time = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());
+        proposal_time = TicksSinceEpoch<std::chrono::seconds>(NodeClock::now());
         CKey payment_key;
         payment_key.MakeNewKey(true);
         proposal_payment_address = EncodeDestination(PKHash(payment_key.GetPubKey()));
@@ -215,7 +214,7 @@ struct GovernanceVoteSetup : public TestChainSetup {
                              std::chrono::seconds time_offset = 0s) const
     {
         CGovernanceVote vote{mn_collateral, parent_hash, signal, outcome};
-        vote.SetTime(GetAdjustedTime() + time_offset);
+        vote.SetTime(NodeClock::now() + time_offset);
         return vote;
     }
 };
@@ -403,7 +402,7 @@ BOOST_AUTO_TEST_CASE(unsigned_and_unknown_masternode_votes_are_rejected)
     CKey stranger_key;
     stranger_key.MakeNewKey(true);
     CGovernanceVote stranger{COutPoint{uint256S("42"), 0}, parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES};
-    stranger.SetTime(GetAdjustedTime());
+    stranger.SetTime(NodeClock::now());
     SignWithVotingKey(stranger, stranger_key);
 
     CGovernanceException stranger_exception;

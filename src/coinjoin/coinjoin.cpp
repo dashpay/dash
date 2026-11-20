@@ -66,7 +66,7 @@ bool CCoinJoinQueue::IsTimeOutOfBounds(NodeSeconds current_time) const
 
 bool CCoinJoinQueue::IsTimeOutOfBounds() const
 {
-    return IsTimeOutOfBounds(std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime()));
+    return IsTimeOutOfBounds(std::chrono::time_point_cast<std::chrono::seconds>(NodeClock::now()));
 }
 
 [[nodiscard]] std::string CCoinJoinQueue::ToString() const

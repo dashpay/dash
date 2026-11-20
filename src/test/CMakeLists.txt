@@ -143,7 +143,6 @@ add_executable(test_bitcoin
   subsidy_tests.cpp
   sync_tests.cpp
   system_tests.cpp
-  timedata_tests.cpp
   timeoffsets_tests.cpp
   torcontrol_tests.cpp
   transaction_tests.cpp

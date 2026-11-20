@@ -13,8 +13,8 @@
 
 #include <chainparams.h>
 #include <logging.h>
-#include <timedata.h>
 #include <util/string.h>
+#include <util/time.h>
 
 static_assert(CGovernanceVote::COMPACT_SIG_SIZE == CPubKey::COMPACT_SIGNATURE_SIZE);
 static_assert(CGovernanceVote::BLS_SIG_SIZE == CBLSSignature::SerSize);
@@ -125,7 +125,7 @@ CGovernanceVote::CGovernanceVote(const COutPoint& outpointMasternodeIn, const ui
     nParentHash(nParentHashIn),
     nVoteOutcome(eVoteOutcomeIn),
     nVoteSignal(eVoteSignalIn),
-    nTime(TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime()))
+    nTime(TicksSinceEpoch<std::chrono::seconds>(NodeClock::now()))
 {
     UpdateHash();
 }
@@ -208,7 +208,7 @@ bool CGovernanceVote::CheckSignature(const CBLSPublicKey& pubKey) const
 
 bool CGovernanceVote::IsValid(const CDeterministicMNList& tip_mn_list, bool useVotingKey) const
 {
-    const auto max_time{std::chrono::time_point_cast<std::chrono::seconds>(GetAdjustedTime() + 1h)};
+    const auto max_time{std::chrono::time_point_cast<std::chrono::seconds>(NodeClock::now() + 1h)};
     if (Time() > max_time) {
         LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- vote is too far ahead of current time - %s - nTime %lli - Max Time %lli\n", GetHash().ToString(), nTime, TicksSinceEpoch<std::chrono::seconds>(max_time));
         return false;

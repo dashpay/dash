@@ -15,8 +15,8 @@
 #include <primitives/transaction.h>
 #include <serialize.h>
 #include <sync.h>
-#include <timedata.h>
 #include <util/helpers.h>
+#include <util/time.h>
 #include <util/translation.h>
 #include <version.h>
 
