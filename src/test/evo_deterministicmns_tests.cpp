@@ -2170,6 +2170,100 @@ void FuncTestMinerKeyChangeNotHeldBackAfterReorg(TestChainSetup& setup)
     BOOST_CHECK(!positions.count(tx_serv.GetHash()));
 }
 
+// A reorg changes the masternode list under provider transactions that are already in the mempool.
+// Those the new tip no longer admits are removed.
+void FuncTestMempoolReorgRevalidatesProviderTxs(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    auto& mempool = *Assert(setup.m_node.mempool.get());
+    auto tip_index = [&] { return WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()); };
+    auto submit = [&](const CMutableTransaction& tx) {
+        return WITH_LOCK(::cs_main, return chainman.ProcessTransaction(MakeTransactionRef(tx)));
+    };
+    auto in_mempool = [&](const CMutableTransaction& tx) {
+        return WITH_LOCK(mempool.cs, return mempool.exists(tx.GetHash()));
+    };
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+    auto mine = [&](const std::vector<CMutableTransaction>& txs) {
+        setup.CreateAndProcessBlock(txs, coinbase_pk);
+        dmnman.UpdatedBlockTip(tip_index());
+        return tip_index();
+    };
+    auto disconnect = [&](CBlockIndex* index) {
+        BlockValidationState state;
+        BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, index));
+        dmnman.UpdatedBlockTip(tip_index());
+    };
+
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    const CScript scriptPayout = GenerateRandomAddress();
+    const CAmount fee{10000};
+
+    CKey ownerKey;
+    CBLSSecretKey operatorKey;
+    const auto tx_reg = CreateProRegTx(chainman, utxos, /*port=*/1, scriptPayout, setup.coinbaseKey, ownerKey, operatorKey);
+    const uint256 proTxHash = tx_reg.GetHash();
+    CKey otherOwnerKey;
+    CBLSSecretKey otherOperatorKey;
+    const auto tx_other_reg = CreateProRegTx(chainman, utxos, /*port=*/9, scriptPayout, setup.coinbaseKey,
+                                             otherOwnerKey, otherOperatorKey);
+    mine({tx_other_reg});
+    const auto reg_index = mine({tx_reg});
+    const auto version = ProTxVersionForNextBlock(chainman);
+
+    // Signed with the key only the disconnected block sets. Left in the mempool, block assembly would
+    // select it without checking its signature and then fail to validate its own template.
+    CBLSSecretKey newOperatorKey;
+    newOperatorKey.MakeNewKey();
+    const auto tx_key_change = CreateProUpRegTx(chainman, utxos, proTxHash, ownerKey, newOperatorKey.GetPublicKey(),
+                                                ownerKey.GetPubKey().GetID(), scriptPayout, setup.coinbaseKey, version,
+                                                fee);
+    const auto key_change_index = mine({tx_key_change});
+    const auto tx_serv_new_key = CreateProUpServTx(chainman, utxos, proTxHash, newOperatorKey, /*port=*/3, CScript(),
+                                                   setup.coinbaseKey, version, fee);
+    CMutableTransaction tx_serv_new_key_child;
+    tx_serv_new_key_child.vin.emplace_back(tx_serv_new_key.GetHash(), 0);
+    tx_serv_new_key_child.vout.emplace_back(tx_serv_new_key.vout[0].nValue - fee, scriptPayout);
+    SignTransaction(tx_serv_new_key_child,
+                    {{tx_serv_new_key_child.vin[0].prevout,
+                      Coin(tx_serv_new_key.vout[0], /*nHeightIn=*/0, /*fCoinBaseIn=*/false)}},
+                    setup.coinbaseKey);
+    const auto tx_other_serv = CreateProUpServTx(chainman, utxos, tx_other_reg.GetHash(), otherOperatorKey, /*port=*/8,
+                                                 CScript(), setup.coinbaseKey, version, fee);
+    for (const auto& tx : {tx_serv_new_key, tx_serv_new_key_child, tx_other_serv}) {
+        BOOST_REQUIRE(submit(tx).m_result_type == MempoolAcceptResult::ResultType::VALID);
+    }
+    disconnect(key_change_index);
+    BOOST_CHECK(!in_mempool(tx_serv_new_key));
+    BOOST_CHECK(!in_mempool(tx_serv_new_key_child));
+    BOOST_CHECK(in_mempool(tx_other_serv));
+    BOOST_CHECK(TemplatePositions(setup, {}).count(tx_other_serv.GetHash()));
+
+    // The chain no longer has the registration: the update goes, and with it its hold on the
+    // address it announces. The registration is back in the mempool.
+    const auto tx_serv = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, /*port=*/2, CScript(),
+                                           setup.coinbaseKey, version, fee);
+    BOOST_REQUIRE(submit(tx_serv).m_result_type == MempoolAcceptResult::ResultType::VALID);
+    CKey sameAddrOwnerKey;
+    CBLSSecretKey sameAddrOperatorKey;
+    sameAddrOwnerKey.MakeNewKey(true);
+    sameAddrOperatorKey.MakeNewKey();
+    auto same_addr_payload = *Assert(GetTxPayload<CProRegTx>(tx_reg));
+    same_addr_payload.netInfo = Assert(GetTxPayload<CProUpServTx>(tx_serv))->netInfo;
+    same_addr_payload.keyIDOwner = sameAddrOwnerKey.GetPubKey().GetID();
+    same_addr_payload.pubKeyOperator.Set(sameAddrOperatorKey.GetPublicKey());
+    CMutableTransaction tx_reg_same_addr_mut{tx_reg};
+    SetTxPayload(tx_reg_same_addr_mut, same_addr_payload);
+    const CTransaction tx_reg_same_addr{tx_reg_same_addr_mut};
+    BOOST_REQUIRE(mempool.existsProviderTxConflict(tx_reg_same_addr));
+
+    disconnect(reg_index);
+    BOOST_CHECK(!in_mempool(tx_serv));
+    BOOST_CHECK(in_mempool(tx_reg));
+    BOOST_CHECK(!mempool.existsProviderTxConflict(tx_reg_same_addr));
+}
+
 // A ProUpServTx funded by an ordinary pending transaction is pulled in ahead of a key change of its
 // masternode together with that parent. With room for all of them they go in as parent, service
 // update, key change. With room for either the parent and the update or the key change, but not for
@@ -4819,6 +4913,12 @@ BOOST_AUTO_TEST_CASE(test_miner_key_change_not_held_back_after_reorg)
 {
     TestChainV19Setup setup;
     FuncTestMinerKeyChangeNotHeldBackAfterReorg(setup);
+}
+
+BOOST_AUTO_TEST_CASE(test_mempool_reorg_revalidates_provider_txs)
+{
+    TestChainV19Setup setup;
+    FuncTestMempoolReorgRevalidatesProviderTxs(setup);
 }
 
 BOOST_AUTO_TEST_CASE(test_miner_service_update_with_parent_before_key_change)
