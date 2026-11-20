@@ -127,14 +127,14 @@ MessageProcessingResult CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_s
                 LogPrint(BCLog::NET_NETCONN, "CMNAuth::ProcessMessage -- Masternode %s has already verified as peer %d, deterministicOutbound=%s. peer=%d\n",
                          mnauth.proRegTxHash.ToString(), pnode2->GetId(), deterministicOutbound.ToString(), peer.GetId());
                 if (deterministicOutbound == myProTxHash) {
-                    // NOTE: do not drop inbound nodes here, mark them as probes so that
+                    // NOTE: do not drop inbound nodes here, mark them so that
                     // they would be disconnected later in CMasternodeUtils::DoMaintenance
                     if (pnode2->IsInboundConn()) {
                         LogPrint(BCLog::NET_NETCONN, "CMNAuth::ProcessMessage -- marking old inbound for dropping it later, peer=%d\n", pnode2->GetId());
-                        pnode2->m_masternode_probe_connection = true;
+                        pnode2->m_masternode_duplicate_inbound = true;
                     } else if (peer.IsInboundConn()) {
                         LogPrint(BCLog::NET_NETCONN, "CMNAuth::ProcessMessage -- marking new inbound for dropping it later, peer=%d\n", peer.GetId());
-                        peer.m_masternode_probe_connection = true;
+                        peer.m_masternode_duplicate_inbound = true;
                     }
                 } else {
                     if (!pnode2->IsInboundConn()) {
