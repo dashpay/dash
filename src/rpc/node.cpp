@@ -1047,7 +1047,6 @@ static RPCHelpMan logging()
             "  - \"all\",  \"1\" : represent all logging categories.\n"
             "  - \"dash\" activates all Dash-specific categories at once.\n"
             "To deactivate all categories at once you can specify \"all\" in <exclude>.\n"
-            "  - \"none\", \"0\" : even if other logging categories are specified, ignore all of them.\n"
             ,
                 {
                     {"include", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "The of categories to add to debug logging",
