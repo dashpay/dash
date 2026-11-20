@@ -147,6 +147,7 @@ target_link_libraries(bitcoinkernel
     bitcoin_crypto
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<PLATFORM_ID:Windows>:ws2_32>
+    $<$<PLATFORM_ID:Windows>:bcrypt>
   PUBLIC
     $<TARGET_NAME_IF_EXISTS:PkgConfig::libzstd>
     Boost::headers
