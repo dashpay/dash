@@ -140,7 +140,9 @@ bool EdgeTriggeredEvents::Wait(std::chrono::milliseconds timeout, Sock::EventsPe
                     occurred |= Sock::SEND;
                 }
             }
-            occurred_per_tag[idx] = {ev.data.ptr, occurred};
+            // epoll_event is packed, so copy the tag rather than bind a reference to a misaligned member
+            void* const tag{ev.data.ptr};
+            occurred_per_tag[idx] = {tag, occurred};
         }
 #else
         assert(false);
@@ -164,7 +166,9 @@ bool EdgeTriggeredEvents::Wait(std::chrono::milliseconds timeout, Sock::EventsPe
                     occurred |= Sock::SEND;
                 }
             }
-            occurred_per_tag[idx] = {ev.udata, occurred};
+            // The macOS SDK packs kevent to 4 bytes, so copy the tag rather than bind a reference to udata
+            void* const tag{ev.udata};
+            occurred_per_tag[idx] = {tag, occurred};
         }
 #else
         assert(false);
