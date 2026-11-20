@@ -199,6 +199,8 @@ bool RemoveWallet(WalletContext& context, const std::shared_ptr<CWallet>& wallet
         if (i == context.wallets.end()) return false;
         context.wallets.erase(i);
     }
+    // Notify unload so that upper layers release the shared pointer.
+    wallet->NotifyUnload();
 
     if (auto* coinjoin_loader = chain.coinJoinLoader()) {
         coinjoin_loader->RemoveWallet(name);
@@ -275,38 +277,35 @@ static std::set<std::string> g_loading_wallet_set GUARDED_BY(g_loading_wallet_mu
 static std::set<std::string> g_unloading_wallet_set GUARDED_BY(g_wallet_release_mutex);
 
 // Custom deleter for shared_ptr<CWallet>.
-static void ReleaseWallet(CWallet* wallet)
+static void FlushAndDeleteWallet(CWallet* wallet)
 {
     const std::string name = wallet->GetName();
-    wallet->WalletLogPrintf("Releasing wallet\n");
+    wallet->WalletLogPrintf("Releasing wallet %s..\n", name);
     wallet->Flush();
     delete wallet;
-    // Wallet is now released, notify UnloadWallet, if any.
+    // Wallet is now released, notify WaitForDeleteWallet, if any.
     {
         LOCK(g_wallet_release_mutex);
         if (g_unloading_wallet_set.erase(name) == 0) {
-            // UnloadWallet was not called for this wallet, all done.
+            // WaitForDeleteWallet was not called for this wallet, all done.
             return;
         }
     }
     g_wallet_release_cv.notify_all();
 }
 
-void UnloadWallet(std::shared_ptr<CWallet>&& wallet)
+void WaitForDeleteWallet(std::shared_ptr<CWallet>&& wallet)
 {
     // Mark wallet for unloading.
     const std::string name = wallet->GetName();
     {
         LOCK(g_wallet_release_mutex);
-        auto it = g_unloading_wallet_set.insert(name);
-        assert(it.second);
+        g_unloading_wallet_set.insert(name);
+        // Do not expect to be the only one removing this wallet.
+        // Multiple threads could simultaneously be waiting for deletion.
     }
-    // The wallet can be in use so it's not possible to explicitly unload here.
-    // Notify the unload intent so that all remaining shared pointers are
-    // released.
-    wallet->NotifyUnload();
 
-    // Time to ditch our shared_ptr and wait for ReleaseWallet call.
+    // Time to ditch our shared_ptr and wait for FlushAndDeleteWallet call.
     wallet.reset();
     {
         WAIT_LOCK(g_wallet_release_mutex, lock);
@@ -3415,7 +3414,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     const auto start{SteadyClock::now()};
     // TODO: Can't use std::make_shared because we need a custom deleter but
     // should be possible to use std::allocate_shared.
-    std::shared_ptr<CWallet> walletInstance(new CWallet(chain, name, std::move(database)), ReleaseWallet);
+    std::shared_ptr<CWallet> walletInstance(new CWallet(chain, name, std::move(database)), FlushAndDeleteWallet);
     walletInstance->m_keypool_size = std::max(args.GetIntArg("-keypool", DEFAULT_KEYPOOL_SIZE), int64_t{1});
     walletInstance->m_mnemonic_bits = args.GetIntArg("-mnemonicbits", CHDChain::DEFAULT_MNEMONIC_BITS);
     walletInstance->m_notify_tx_changed_script = args.GetArg("-walletnotify", "");
@@ -5430,7 +5429,7 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
         if (!RemoveWallet(context, wallet, /*load_on_start=*/std::nullopt, warnings)) {
             return util::Error{_("Unable to unload the wallet before migrating")};
         }
-        UnloadWallet(std::move(wallet));
+        WaitForDeleteWallet(std::move(wallet));
         was_loaded = true;
     }
 
@@ -5583,7 +5582,7 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
     if (!success) {
         // Migration failed, cleanup
 
-        // Drop the second reference to the reloaded main wallet: UnloadWallet() below
+        // Drop the second reference to the reloaded main wallet: WaitForDeleteWallet() below
         // waits until the last reference is gone, and this one would only die on return.
         // Dash-only: upstream 28.x/29.x carry the same latent hang when a watch-only or
         // solvables reload fails after the main wallet reloaded, and master only moves
@@ -5609,7 +5608,7 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& walle
                     error += _("\nUnable to cleanup failed migration");
                     return util::Error{error};
                 }
-                UnloadWallet(std::move(w));
+                WaitForDeleteWallet(std::move(w));
             } else {
                 // Unloading for wallets in local context
                 assert(w.use_count() == 1);

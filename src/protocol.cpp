@@ -7,94 +7,12 @@
 
 #include <common/system.h>
 
-#include <atomic>
+#include <algorithm>
+#include <array>
+#include <string_view>
 
-#define MAKE_MSG(var_name, p2p_name_str)   \
-        const char* var_name=p2p_name_str; \
-        static_assert(std::size(p2p_name_str) <= CMessageHeader::COMMAND_SIZE + 1, "p2p_name_str cannot be greater than COMMAND_SIZE"); // Includes +1 for null termination character.
-
-namespace NetMsgType {
-MAKE_MSG(VERSION, "version");
-MAKE_MSG(VERACK, "verack");
-MAKE_MSG(ADDR, "addr");
-MAKE_MSG(ADDRV2, "addrv2");
-MAKE_MSG(SENDADDRV2, "sendaddrv2");
-MAKE_MSG(INV, "inv");
-MAKE_MSG(GETDATA, "getdata");
-MAKE_MSG(MERKLEBLOCK, "merkleblock");
-MAKE_MSG(GETBLOCKS, "getblocks");
-MAKE_MSG(GETHEADERS, "getheaders");
-MAKE_MSG(TX, "tx");
-MAKE_MSG(HEADERS, "headers");
-MAKE_MSG(BLOCK, "block");
-MAKE_MSG(GETADDR, "getaddr");
-MAKE_MSG(MEMPOOL, "mempool");
-MAKE_MSG(PING, "ping");
-MAKE_MSG(PONG, "pong");
-MAKE_MSG(NOTFOUND, "notfound");
-MAKE_MSG(FILTERLOAD, "filterload");
-MAKE_MSG(FILTERADD, "filteradd");
-MAKE_MSG(FILTERCLEAR, "filterclear");
-MAKE_MSG(SENDHEADERS, "sendheaders");
-MAKE_MSG(SENDCMPCT, "sendcmpct");
-MAKE_MSG(CMPCTBLOCK, "cmpctblock");
-MAKE_MSG(GETBLOCKTXN, "getblocktxn");
-MAKE_MSG(BLOCKTXN, "blocktxn");
-MAKE_MSG(GETCFILTERS, "getcfilters");
-MAKE_MSG(CFILTER, "cfilter");
-MAKE_MSG(GETCFHEADERS, "getcfheaders");
-MAKE_MSG(CFHEADERS, "cfheaders");
-MAKE_MSG(GETCFCHECKPT, "getcfcheckpt");
-MAKE_MSG(CFCHECKPT, "cfcheckpt");
-MAKE_MSG(SENDTXRCNCL, "sendtxrcncl");
-// Dash message types
-MAKE_MSG(SPORK, "spork");
-MAKE_MSG(GETSPORKS, "getsporks");
-MAKE_MSG(DSACCEPT, "dsa");
-MAKE_MSG(DSVIN, "dsi");
-MAKE_MSG(DSFINALTX, "dsf");
-MAKE_MSG(DSSIGNFINALTX, "dss");
-MAKE_MSG(DSCOMPLETE, "dsc");
-MAKE_MSG(DSSTATUSUPDATE, "dssu");
-MAKE_MSG(DSTX, "dstx");
-MAKE_MSG(DSQUEUE, "dsq");
-MAKE_MSG(SENDDSQUEUE, "senddsq");
-MAKE_MSG(SYNCSTATUSCOUNT, "ssc");
-MAKE_MSG(MNGOVERNANCESYNC, "govsync");
-MAKE_MSG(MNGOVERNANCEOBJECT, "govobj");
-MAKE_MSG(MNGOVERNANCEOBJECTVOTE, "govobjvote");
-MAKE_MSG(GETMNLISTDIFF, "getmnlistd");
-MAKE_MSG(MNLISTDIFF, "mnlistdiff");
-MAKE_MSG(QSENDRECSIGS, "qsendrecsigs");
-MAKE_MSG(QFCOMMITMENT, "qfcommit");
-MAKE_MSG(QCONTRIB, "qcontrib");
-MAKE_MSG(QCOMPLAINT, "qcomplaint");
-MAKE_MSG(QJUSTIFICATION, "qjustify");
-MAKE_MSG(QPCOMMITMENT, "qpcommit");
-MAKE_MSG(QWATCH, "qwatch");
-MAKE_MSG(QSIGSESANN, "qsigsesann");
-MAKE_MSG(QSIGSHARESINV, "qsigsinv");
-MAKE_MSG(QGETSIGSHARES, "qgetsigs");
-MAKE_MSG(QBSIGSHARES, "qbsigs");
-MAKE_MSG(QSIGREC, "qsigrec");
-MAKE_MSG(QSIGSHARE, "qsigshare");
-MAKE_MSG(QGETDATA, "qgetdata");
-MAKE_MSG(QDATA, "qdata");
-MAKE_MSG(CLSIG, "clsig");
-MAKE_MSG(ISDLOCK, "isdlock");
-MAKE_MSG(MNAUTH, "mnauth");
-MAKE_MSG(GETHEADERS2, "getheaders2");
-MAKE_MSG(SENDHEADERS2, "sendheaders2");
-MAKE_MSG(HEADERS2, "headers2");
-MAKE_MSG(GETQUORUMROTATIONINFO, "getqrinfo");
-MAKE_MSG(QUORUMROTATIONINFO, "qrinfo");
-MAKE_MSG(PLATFORMBAN, "platformban");
-}; // namespace NetMsgType
-
-/** All known message types. Keep this in the same order as the list of
- * messages above and in protocol.h.
- */
-const static std::vector<std::string> g_all_net_message_types{
+// Compile-time check that every message type fits in CMessageHeader::COMMAND_SIZE.
+static_assert(std::ranges::all_of(std::array{
     NetMsgType::VERSION,
     NetMsgType::VERACK,
     NetMsgType::ADDR,
@@ -128,11 +46,8 @@ const static std::vector<std::string> g_all_net_message_types{
     NetMsgType::GETCFCHECKPT,
     NetMsgType::CFCHECKPT,
     NetMsgType::SENDTXRCNCL,
-    // Dash message types
-    // NOTE: do NOT include non-implmented here, we want them to be "Unknown command" in ProcessMessage()
     NetMsgType::SPORK,
     NetMsgType::GETSPORKS,
-    NetMsgType::SENDDSQUEUE,
     NetMsgType::DSACCEPT,
     NetMsgType::DSVIN,
     NetMsgType::DSFINALTX,
@@ -141,6 +56,7 @@ const static std::vector<std::string> g_all_net_message_types{
     NetMsgType::DSSTATUSUPDATE,
     NetMsgType::DSTX,
     NetMsgType::DSQUEUE,
+    NetMsgType::SENDDSQUEUE,
     NetMsgType::SYNCSTATUSCOUNT,
     NetMsgType::MNGOVERNANCESYNC,
     NetMsgType::MNGOVERNANCEOBJECT,
@@ -171,13 +87,14 @@ const static std::vector<std::string> g_all_net_message_types{
     NetMsgType::GETQUORUMROTATIONINFO,
     NetMsgType::QUORUMROTATIONINFO,
     NetMsgType::PLATFORMBAN,
-};
+}, [](std::string_view msg_type) { return msg_type.size() <= CMessageHeader::COMMAND_SIZE; }),
+              "NetMsgType message types cannot be longer than COMMAND_SIZE");
 
 /** Message types that are not allowed by blocks-relay-only policy.
  *  We do not want most of CoinJoin, DKG or LLMQ signing messages to be relayed
  *  to/from nodes via connections that were established in this mode.
  *  Make sure to keep this list up to date whenever a new message type is added.
- *  NOTE: Unlike the list above, this list is sorted alphabetically.
+ *  NOTE: Unlike ALL_NET_MESSAGE_TYPES in protocol.h, this list is sorted alphabetically.
  */
 const static std::string netMessageTypesViolateBlocksOnly[] = {
     NetMsgType::DSACCEPT,
@@ -310,11 +227,6 @@ std::string CInv::ToString() const
     } else {
         return strprintf("%s %s", cmd, hash.ToString());
     }
-}
-
-const std::vector<std::string> &getAllNetMessageTypes()
-{
-    return g_all_net_message_types;
 }
 
 bool NetMessageViolatesBlocksOnly(const std::string& msg_type)

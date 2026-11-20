@@ -63,7 +63,7 @@ struct FuzzedWallet {
         std::optional<bool> load_on_start;
         assert(RemoveWallet(context, wallet, load_on_start, warnings));
         assert(warnings.empty());
-        UnloadWallet(std::move(wallet));
+        WaitForDeleteWallet(std::move(wallet));
         fs::remove_all(GetWalletDir() / fs::PathFromString(name));
     }
     CScript GetScriptPubKey(FuzzedDataProvider& fuzzed_data_provider)

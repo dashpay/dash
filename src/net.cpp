@@ -2267,7 +2267,7 @@ void CConnman::CalculateNumConnectionsChangedStats()
     int torNodes = 0;
     mapMsgTypeSize mapRecvBytesMsgStats;
     mapMsgTypeSize mapSentBytesMsgStats;
-    for (const std::string &msg : getAllNetMessageTypes()) {
+    for (const auto& msg : ALL_NET_MESSAGE_TYPES) {
         mapRecvBytesMsgStats[msg] = 0;
         mapSentBytesMsgStats[msg] = 0;
     }
@@ -2296,7 +2296,7 @@ void CConnman::CalculateNumConnectionsChangedStats()
         if (last_ping_time > 0)
             ::g_stats_client->timing("peers.ping_us", last_ping_time, 1.0f);
     }
-    for (const std::string &msg : getAllNetMessageTypes()) {
+    for (const auto& msg : ALL_NET_MESSAGE_TYPES) {
         ::g_stats_client->gauge("bandwidth.message." + msg + ".totalBytesReceived", mapRecvBytesMsgStats[msg], 1.0f);
         ::g_stats_client->gauge("bandwidth.message." + msg + ".totalBytesSent", mapSentBytesMsgStats[msg], 1.0f);
     }
@@ -4765,8 +4765,9 @@ CNode::CNode(NodeId idIn,
 {
     if (inbound_onion) assert(conn_type_in == ConnectionType::INBOUND);
 
-    for (const std::string &msg : getAllNetMessageTypes())
+    for (const auto& msg : ALL_NET_MESSAGE_TYPES) {
         mapRecvBytesPerMsgType[msg] = 0;
+    }
     mapRecvBytesPerMsgType[NET_MESSAGE_TYPE_OTHER] = 0;
 
     if (fLogIPs) {

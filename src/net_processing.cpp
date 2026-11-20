@@ -5860,7 +5860,7 @@ void PeerManagerImpl::ProcessMessage(
     }
 
     bool found = false;
-    const std::vector<std::string> &allMessages = getAllNetMessageTypes();
+    const auto& allMessages = ALL_NET_MESSAGE_TYPES;
     for (const std::string& msg : allMessages) {
         if(msg == msg_type) {
             found = true;
