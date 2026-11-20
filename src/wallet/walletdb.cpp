@@ -929,8 +929,9 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
 
             if (mnemonic.empty()) {
                 spk_man->AddKey(pubkey.GetID(), privkey, "", "");
-            } else {
-                spk_man->AddKey(pubkey.GetID(), privkey, mnemonic, mnemonic_passphrase);
+            } else if (!spk_man->AddKey(pubkey.GetID(), privkey, mnemonic, mnemonic_passphrase)) {
+                strErr = "Error reading wallet database: descriptor mnemonic does not match private key";
+                return DBErrors::CORRUPT;
             }
             return DBErrors::LOAD_OK;
         });
