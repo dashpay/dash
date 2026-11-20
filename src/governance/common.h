@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+class SigHashWriter;
 struct RPCResult;
 
 class UniValue;
@@ -81,7 +82,7 @@ public:
                 obj.type,
                 obj.masternodeOutpoint
                 );
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             READWRITE(LIMITED_VECTOR(obj.vchSig, MAX_SIGNATURE_SIZE));
         }
     }

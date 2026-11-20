@@ -473,7 +473,7 @@ protected:
         if (cacheable && !hash.IsNull()) {
             return hash;
         }
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        HashWriter ss{};
         ss.write(MakeByteSpan(bytes));
         const uint256 ret{ss.GetHash()};
         if (cacheable) {

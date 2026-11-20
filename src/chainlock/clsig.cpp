@@ -86,7 +86,7 @@ public:
     {
         // Coinbase ChainLock signatures are basic. Unserialize still rejects an
         // encoding that is canonical only under the other scheme.
-        const uint256 key = (CHashWriter(SER_GETHASH, 0) << Span{bytes}).GetHash();
+        const uint256 key = (HashWriter{} << Span{bytes}).GetHash();
         CBLSSignature sig;
         {
             LOCK(m_mutex);

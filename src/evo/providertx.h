@@ -228,7 +228,7 @@ public:
                 obj.platformHTTPPort);
             }
         }
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             READWRITE(obj.vchSig);
         }
     }
@@ -303,7 +303,7 @@ public:
                 obj.platformHTTPPort);
             }
         }
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             READWRITE(BLSEncoded(const_cast<CBLSSignature&>(obj.sig), ProTxVersion::GetBLSScheme(obj.nVersion)));
         }
     }
@@ -367,7 +367,7 @@ public:
         READWRITE(
                 obj.inputsHash
         );
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             READWRITE(
                     obj.vchSig
             );
@@ -421,7 +421,7 @@ public:
                 obj.nReason,
                 obj.inputsHash
         );
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             READWRITE(BLSEncoded(const_cast<CBLSSignature&>(obj.sig), ProTxVersion::GetBLSScheme(obj.nVersion)));
         }
     }
@@ -502,7 +502,7 @@ public:
     SERIALIZE_METHODS(CProUpShareTx, obj)
     {
         READWRITE(obj.nVersion, obj.proTxHash, obj.shareIndex, obj.scriptReward, obj.inputsHash);
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             READWRITE(obj.vchSig);
         }
     }
@@ -543,7 +543,7 @@ public:
         READWRITE(obj.nVersion, obj.proTxHash,
                   BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.OperatorKeyScheme()),
                   obj.keyIDVoting, obj.inputsHash);
-        if (!(s.GetType() & SER_GETHASH)) {
+        if (!std::is_same_v<Stream, SigHashWriter>) {
             uint8_t sig_count{0};
             SER_WRITE(obj, sig_count = static_cast<uint8_t>(obj.vchSigs.size()));
             READWRITE(sig_count);

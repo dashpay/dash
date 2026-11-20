@@ -136,7 +136,7 @@ static CMutableTransaction CreateProUpServTx(const ChainstateManager& chainman, 
     const auto spent = FundTransaction(chainman, tx, utxos, GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())), 1 * COIN);
     tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    proTx.sig = SignBLS(operatorKey, ::SerializeHash(proTx), sig_scheme.value_or(SchemeForNextBlock(chainman)));
+    proTx.sig = SignBLS(operatorKey, ::SerializeSigHash(proTx), sig_scheme.value_or(SchemeForNextBlock(chainman)));
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, coinbaseKey);
 
@@ -165,7 +165,7 @@ static CMutableTransaction CreateProUpRegTx(const ChainstateManager& chainman, S
     // never notice, because block creation does not check relay fees.
     tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    CHashSigner::SignHash(::SerializeHash(proTx), mnKey, proTx.vchSig);
+    CHashSigner::SignHash(::SerializeSigHash(proTx), mnKey, proTx.vchSig);
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, coinbaseKey);
 
@@ -185,7 +185,7 @@ static CMutableTransaction CreateProUpRevTx(const ChainstateManager& chainman, S
     const auto spent = FundTransaction(chainman, tx, utxos, GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())), 1 * COIN);
     tx.vout.back().nValue -= fee;
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    proTx.sig = SignBLS(operatorKey, ::SerializeHash(proTx), SchemeForNextBlock(chainman));
+    proTx.sig = SignBLS(operatorKey, ::SerializeSigHash(proTx), SchemeForNextBlock(chainman));
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, coinbaseKey);
 
@@ -494,7 +494,7 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
     const auto spent_upreg3 = FundTransaction(chainman, tx_upreg3, utxos, GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())),
                                               1 * COIN);
     proTxLegacy.inputsHash = CalcTxInputsHash(CTransaction(tx_upreg3));
-    CHashSigner::SignHash(::SerializeHash(proTxLegacy), owner_key, proTxLegacy.vchSig);
+    CHashSigner::SignHash(::SerializeSigHash(proTxLegacy), owner_key, proTxLegacy.vchSig);
     SetTxPayload(tx_upreg3, proTxLegacy);
     SignTransaction(tx_upreg3, spent_upreg3, setup.coinbaseKey);
 
@@ -559,7 +559,7 @@ void FuncProUpRegTxV3OnLegacyValid(TestChainSetup& setup)
     const auto spent = FundTransaction(chainman, tx, utxos, GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())),
                                        1 * COIN);
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    CHashSigner::SignHash(::SerializeHash(proTx), owner_key, proTx.vchSig);
+    CHashSigner::SignHash(::SerializeSigHash(proTx), owner_key, proTx.vchSig);
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, setup.coinbaseKey);
 
@@ -757,7 +757,7 @@ void FuncMNPaymentMultiplicityV24Boundary(TestChainSetup& setup)
     const auto spent_ups = FundTransaction(chainman, tx_ups, utxos, GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())),
                                            1 * COIN);
     pro_ups.inputsHash = CalcTxInputsHash(CTransaction(tx_ups));
-    pro_ups.sig = SignBLS(operator_key, ::SerializeHash(pro_ups), SchemeForNextBlock(chainman));
+    pro_ups.sig = SignBLS(operator_key, ::SerializeSigHash(pro_ups), SchemeForNextBlock(chainman));
     SetTxPayload(tx_ups, pro_ups);
     SignTransaction(tx_ups, spent_ups, setup.coinbaseKey);
     setup.CreateAndProcessBlock({tx_ups}, coinbase_pk);
@@ -1195,7 +1195,7 @@ void FuncProUpServInvalidNType(TestChainSetup& setup)
         BOOST_REQUIRE(tx.vout[0].nValue > 10000);
         tx.vout[0].nValue -= 10000;
         proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-        proTx.sig = SignBLS(operatorKey, ::SerializeHash(proTx), SchemeForNextBlock(chainman));
+        proTx.sig = SignBLS(operatorKey, ::SerializeSigHash(proTx), SchemeForNextBlock(chainman));
         SetTxPayload(tx, proTx);
         SignTransaction(tx, spent, setup.coinbaseKey);
         return tx;
@@ -1398,7 +1398,7 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
     payload.proTxHash = proTxHash;
     BOOST_REQUIRE_EQUAL(payload.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:3"), NetInfoStatus::Success);
     payload.inputsHash = CalcTxInputsHash(CTransaction(tx_child));
-    payload.sig = SignBLS(operatorKey, ::SerializeHash(payload), SchemeForNextBlock(chainman));
+    payload.sig = SignBLS(operatorKey, ::SerializeSigHash(payload), SchemeForNextBlock(chainman));
     SetTxPayload(tx_child, payload);
 
     // Grind the child's output value until the parent's txid sorts before the child's: the
@@ -2722,7 +2722,7 @@ void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setu
         const auto spent = FundTransaction(chainman, tx, utxos,
                                            GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
         ups.inputsHash = CalcTxInputsHash(CTransaction(tx));
-        ups.sig = SignBLS(operator_key, ::SerializeHash(ups), SchemeForNextBlock(chainman));
+        ups.sig = SignBLS(operator_key, ::SerializeSigHash(ups), SchemeForNextBlock(chainman));
         SetTxPayload(tx, ups);
         SignTransaction(tx, spent, setup.coinbaseKey);
         TxValidationState st;
@@ -2746,7 +2746,7 @@ void FuncMigrationRejectedWhenKeySquatted(TestChainV24SignalBeforeV19Setup& setu
         const auto spent = FundTransaction(chainman, tx, utxos,
                                            GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
         upreg.inputsHash = CalcTxInputsHash(CTransaction(tx));
-        CHashSigner::SignHash(::SerializeHash(upreg), owner_key_a, upreg.vchSig);
+        CHashSigner::SignHash(::SerializeSigHash(upreg), owner_key_a, upreg.vchSig);
         SetTxPayload(tx, upreg);
         SignTransaction(tx, spent, setup.coinbaseKey);
         TxValidationState st;
@@ -3018,7 +3018,7 @@ static CMutableTransaction CreateExtAddrProUpRegTx(TestChainV24SignalBeforeV19Se
     const auto spent = FundTransaction(setup.chainman, tx, setup.utxos,
                                        GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    CHashSigner::SignHash(::SerializeHash(proTx), owner_key, proTx.vchSig);
+    CHashSigner::SignHash(::SerializeSigHash(proTx), owner_key, proTx.vchSig);
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, setup.coinbaseKey);
     return tx;
@@ -3050,7 +3050,7 @@ static CMutableTransaction CreateEvoProUpServTx(TestChainV24SignalBeforeV19Setup
     const auto spent = FundTransaction(setup.chainman, tx, setup.utxos,
                                        GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
-    proTx.sig = operator_key.Sign(::SerializeHash(proTx));
+    proTx.sig = operator_key.Sign(::SerializeSigHash(proTx));
     SetTxPayload(tx, proTx);
     SignTransaction(tx, spent, setup.coinbaseKey);
     return tx;
@@ -4031,7 +4031,7 @@ void FuncPreV24BehaviourUnchanged(TestChainSetup& setup)
     const auto spent = FundTransaction(chainman, tx_upreg, utxos,
                                        GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())), 1 * COIN);
     pro_upreg.inputsHash = CalcTxInputsHash(CTransaction(tx_upreg));
-    CHashSigner::SignHash(::SerializeHash(pro_upreg), owner_key, pro_upreg.vchSig);
+    CHashSigner::SignHash(::SerializeSigHash(pro_upreg), owner_key, pro_upreg.vchSig);
     SetTxPayload(tx_upreg, pro_upreg);
     SignTransaction(tx_upreg, spent, setup.coinbaseKey);
     {
@@ -4504,7 +4504,7 @@ BOOST_AUTO_TEST_CASE(proupserv_mainnet_pre_v19_verifies_legacy_only)
     BOOST_REQUIRE(operator_key.SetHexStr("1379c53e87019f8a6082ef5083f66955e65a646412721d557be40b4ab4014fa95066c4e627bbf"
                                          "a7bd77b4ccb8d37cc05",
                                          BLSScheme::Legacy));
-    const uint256 hash{::SerializeHash(*payload)};
+    const uint256 hash{::SerializeSigHash(*payload)};
     BOOST_CHECK(payload->sig.VerifyInsecure(operator_key, hash, BLSScheme::Legacy));
     BOOST_CHECK(!payload->sig.VerifyInsecure(operator_key, hash, BLSScheme::Basic));
 }
@@ -5321,7 +5321,7 @@ BOOST_AUTO_TEST_CASE(platform_ban_reset_requires_successful_connection)
     tx_serv.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
     const auto serv_spent = FundTransaction(chainman, tx_serv, setup.utxos, pro_reg.scriptPayout, COIN);
     pro_serv.inputsHash = CalcTxInputsHash(CTransaction(tx_serv));
-    pro_serv.sig = operator_key.Sign(::SerializeHash(pro_serv));
+    pro_serv.sig = operator_key.Sign(::SerializeSigHash(pro_serv));
     SetTxPayload(tx_serv, pro_serv);
     SignTransaction(tx_serv, serv_spent, setup.coinbaseKey);
     const CBlock good = setup.CreateBlock({tx_serv}, setup.coinbase_pk, chainman.ActiveChainstate());

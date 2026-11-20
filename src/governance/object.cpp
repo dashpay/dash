@@ -526,7 +526,7 @@ uint256 CGovernanceObject::GetHash() const
 
 uint256 CGovernanceObject::GetDataHash() const
 {
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    HashWriter ss{};
     ss << GetDataAsHexString();
 
     return ss.GetHash();
@@ -534,7 +534,7 @@ uint256 CGovernanceObject::GetDataHash() const
 
 uint256 CGovernanceObject::GetSignatureHash() const
 {
-    return SerializeHash(*this);
+    return SerializeSigHash(m_obj);
 }
 
 void CGovernanceObject::SetMasternodeOutpoint(const COutPoint& outpoint)
