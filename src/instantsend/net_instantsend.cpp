@@ -610,6 +610,10 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
 
     bool hasTxForLock = m_is_manager.HasTxForLock(islockHash);
 
+    if (conflicts.empty()) return;
+    // The blocks are invalidated and reconsidered one by one. Another thread's activation in between
+    // must not recheck the provider transactions in the mempool at a tip this is about to leave.
+    WITH_LOCK(::cs_main, m_chainman.ActiveChainstate().HoldProviderTxRecheck(true));
     bool activateBestChain = false;
     for (const auto& p : conflicts) {
         const auto* pindex = p.first;
@@ -633,6 +637,7 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
             m_chainman.ActiveChainstate().ResetBlockFailureFlags(pindex2);
         }
     }
+    WITH_LOCK(::cs_main, m_chainman.ActiveChainstate().HoldProviderTxRecheck(false));
 
     if (activateBestChain) {
         BlockValidationState state;

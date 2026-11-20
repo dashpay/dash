@@ -732,6 +732,10 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!m_chainstate_mutex)
         LOCKS_EXCLUDED(::cs_main);
 
+    /** Keep ActivateBestChain() from rechecking the provider transactions in the mempool while a
+     *  caller invalidates and reconsiders blocks in several steps. A recheck that is due stays due. */
+    void HoldProviderTxRecheck(bool hold) EXCLUSIVE_LOCKS_REQUIRED(cs_main) { m_provider_txs_recheck_held = hold; }
+
     /** Remove invalidity status from a block and its descendants. */
     void ResetBlockFailureFlags(CBlockIndex* pindex, bool ignore_chainlocks = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
@@ -808,6 +812,16 @@ private:
     void MaybeUpdateMempoolForReorg(
         DisconnectedBlockTransactions& disconnectpool,
         bool fAddToMempool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
+
+    /** Remove the provider transactions, and their descendants, that CheckSpecialTx() rejects at
+     *  the current tip, as a reorg can change the masternode list under those in the mempool. */
+    void RemoveProviderTxsInvalidAtTip() EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
+
+    /** Set when a block is disconnected, until the chain has settled and the provider transactions
+     *  in the mempool were rechecked. Checking them on the way there would remove the updates of a
+     *  masternode whose registration the new branch has yet to connect. */
+    bool m_provider_txs_need_recheck GUARDED_BY(::cs_main){false};
+    bool m_provider_txs_recheck_held GUARDED_BY(::cs_main){false};
 
     /** Check warning conditions and do some notifications on new chain tip set. */
     void UpdateTip(const CBlockIndex* pindexNew)
