@@ -14,6 +14,7 @@
 #include <memory>
 #include <vector>
 
+class CBlockIndex;
 class COutPoint;
 class CTransaction;
 
@@ -52,6 +53,9 @@ struct InstantSendLock {
 };
 
 uint256 GenInputLockRequestId(const COutPoint& outpoint);
+
+/** The cycleHash of a lock signed by the quorum with this base block: the hash of the first block of its DKG cycle. */
+uint256 GetCycleHash(const CBlockIndex& quorum_base, int dkg_interval);
 
 /** The outpoints an InstantSend lock on this transaction pins. These are the transaction's
  *  prevouts, except for asset unlock transactions, which have no inputs: an unlock's lock pins
