@@ -14,10 +14,10 @@
 #include <evo/providertx.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
+#include <kernel/notifications_interface.h>
 #include <masternode/meta.h>
 #include <node/blockstorage.h>
 #include <script/standard.h>
-#include <shutdown.h>
 #include <stats/client.h>
 #include <uint256.h>
 #include <util/helpers.h>
@@ -681,7 +681,7 @@ CDeterministicMNManager::~CDeterministicMNManager() = default;
 
 bool CDeterministicMNManager::ProcessBlock(gsl::not_null<const CBlockIndex*> pindex, BlockValidationState& state,
                                            const CDeterministicMNList& oldList, const CDeterministicMNList& newList,
-                                           MNListUpdates& updatesRet)
+                                           MNListUpdates& updatesRet, kernel::Notifications& notifications)
 {
     AssertLockHeld(::cs_main);
 
@@ -707,14 +707,14 @@ bool CDeterministicMNManager::ProcessBlock(gsl::not_null<const CBlockIndex*> pin
         if (!m_evoDb.WriteDerived(std::make_pair(DB_LIST_DIFF, newList.GetBlockHash()), diff)) {
             const std::string msg = strprintf("CDeterministicMNManager::%s -- EvoDB list diff mismatch for block %s",
                                               __func__, newList.GetBlockHash().ToString());
-            AbortNode(msg);
+            notifications.fatalError(msg);
             return state.Error(msg);
         }
         if ((nHeight % DISK_SNAPSHOT_PERIOD) == 0 || pindex->pprev == m_initial_snapshot_index) {
             if (!m_evoDb.WriteDerived(std::make_pair(DB_LIST_SNAPSHOT, newList.GetBlockHash()), newList)) {
                 const std::string msg = strprintf("CDeterministicMNManager::%s -- EvoDB list snapshot mismatch for block %s",
                                                   __func__, newList.GetBlockHash().ToString());
-                AbortNode(msg);
+                notifications.fatalError(msg);
                 return state.Error(msg);
             }
             mnListsCache.insert_or_assign(newList.GetBlockHash(), newList);

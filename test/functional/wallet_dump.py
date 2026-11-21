@@ -13,6 +13,7 @@ from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
 )
+from test_framework.wallet_util import WalletUnlock
 
 
 def read_dump(file_name, addrs, script_addrs, hd_master_addr_old):
@@ -191,26 +192,26 @@ class WalletDumpTest(BitcoinTestFramework):
 
         #encrypt wallet, restart, unlock and dump
         self.nodes[0].encryptwallet('test')
-        self.nodes[0].walletpassphrase('test', 999000)
-        # Should be a no-op:
-        self.nodes[0].keypoolrefill()
-        self.nodes[0].dumpwallet(wallet_enc_dump)
+        with WalletUnlock(self.nodes[0], 'test'):
+            # Should be a no-op:
+            self.nodes[0].keypoolrefill()
+            self.nodes[0].dumpwallet(wallet_enc_dump)
 
-        found_comments, found_addr, found_script_addr, found_addr_chg, found_addr_rsv, _ = \
-            read_dump(wallet_enc_dump, addrs, script_addrs, hd_master_addr_unenc)
-        assert '# End of dump' in found_comments  # Check that file is not corrupt
-        assert_equal(dump_time_str, next(c for c in found_comments if c.startswith('# * Created on')))
-        assert_equal(dump_best_block_1, next(c for c in found_comments if c.startswith('# * Best block')))
-        assert_equal(dump_best_block_2, next(c for c in found_comments if c.startswith('#   mined on')))
-        assert_equal(found_addr, test_addr_count)
-        # This is 1, not 2 because we aren't testing for witness scripts
-        assert_equal(found_script_addr, 1)
-        # TODO clarify if we want the behavior that is tested below in Dash (only when HD seed was generated and not user-provided)
-        # assert_equal(found_addr_chg, 180 + 50)  # old reserve keys are marked as change now
-        assert_equal(found_addr_rsv, 180)  # keypool size
+            found_comments, found_addr, found_script_addr, found_addr_chg, found_addr_rsv, _ = \
+                read_dump(wallet_enc_dump, addrs, script_addrs, hd_master_addr_unenc)
+            assert '# End of dump' in found_comments  # Check that file is not corrupt
+            assert_equal(dump_time_str, next(c for c in found_comments if c.startswith('# * Created on')))
+            assert_equal(dump_best_block_1, next(c for c in found_comments if c.startswith('# * Best block')))
+            assert_equal(dump_best_block_2, next(c for c in found_comments if c.startswith('#   mined on')))
+            assert_equal(found_addr, test_addr_count)
+            # This is 1, not 2 because we aren't testing for witness scripts
+            assert_equal(found_script_addr, 1)
+            # TODO clarify if we want the behavior that is tested below in Dash (only when HD seed was generated and not user-provided)
+            # assert_equal(found_addr_chg, 180 + 50)  # old reserve keys are marked as change now
+            assert_equal(found_addr_rsv, 180)  # keypool size
 
-        # Overwriting should fail
-        assert_raises_rpc_error(-8, "already exists", lambda: self.nodes[0].dumpwallet(wallet_enc_dump))
+            # Overwriting should fail
+            assert_raises_rpc_error(-8, "already exists", lambda: self.nodes[0].dumpwallet(wallet_enc_dump))
 
         # Restart node with new wallet, and test importwallet
         self.restart_node(0)

@@ -36,6 +36,7 @@ FUZZ_TARGET(connman, .init = initialize_connman)
                      fuzzed_data_provider.ConsumeIntegral<uint64_t>(),
                      *g_setup->m_node.addrman,
                      *g_setup->m_node.netgroupman,
+                     Params(),
                      fuzzed_data_provider.ConsumeBool()};
 
     const uint64_t max_outbound_limit{fuzzed_data_provider.ConsumeIntegral<uint64_t>()};

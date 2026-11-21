@@ -129,7 +129,8 @@ struct GovernanceVoteSetup : public TestChainSetup {
         SyncWithValidationInterfaceQueue();
         m_node.gov_collateral_index = std::make_unique<GovCollateralIndex>(interfaces::MakeChain(m_node),
                                                                            /*n_cache_size=*/0, /*f_memory=*/true);
-        BOOST_REQUIRE(m_node.gov_collateral_index->Start());
+        BOOST_REQUIRE(m_node.gov_collateral_index->Init());
+        BOOST_REQUIRE(m_node.gov_collateral_index->StartBackgroundSync());
         IndexWaitSynced(*m_node.gov_collateral_index);
 
         utxos = BuildSimpleUtxoMap(m_coinbase_txns);
