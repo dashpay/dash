@@ -17,11 +17,14 @@
 #include <llmq/signing.h>
 #include <masternode/sync.h>
 #include <node/interface_ui.h>
+#include <shutdown.h>
+#include <tinyformat.h>
 #include <util/thread.h>
 #include <validation.h>
 
 #include <chrono>
 #include <set>
+#include <string_view>
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
@@ -610,6 +613,16 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
 
     bool hasTxForLock = m_is_manager.HasTxForLock(islockHash);
 
+    // InvalidateBlock gives up without disconnecting anything once shutdown is requested. Any other failure is a
+    // local system error (unreadable block or undo data, failed flush).
+    const auto report_failure = [](std::string_view step, const BlockValidationState& state) {
+        if (ShutdownRequested()) {
+            LogPrintf("NetInstantSend::ResolveBlockConflicts -- %s stopped by shutdown: %s\n", step, state.ToString());
+            return;
+        }
+        AbortNode(strprintf("NetInstantSend::ResolveBlockConflicts -- %s failed: %s", step, state.ToString()));
+    };
+
     bool activateBestChain = false;
     for (const auto& p : conflicts) {
         const auto* pindex = p.first;
@@ -621,9 +634,8 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
         // need non-const pointer
         auto pindex2 = WITH_LOCK(::cs_main, return m_chainman.ActiveChainstate().m_blockman.LookupBlockIndex(pindex->GetBlockHash()));
         if (!m_chainman.ActiveChainstate().InvalidateBlock(state, pindex2)) {
-            LogPrintf("NetInstantSend::%s -- InvalidateBlock failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
+            report_failure("InvalidateBlock", state);
+            return;
         }
         if (hasTxForLock) {
             activateBestChain = true;
@@ -637,9 +649,7 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
     if (activateBestChain) {
         BlockValidationState state;
         if (!m_chainman.ActiveChainstate().ActivateBestChain(state)) {
-            LogPrintf("NetInstantSend::%s -- ActivateBestChain failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
+            report_failure("ActivateBestChain", state);
         }
     }
 }

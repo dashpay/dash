@@ -17,6 +17,7 @@
 #include <llmq/signing.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
+#include <shutdown.h>
 #include <spork.h>
 #include <streams.h>
 #include <test/util/llmq_tests.h>
@@ -26,6 +27,8 @@
 #include <util/strencodings.h>
 #include <validation.h>
 
+#include <atomic>
+#include <cstdlib>
 #include <string_view>
 
 #include <boost/test/unit_test.hpp>
@@ -90,6 +93,11 @@ struct NetInstantSendTest : TestChain100Setup {
     {
         ProcessBatch(net, params, /*offset=*/0, {{{node, islock}, ::SerializeHash(*islock)}});
     }
+
+    void ResolveBlockConflicts(const instantsend::InstantSendLock& islock)
+    {
+        net.ResolveBlockConflicts(::SerializeHash(islock), islock);
+    }
 };
 
 BOOST_AUTO_TEST_SUITE(evo_islock_tests)
@@ -143,6 +151,40 @@ BOOST_FIXTURE_TEST_CASE(received_genesis_cycle_has_no_quorum, TestChain100Setup)
         BOOST_CHECK(!isman.AlreadyHave(CInv{MSG_ISDLOCK, hash}));
     }
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *peer), 0);
+}
+
+BOOST_FIXTURE_TEST_CASE(shutdown_during_conflict_resolution_keeps_block, NetInstantSendTest)
+{
+    static std::atomic<int> exit_status{EXIT_SUCCESS};
+    BOOST_REQUIRE(InitShutdownState(exit_status));
+
+    const auto& coinbase = m_coinbase_txns.front();
+    const CScript script = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+    const auto mined = MakeTransactionRef(
+        CreateValidMempoolTransaction(coinbase, /*input_vout=*/0, /*input_height=*/1, coinbaseKey, script,
+                                      coinbase->vout[0].nValue - 1000, /*submit=*/false));
+    const auto block = CreateAndProcessBlock({CMutableTransaction{*mined}}, script);
+    const CBlockIndex* const tip = WITH_LOCK(cs_main, return m_node.chainman->ActiveTip());
+    BOOST_REQUIRE(tip->GetBlockHash() == block.GetHash());
+
+    instantsend::InstantSendLock islock;
+    islock.txid = GetRandHash();
+    islock.inputs.push_back(mined->vin[0].prevout);
+
+    m_node.isman->AddNonLockedTx(mined, tip);
+    {
+        StartShutdown();
+        const auto cancel_shutdown = interfaces::MakeCleanupHandler(AbortShutdown);
+        ResolveBlockConflicts(islock);
+    }
+    BOOST_CHECK_EQUAL(exit_status.load(), EXIT_SUCCESS);
+    BOOST_CHECK(WITH_LOCK(cs_main, return m_node.chainman->ActiveTip()) == tip);
+    BOOST_CHECK(WITH_LOCK(cs_main, return tip->IsValid()));
+
+    m_node.isman->AddNonLockedTx(mined, tip);
+    ResolveBlockConflicts(islock);
+    BOOST_CHECK(WITH_LOCK(cs_main, return m_node.chainman->ActiveTip()) == tip->pprev);
+    BOOST_CHECK(!WITH_LOCK(cs_main, return tip->IsValid()));
 }
 
 BOOST_FIXTURE_TEST_CASE(missing_quorum_does_not_drop_batch, NetInstantSendTest)
