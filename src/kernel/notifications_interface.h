@@ -29,6 +29,7 @@ public:
     virtual void progress(const bilingual_str& title, int progress_percent, bool resume_possible) {}
     virtual void warning(const bilingual_str& warning) {}
     virtual void masternodeListChanged(const CDeterministicMNList& list, const CBlockIndex* index) {}
+    virtual void evoStateWarningChanged() {}
 };
 } // namespace kernel
 

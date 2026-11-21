@@ -30,6 +30,7 @@ class CBlockIndex;
 class Coin;
 class uint256;
 enum class MemPoolRemovalReason;
+enum class ChainstateRole;
 struct bilingual_str;
 struct CBlockLocator;
 struct FeeCalculation;
@@ -182,8 +183,10 @@ public:
     //! Check if block is chainlocked.
     virtual bool hasChainLock(int height, const uint256& hash) = 0;
 
-    //! Return list of MN Collateral from outputs
-    virtual std::vector<COutPoint> listMNCollaterials(const std::vector<std::pair<const CTransactionRef&, uint32_t>>& outputs) = 0;
+    //! Return list of MN Collateral from outputs, or nullopt when the
+    //! masternode list is not available.
+    virtual std::optional<std::vector<COutPoint>> listMNCollaterials(
+        const std::vector<std::pair<const CTransactionRef&, uint32_t>>& outputs) = 0;
 
     //! Return the loader that registers wallets with the node's CoinJoin
     //! client manager, or nullptr when the node runs without one.
@@ -281,8 +284,9 @@ public:
     virtual bool isNonStandardSpecialTx(const CTransactionRef& tx, std::string& reason) = 0;
 
     //! Whether v24 hard fork rules apply to the next block, which is what
-    //! enables version 2 asset lock transactions by consensus.
-    virtual bool isV24Active() = 0;
+    //! enables version 2 asset lock transactions by consensus. Nullopt when
+    //! this node cannot evaluate the deployment yet.
+    virtual std::optional<bool> isV24Active() = 0;
 
     //! Check if any block has been pruned.
     virtual bool havePruned() = 0;
@@ -315,10 +319,10 @@ public:
         virtual ~Notifications() {}
         virtual void transactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime) {}
         virtual void transactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRemovalReason reason) {}
-        virtual void blockConnected(const BlockInfo& block) {}
+        virtual void blockConnected(ChainstateRole role, const BlockInfo& block) {}
         virtual void blockDisconnected(const BlockInfo& block) {}
         virtual void updatedBlockTip() {}
-        virtual void chainStateFlushed(const CBlockLocator& locator) {}
+        virtual void chainStateFlushed(ChainstateRole role, const CBlockLocator& locator) {}
         virtual void notifyChainLock(const CBlockIndex* pindexChainLock, const std::shared_ptr<const chainlock::ChainLockSig>& clsig) {}
         virtual void notifyTransactionLock(const CTransactionRef &tx, const std::shared_ptr<const instantsend::InstantSendLock>& islock) {}
     };
