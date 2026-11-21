@@ -35,6 +35,10 @@ class TxValidationState;
 class uint256;
 struct MNListUpdates;
 
+//! Whether the calling thread is bound to `chainstate`'s Evo view (defined in
+//! validation.cpp, so callers need only this declaration).
+bool IsEvoViewBound(const Chainstate& chainstate);
+
 namespace chainlock {
 class Chainlocks;
 }
@@ -95,8 +99,8 @@ public:
                                   CAmount blockSubsidy, bool fJustCheck, bool fCheckCbTxMerkleRoots,
                                   BlockValidationState& state, MNListUpdates& updatesRet)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-    bool UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex, MNListUpdates& updatesRet)
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool UndoSpecialTxsInBlock(const Chainstate& chainstate, const CBlock& block, const CBlockIndex* pindex,
+                               MNListUpdates& updatesRet) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     void RemoveMineableCommitmentsForBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 

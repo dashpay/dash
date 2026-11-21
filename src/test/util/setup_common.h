@@ -241,6 +241,12 @@ std::unique_ptr<T> MakeNoLogFileContext(const ChainType chain_type = ChainType::
     return std::make_unique<T>(chain_type, arguments);
 }
 
+class CBlockIndex;
+class CDeterministicMNManager;
+//! Deliver `tip` to `dmnman` as a block-tip notification does: in the active
+//! chainstate's Evo view, which a test thread does not bind on its own.
+void NotifyMNListTip(CDeterministicMNManager& dmnman, const CBlockIndex* tip);
+
 CBlock getBlock13b8a();
 
 /**

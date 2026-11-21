@@ -6,9 +6,12 @@
 #define BITCOIN_INSTANTSEND_NET_INSTANTSEND_H
 
 #include <net_processing.h>
+#include <uint256.h>
 #include <util/threadinterrupt.h>
 #include <validationinterface.h>
 
+#include <atomic>
+#include <map>
 #include <memory>
 #include <optional>
 #include <thread>
@@ -80,6 +83,7 @@ protected:
 
 private:
     friend struct NetInstantSendTest;
+    friend struct NetInstantSendConflictsTest;
     struct BatchVerificationData;
 
     bool ValidateIncomingISLock(const instantsend::InstantSendLock& islock, NodeId node_id);
@@ -102,7 +106,19 @@ private:
         const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
         const std::vector<instantsend::PendingISLockEntry>& pend);
 
-    void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock);
+    //! Blocks with transactions that conflict with a lock, still to be
+    //! invalidated because the chainstate stalled on its Evo state.
+    struct UnresolvedConflicts {
+        instantsend::InstantSendLockPtr islock{};
+        std::vector<uint256> blocks{};
+        bool has_tx_for_lock{false};
+        bool activate_best_chain{false};
+    };
+
+    void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLockPtr& islock);
+    void InvalidateConflictingBlocks(const uint256& islockHash, UnresolvedConflicts conflicts);
+    //! Retry the conflicts a stall left unresolved, once per tip or ChainLock change.
+    void RetryUnresolvedConflicts();
 
     void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
 
@@ -117,6 +133,10 @@ private:
     const ChainstateManager& m_chainman;
     CTxMemPool& m_mempool;
     const CMasternodeSync& m_mn_sync;
+
+    //! Only the work thread resolves conflicts, so only it touches this map.
+    std::map<uint256, UnresolvedConflicts> m_unresolved_conflicts;
+    std::atomic<bool> m_retry_conflicts{false};
 
     std::thread workThread;
     CThreadInterrupt workInterrupt;

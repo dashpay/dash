@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <evo/evodb.h>
 #include <index/coinstatsindex.h>
 #include <interfaces/chain.h>
 #include <kernel/coinstats.h>
@@ -99,6 +100,7 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_unclean_shutdown, TestChain100Setup)
             BOOST_CHECK(CheckBlock(block, state, params.GetConsensus()));
             BOOST_CHECK(m_node.chainman->AcceptBlock(new_block, state, &new_block_index, true, nullptr, nullptr));
             CCoinsViewCache view(&chainstate.CoinsTip());
+            const EvoViewScope evo_view{chainstate.EvoView()};
             BOOST_CHECK(chainstate.ConnectBlock(block, state, new_block_index, view));
         }
         // Send block connected notification, then stop the index without

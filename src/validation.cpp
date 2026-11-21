@@ -67,6 +67,8 @@
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_config.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <instantsend/instantsend.h>
@@ -85,6 +87,8 @@
 #include <optional>
 #include <ranges>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 using kernel::CCoinsStats;
@@ -375,7 +379,12 @@ void Chainstate::MaybeUpdateMempoolForReorg(
     DisconnectedBlockTransactions& disconnectpool,
     bool fAddToMempool)
 {
-    if (!m_mempool) return;
+    if (!m_mempool) {
+        // Only reachable with a non-empty pool when a snapshot rejected
+        // mid-step handed its mempool back to the background chainstate.
+        disconnectpool.clear();
+        return;
+    }
 
     AssertLockHeld(cs_main);
     AssertLockHeld(m_mempool->cs);
@@ -890,6 +899,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         } catch (const EvoDbInconsistencyError& e) {
             // Local EvoDB inconsistency (missing or mismatched state): not a statement about the tx
             return state.Error(e.what());
+        } catch (const evo::LocalStateError&) {
+            throw;
         } catch (const std::exception& e) {
             // Reconstruction failed locally (block read, inconsistent pool); the tx is not at
             // fault and the peer is not punished
@@ -1688,13 +1699,24 @@ MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTra
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(::cs_main);
+    const EvoViewScope evo_view{active_chainstate.EvoView()};
     const CChainParams& chainparams{active_chainstate.m_chainman.GetParams()};
     assert(active_chainstate.GetMempool() != nullptr);
     CTxMemPool& pool{*active_chainstate.GetMempool()};
 
     std::vector<COutPoint> coins_to_uncache;
     auto args = MemPoolAccept::ATMPArgs::SingleAccept(chainparams, accept_time, bypass_limits, coins_to_uncache, test_accept);
-    MempoolAcceptResult result = MemPoolAccept(pool, active_chainstate).AcceptSingleTransaction(tx, args);
+    MempoolAcceptResult result = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
+        try {
+            return MemPoolAccept(pool, active_chainstate).AcceptSingleTransaction(tx, args);
+        } catch (const evo::LocalStateError& e) {
+            // This node's Evo state cannot judge the transaction: an error, not
+            // invalidity, and the coins it loaded are dropped like any failure's.
+            TxValidationState state;
+            state.Error(strprintf("evo-local-unavailable: %s", e.what()));
+            return MempoolAcceptResult::Failure(state);
+        }
+    }();
     if (result.m_result_type != MempoolAcceptResult::ResultType::VALID || test_accept) {
         if (result.m_result_type != MempoolAcceptResult::ResultType::VALID) {
             LogPrint(BCLog::MEMPOOL, "%s: %s %s (%s)\n", __func__, tx->GetHash().ToString(), result.m_state.GetRejectReason(), result.m_state.GetDebugMessage());
@@ -1722,6 +1744,7 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
                                              const Package& package, bool test_accept)
 {
     AssertLockHeld(cs_main);
+    const EvoViewScope evo_view{active_chainstate.EvoView()};
     assert(!package.empty());
     assert(std::all_of(package.cbegin(), package.cend(), [](const auto& tx){return tx != nullptr;}));
 
@@ -1729,17 +1752,25 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
     const CChainParams& chainparams = active_chainstate.m_chainman.GetParams();
     auto result = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
         AssertLockHeld(cs_main);
-        if (test_accept) {
-            auto args = MemPoolAccept::ATMPArgs::PackageTestAccept(chainparams, GetTime(), coins_to_uncache);
-            return MemPoolAccept(pool, active_chainstate).AcceptMultipleTransactions(package, args);
-        } else {
-            auto args = MemPoolAccept::ATMPArgs::PackageChildWithParents(chainparams, GetTime(), coins_to_uncache);
-            return MemPoolAccept(pool, active_chainstate).AcceptPackage(package, args);
+        try {
+            if (test_accept) {
+                auto args = MemPoolAccept::ATMPArgs::PackageTestAccept(chainparams, GetTime(), coins_to_uncache);
+                return MemPoolAccept(pool, active_chainstate).AcceptMultipleTransactions(package, args);
+            } else {
+                auto args = MemPoolAccept::ATMPArgs::PackageChildWithParents(chainparams, GetTime(), coins_to_uncache);
+                return MemPoolAccept(pool, active_chainstate).AcceptPackage(package, args);
+            }
+        } catch (const evo::LocalStateError& e) {
+            // This node's Evo state cannot judge the package: an error of this
+            // mempool, not invalidity.
+            PackageValidationState state;
+            state.Invalid(PackageValidationResult::PCKG_MEMPOOL_ERROR, "evo-local-unavailable", e.what());
+            return PackageMempoolAcceptResult(state, {});
         }
     }();
 
     // Uncache coins pertaining to transactions that were not submitted to the mempool.
-    if (test_accept || result.m_state.IsInvalid()) {
+    if (test_accept || !result.m_state.IsValid()) {
         for (const COutPoint& hashTx : coins_to_uncache) {
             active_chainstate.CoinsTip().Uncache(hashTx);
         }
@@ -1906,6 +1937,12 @@ Chainstate::Chainstate(CTxMemPool* mempool,
 {
     return m_from_snapshot_blockhash ? ::EvoDbIdentity::SNAPSHOT : ::EvoDbIdentity::NORMAL;
 }
+
+EvoViewToken Chainstate::EvoView() const { return m_evoDb.ViewFor(EvoDbIdentity()); }
+
+bool Chainstate::IsEvoViewBound() const { return m_evoDb.IsCurrentView(EvoView()); }
+
+bool IsEvoViewBound(const Chainstate& chainstate) { return chainstate.IsEvoViewBound(); }
 
 std::string Chainstate::EvoDbInconsistencyMessage()
 {
@@ -2811,9 +2848,8 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     // MUST process special txes before updating UTXO to ensure consistency between mempool and block processing
     MNListUpdates mnlist_updates;
-    if (!m_special_tx.ProcessSpecialTxsInBlock(*this, m_chain, block, pindex, special_tx_rules, view,
-                                                              blockSubsidy, fJustCheck, fScriptChecks, state,
-                                                              mnlist_updates)) {
+    if (!m_special_tx.ProcessSpecialTxsInBlock(*this, m_chain, block, pindex, special_tx_rules, view, blockSubsidy,
+                                               fJustCheck, fScriptChecks, state, mnlist_updates)) {
         LogError("ConnectBlock(DASH): ProcessSpecialTxsInBlock for block %s failed with %s\n",
                      pindex->GetBlockHash().ToString(), state.ToString());
         return false;
@@ -3114,6 +3150,7 @@ bool Chainstate::FlushStateToDisk(
     FlushStateMode mode,
     int nManualPruneHeight)
 {
+    const EvoViewScope evo_view{EvoView()};
     LOCK(cs_main);
     assert(this->CanFlushToDisk());
     std::set<int> setFilesToPrune;
@@ -3360,7 +3397,8 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
         const CBlockIndex* pindex = pindexNew;
         for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
             WarningBitsConditionChecker checker(m_chainman, bit);
-            ThresholdState state = checker.GetStateFor(pindex, params.GetConsensus(), m_chainman.m_warningcache.at(bit));
+            ThresholdState state = checker.GetStateFor(pindex, params.GetConsensus(),
+                                                       m_chainman.m_warningcache.For(m_evoDb.CurrentView()).at(bit));
             if (state == ThresholdState::ACTIVE || state == ThresholdState::LOCKED_IN) {
                 const bilingual_str warning = strprintf(_("Unknown new rules activated (versionbit %i)"), bit);
                 if (state == ThresholdState::ACTIVE) {
@@ -3372,6 +3410,92 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
         }
     }
     UpdateTipLog(coins_tip, pindexNew, params, m_evoDb, __func__, "", warning_messages.original);
+}
+
+/** Classify an error about this node's own Evo state at a chainstate boundary.
+ *  Unavailable data, binding faults and a mismatch that could not reject the
+ *  snapshot stall the chainstate (IsLocalEvoStateError); a rejected snapshot
+ *  is an ordinary error, as the node is shutting down, and so is a block body
+ *  it has but cannot read, which shuts it down. None of them marks the block
+ *  invalid or blames a peer. */
+static bool LocalEvoStateError(ChainstateManager& chainman, const evo::LocalStateError& e, BlockValidationState& state)
+{
+    LogPrintf("ERROR: local Evo state error: %s\n", e.what());
+    if (dynamic_cast<const BlockDataReadError*>(&e)) {
+        return AbortNode(state, strprintf("Failed to read block: %s", e.what()));
+    }
+    if (dynamic_cast<const evo::SnapshotStateMismatchError*>(&e)) {
+        if (chainman.HandleSnapshotStateMismatch(e.what())) {
+            return state.Error("invalid assumeutxo evo snapshot state");
+        }
+        return state.LocalEvoStateError(LocalEvoStateResult::MISMATCH, "evo-local-mismatch");
+    }
+    if (dynamic_cast<const EvoViewBindingError*>(&e)) {
+        return state.LocalEvoStateError(LocalEvoStateResult::BINDING, "evo-local-binding");
+    }
+    return state.LocalEvoStateError(LocalEvoStateResult::UNAVAILABLE, "evo-local-unavailable");
+}
+
+void WarnLocalEvoStateUnavailable(const std::string& detail, bool pruned)
+{
+    SetMiscWarning(pruned ? strprintf(_("Evo state unavailable: %s. Block data was pruned; restart with -reindex."), detail)
+                          : strprintf(_("Snapshot state unavailable: %s. See debug.log for details."), detail));
+}
+
+const Chainstate::EvoStall* Chainstate::FindEvoStall(const CBlockIndex* pindex) const
+{
+    AssertLockHeld(::cs_main);
+    // A block found invalid, or conflicting with a ChainLock, since is out of
+    // reach whatever the state it waited for.
+    if (pindex->nStatus & (BLOCK_FAILED_MASK | BLOCK_CONFLICT_CHAINLOCK)) return nullptr;
+    const auto it{m_evo_stalls.find(pindex)};
+    return it != m_evo_stalls.end() && it->second.view == EvoView() ? &it->second : nullptr;
+}
+
+void Chainstate::ForgetObsoleteEvoStalls()
+{
+    AssertLockHeld(::cs_main);
+    std::erase_if(m_evo_stalls,
+                  [&](const auto& entry) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return !FindEvoStall(entry.first); });
+}
+
+void Chainstate::RestoreBlockIndexCandidates()
+{
+    AssertLockHeld(::cs_main);
+    for (auto& [_, block_index] : m_blockman.m_block_index) {
+        if (block_index.IsValid(BLOCK_VALID_TRANSACTIONS) && block_index.HaveTxsDownloaded()) {
+            TryAddBlockIndexCandidate(&block_index);
+        }
+    }
+}
+
+bool Chainstate::RefuseStalledBlock(const CBlockIndex* pindex, BlockValidationState& state) const
+{
+    AssertLockHeld(::cs_main);
+    const EvoStall* stall{FindEvoStall(pindex)};
+    if (!stall) return false;
+    state.LocalEvoStateError(stall->result, stall->reject_reason);
+    return true;
+}
+
+void Chainstate::RecordEvoStall(const CBlockIndex* pindex, const BlockValidationState& state)
+{
+    AssertLockHeld(::cs_main);
+    if (!IsLocalEvoStateError(state)) return;
+    ForgetObsoleteEvoStalls();
+    m_evo_stalls.insert_or_assign(pindex, EvoStall{EvoView(), state.GetLocalEvoStateResult(), state.GetRejectReason()});
+    if (m_evo_stalls.size() > MANY_EVO_STALLS && !std::exchange(m_many_evo_stalls_warned, true)) {
+        LogPrintf("WARNING: %s has stalled on more than %d blocks\n", ToString(), MANY_EVO_STALLS);
+    }
+    if (std::exchange(m_evo_stall_warned, true)) return;
+    const std::string detail{strprintf("%s stalled at block %s (height %d), %s", ToString(),
+                                       pindex->GetBlockHash().ToString(), pindex->nHeight, state.GetRejectReason())};
+    const bool pruned{!m_chainman.IsSnapshotActive() &&
+                      state.GetLocalEvoStateResult() == LocalEvoStateResult::UNAVAILABLE};
+    LogPrintf("ERROR: %s; it will not retry this block before restart%s\n", detail,
+              pruned ? " (block data was pruned; restart with -reindex)" : "");
+    WarnLocalEvoStateUnavailable(detail, pruned);
+    m_chainman.GetNotifications().evoStateWarningChanged();
 }
 
 /** Disconnect m_chain's tip.
@@ -3386,6 +3510,7 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
   */
 bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
@@ -3394,6 +3519,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     CBlockIndex *pindexDelete = m_chain.Tip();
     assert(pindexDelete);
     assert(pindexDelete->pprev);
+    if (RefuseStalledBlock(pindexDelete, state)) return false;
     // Read block from disk.
     std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
     CBlock& block = *pblock;
@@ -3403,7 +3529,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     }
     // Apply the block atomically to the chain state.
     const auto time_start{SteadyClock::now()};
-    {
+    try {
         auto dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
 
         CCoinsViewCache view(&CoinsTip());
@@ -3415,6 +3541,10 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
         bool flushed = view.Flush();
         assert(flushed);
         dbTx->Commit();
+    } catch (const evo::LocalStateError& e) {
+        LocalEvoStateError(m_chainman, e, state);
+        RecordEvoStall(pindexDelete, state);
+        return false;
     }
     LogPrint(BCLog::BENCHMARK, "- Disconnect block: %.2fms\n",
              Ticks<MillisecondsDouble>(SteadyClock::now() - time_start));
@@ -3520,10 +3650,12 @@ public:
  */
 bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions& disconnectpool)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockHeld(cs_main);
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
     assert(pindexNew->pprev == m_chain.Tip());
+    if (RefuseStalledBlock(pindexNew, state)) return false;
     // Read block from disk.
     const auto time_1{SteadyClock::now()};
     std::shared_ptr<const CBlock> pthisBlock;
@@ -3546,18 +3678,34 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     LogPrint(BCLog::BENCHMARK, "  - Load block from disk: %.2fms\n",
              Ticks<MillisecondsDouble>(time_2 - time_1));
     {
-        auto dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
-
+        std::unique_ptr<CEvoDBScopedCommitter> dbTx;
         CCoinsViewCache view(&CoinsTip());
-        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view);
+        bool rv{false};
+        try {
+            dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
+            rv = ConnectBlock(blockConnecting, state, pindexNew, view);
+        } catch (const evo::LocalStateError& e) {
+            // Roll back and evict the candidate first: a snapshot mismatch can
+            // only reject the snapshot with no Evo transaction open, and
+            // rejecting it retires the snapshot state the candidate was cached in.
+            if (dbTx) {
+                dbTx.reset();
+                m_special_tx.DiscardDeterministicMNBlock(pindexNew->GetBlockHash());
+            }
+            rv = LocalEvoStateError(m_chainman, e, state);
+        }
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             // Other threads read the open transaction, so roll it back before evicting the
-            // candidate or a concurrent lookup could cache it again.
-            dbTx->Rollback();
-            m_special_tx.DiscardDeterministicMNBlock(pindexNew->GetBlockHash());
+            // candidate or a concurrent lookup could cache it again. A local Evo state
+            // error has already done both.
+            if (dbTx) {
+                dbTx->Rollback();
+                m_special_tx.DiscardDeterministicMNBlock(pindexNew->GetBlockHash());
+            }
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
+            RecordEvoStall(pindexNew, state);
             LogError("%s: ConnectBlock %s failed, %s\n", __func__, pindexNew->GetBlockHash().ToString(), state.ToString());
             return false;
         }
@@ -3642,19 +3790,66 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
  * Return the tip of the chain with the most work in it, that isn't
  * known to be invalid (it's however far from certain to be valid).
  */
-CBlockIndex* Chainstate::FindMostWorkChain()
+CBlockIndex* Chainstate::FindMostWorkChain(const CBlockIndex** evo_stall_obstruction)
 {
     AssertLockHeld(::cs_main);
+    ForgetObsoleteEvoStalls();
+    // A stalled block in the chain could not be disconnected; one outside it
+    // could not be connected.
+    std::vector<const CBlockIndex*> chain_stalls;
+    std::unordered_map<const CBlockIndex*, const CBlockIndex*> stalled_ancestor;
+    for (const auto& [block, _] : m_evo_stalls) {
+        if (m_chain.Contains(block)) {
+            chain_stalls.push_back(block);
+        } else {
+            stalled_ancestor.emplace(block, block);
+        }
+    }
+    const auto stall_obstructing{[&](const CBlockIndex* candidate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        for (const CBlockIndex* stall : chain_stalls) {
+            if (candidate->GetAncestor(stall->nHeight) != stall) return stall;
+        }
+        const CBlockIndex* obstruction{nullptr};
+        if (stalled_ancestor.empty()) return obstruction;
+        std::vector<const CBlockIndex*> path;
+        for (const CBlockIndex* block{candidate}; block && !m_chain.Contains(block); block = block->pprev) {
+            if (const auto it{stalled_ancestor.find(block)}; it != stalled_ancestor.end()) {
+                obstruction = it->second;
+                break;
+            }
+            path.push_back(block);
+        }
+        for (const CBlockIndex* block : path) stalled_ancestor.emplace(block, obstruction);
+        return obstruction;
+    }};
+    std::unordered_set<const CBlockIndex*> reach_usable_blocks;
+    const auto reaches_unusable_block{[&](const CBlockIndex* candidate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        std::vector<const CBlockIndex*> path;
+        for (const CBlockIndex* block{candidate}; block && !m_chain.Contains(block) && !reach_usable_blocks.contains(block);
+             block = block->pprev) {
+            if (block->nStatus & (BLOCK_FAILED_MASK | BLOCK_CONFLICT_CHAINLOCK) || !(block->nStatus & BLOCK_HAVE_DATA)) {
+                return true;
+            }
+            path.push_back(block);
+        }
+        reach_usable_blocks.insert(path.begin(), path.end());
+        return false;
+    }};
     do {
         CBlockIndex *pindexNew = nullptr;
 
-        // Find the best candidate header.
-        {
-            std::set<CBlockIndex*, CBlockIndexWorkComparator>::reverse_iterator it = setBlockIndexCandidates.rbegin();
-            if (it == setBlockIndexCandidates.rend())
-                return nullptr;
-            pindexNew = *it;
+        // Find the best candidate header. Candidates a local Evo stall keeps
+        // out of reach stay candidates for when the stall ends, unless their
+        // chain is unusable anyway: the walk below removes those.
+        for (auto it{setBlockIndexCandidates.rbegin()}; it != setBlockIndexCandidates.rend(); ++it) {
+            const CBlockIndex* obstruction{stall_obstructing(*it)};
+            if (obstruction == nullptr || reaches_unusable_block(*it)) {
+                pindexNew = *it;
+                break;
+            }
+            if (evo_stall_obstruction && *evo_stall_obstruction == nullptr) *evo_stall_obstruction = obstruction;
         }
+        if (pindexNew == nullptr) return nullptr;
 
         // Check whether all blocks on the path between the currently active chain and the candidate are valid.
         // Just going until the active chain is an optimization, as we know all blocks in it are valid already.
@@ -3737,14 +3932,19 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
     DisconnectedBlockTransactions disconnectpool{MAX_DISCONNECTED_TX_POOL_BYTES};
     while (m_chain.Tip() && m_chain.Tip() != pindexFork) {
         if (!DisconnectTip(state, &disconnectpool)) {
-            // This is likely a fatal error, but keep the mempool consistent,
-            // just in case. Only remove from the mempool in this case.
-            MaybeUpdateMempoolForReorg(disconnectpool, false);
+            // A local Evo state stall leaves this chainstate running where it
+            // is, so the disconnected transactions go back to the mempool.
+            // Anything else is likely a fatal error, but keep the mempool
+            // consistent, just in case: only remove from it then.
+            MaybeUpdateMempoolForReorg(disconnectpool, IsLocalEvoStateError(state));
 
-            // If we're unable to disconnect a block during normal operation,
-            // then that is a failure of our local system -- we should abort
-            // rather than stay on a less work chain.
-            AbortNode(state, "Failed to disconnect block; see debug.log for details");
+            // Unless the chainstate stalled, we're unable to disconnect a block
+            // during normal operation, which is a failure of our local system
+            // -- we should abort rather than stay on a less work chain. A stall,
+            // or a block that could not be read, has set its own error.
+            if (!state.IsError()) {
+                AbortNode(state, "Failed to disconnect block; see debug.log for details");
+            }
             return false;
         }
         fBlocksDisconnected = true;
@@ -3780,10 +3980,13 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
                     fContinue = false;
                     break;
                 } else {
-                    // A system error occurred (disk space, database error, ...).
+                    // A system error occurred (disk space, database error, ...),
+                    // or this chainstate stalled on its own Evo state.
                     // Make the mempool consistent with the current tip, just in case
-                    // any observers try to use it before shutdown.
-                    MaybeUpdateMempoolForReorg(disconnectpool, false);
+                    // any observers try to use it before shutdown. A stalled
+                    // chainstate keeps running, so it takes the disconnected
+                    // transactions back.
+                    MaybeUpdateMempoolForReorg(disconnectpool, IsLocalEvoStateError(state));
                     return false;
                 }
             } else {
@@ -3850,6 +4053,7 @@ static void LimitValidationInterfaceQueue() LOCKS_EXCLUDED(cs_main) {
 
 bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<const CBlock> pblock)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockNotHeld(m_chainstate_mutex);
 
     // Note that while we're often called here from ProcessNewBlock, this is
@@ -3876,6 +4080,8 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
 
     CBlockIndex *pindexMostWork = nullptr;
     CBlockIndex *pindexNewTip = nullptr;
+    bool stalled{false};
+    const CBlockIndex* evo_stall_obstruction{nullptr};
     do {
         // Block until the validation queue drains. This should largely
         // never happen in normal operation, however may happen during
@@ -3891,25 +4097,50 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
             LOCK(MempoolMutex());
             CBlockIndex* starting_tip = m_chain.Tip();
             bool blocks_connected = false;
+            bool reselect{false};
             do {
                 // We absolutely may not unlock cs_main until we've made forward progress
                 // (with the exception of shutdown due to hardware issues, low disk space, etc).
                 ConnectTrace connectTrace; // Destructed before cs_main is unlocked
 
                 if (pindexMostWork == nullptr) {
-                    pindexMostWork = FindMostWorkChain();
+                    evo_stall_obstruction = nullptr;
+                    pindexMostWork = FindMostWorkChain(&evo_stall_obstruction);
                 }
 
                 // Whether we have anything to do at all.
                 if (pindexMostWork == nullptr || pindexMostWork == m_chain.Tip()) {
+                    // Only a local Evo stall keeps a better candidate out of reach.
+                    if (evo_stall_obstruction && RefuseStalledBlock(evo_stall_obstruction, state)) {
+                        stalled = true;
+                    }
                     break;
                 }
 
                 bool fInvalidFound = false;
                 std::shared_ptr<const CBlock> nullBlockPtr;
+                const size_t stalls_before{m_evo_stalls.size()};
                 if (!ActivateBestChainStep(state, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace)) {
-                    // A system error occurred
-                    return false;
+                    // A system error occurred, or this chainstate stalled on
+                    // its own Evo state. A stall still announces the blocks
+                    // this step connected before it stops.
+                    if (!IsLocalEvoStateError(state)) return false;
+                    // A stall can leave the chain rewound below the candidates
+                    // it passed, which the block index must then list again.
+                    if (starting_tip && CBlockIndexWorkComparator()(m_chain.Tip(), starting_tip)) {
+                        RestoreBlockIndexCandidates();
+                    }
+                    if (m_evo_stalls.size() > stalls_before) {
+                        // The stall is remembered, so selecting again passes
+                        // over what it obstructs: connect the best chain still
+                        // in reach, normally the one this started on, before
+                        // cs_main is released.
+                        state = BlockValidationState();
+                        pindexMostWork = nullptr;
+                        reselect = true;
+                    } else {
+                        stalled = true;
+                    }
                 }
                 blocks_connected = true;
 
@@ -3931,13 +4162,25 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                 // if at all, so we should catch it here.
                 //
                 // Break this do-while to ensure we don't advance past the base snapshot.
-                if (m_disabled) {
+                if (m_disabled || stalled) {
                     break;
                 }
             } while (!m_chain.Tip() || (starting_tip && CBlockIndexWorkComparator()(m_chain.Tip(), starting_tip)));
-            if (!blocks_connected) return true;
+            if (reselect) {
+                // A stall that rewound the chain moved the masternode list tip
+                // back along with the mempool. A chain that returns to where it
+                // started sends no tip notification to move it forward again.
+                if (m_mempool && m_chain.Tip()) m_special_tx.UpdatedMNListTip(m_chain.Tip());
+                // Whether a stall still keeps a better candidate out of reach
+                // is for the next selection to tell.
+                if (!stalled) pindexMostWork = nullptr;
+            }
+            if (!blocks_connected) return !stalled;
 
             const CBlockIndex* pindexFork = m_chain.FindFork(starting_tip);
+            // A stall can leave the chain only rewound. Announce that the way
+            // InvalidateBlock does.
+            if (pindexFork == pindexNewTip && pindexNewTip != starting_tip) pindexFork = nullptr;
             bool fInitialDownload = m_chainman.IsInitialBlockDownload();
 
             // Notify external listeners about the new tip.
@@ -3951,6 +4194,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                 m_chainman.GetNotifications().blockTip(GetSynchronizationState(fInitialDownload), *pindexNewTip);
             }
         }
+        if (stalled) return false;
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
         if (m_chainman.StopAtHeight() && pindexNewTip && pindexNewTip->nHeight >= m_chainman.StopAtHeight()) StartShutdown();
@@ -4014,6 +4258,7 @@ bool Chainstate::PreciousBlock(BlockValidationState& state, CBlockIndex* pindex)
 
 bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pindex)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockNotHeld(m_chainstate_mutex);
     AssertLockNotHeld(::cs_main);
 
@@ -4023,6 +4268,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
 
     CBlockIndex* to_mark_failed = pindex;
     bool pindex_was_in_chain = false;
+    bool stalled{false};
     int disconnected = 0;
 
     // We do not allow ActivateBestChain() to run while InvalidateBlock() is
@@ -4073,6 +4319,8 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         pindex_was_in_chain = true;
         CBlockIndex *invalid_walk_tip = m_chain.Tip();
         const CBlockIndex* pindexOldTip = m_chain.Tip();
+        CBlockIndex* const best_header{m_chainman.m_best_header};
+        CBlockIndex* const best_invalid{m_chainman.m_best_invalid};
 
         if (pindex == m_chainman.m_best_header) {
             m_chainman.m_best_invalid = m_chainman.m_best_header;
@@ -4089,7 +4337,16 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         // and we're not doing a very deep invalidation (in which case
         // keeping the mempool up to date is probably futile anyway).
         MaybeUpdateMempoolForReorg(disconnectpool, /* fAddToMempool = */ (++disconnected <= 10) && ret);
-        if (!ret) return false;
+        if (!ret) {
+            if (!IsLocalEvoStateError(state)) return false;
+            // A stalled chainstate stays where it got to: pindex is still in
+            // the chain, and the blocks already disconnected are finished and
+            // announced below.
+            m_chainman.m_best_header = best_header;
+            m_chainman.m_best_invalid = best_invalid;
+            stalled = true;
+            break;
+        }
         assert(invalid_walk_tip->pprev == m_chain.Tip());
 
         if (pindexOldTip == m_chainman.m_best_header) {
@@ -4168,11 +4425,12 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
     if (pindex_was_in_chain) {
         m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *to_mark_failed->pprev);
     }
-    return true;
+    return !stalled;
 }
 
 void Chainstate::EnforceBlock(BlockValidationState& state, const CBlockIndex *pindex)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockNotHeld(m_chainstate_mutex);
     AssertLockNotHeld(::cs_main);
 
@@ -4189,6 +4447,10 @@ void Chainstate::EnforceBlock(BlockValidationState& state, const CBlockIndex *pi
             }
             if (!MarkConflictingBlock(state, jt->second)) {
                 LogPrintf("Chainstate::%s -- MarkConflictingBlock failed: %s\n", __func__, state.ToString());
+                // A stall leaves the chainstate where it is; the next ChainLock
+                // enforcement tries again. A node that could not read a block
+                // is shutting down.
+                if (IsLocalEvoStateError(state) || ShutdownRequested()) return;
                 // This should not have happened and we are in a state were it's not safe to continue anymore
                 assert(false);
             }
@@ -4210,7 +4472,9 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
     // We first disconnect backwards and then mark the blocks as conflicting.
 
     bool pindex_was_in_chain = false;
+    bool stalled{false};
     CBlockIndex *conflicting_walk_tip = m_chain.Tip();
+    CBlockIndex* const best_header{m_chainman.m_best_header};
 
     if (pindex == m_chainman.m_best_header) {
         m_chainman.m_best_header = m_chainman.m_best_header->pprev;
@@ -4225,6 +4489,16 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
         // ActivateBestChain considers blocks already in m_chain
         // unconditionally valid already, so force disconnect away from it.
         if (!DisconnectTip(state, &disconnectpool)) {
+            // A stalled chainstate stays where it got to: the blocks already
+            // disconnected are marked and announced below.
+            if (IsLocalEvoStateError(state)) {
+                if (pindexOldTip != conflicting_walk_tip) {
+                    stalled = true;
+                    break;
+                }
+                // Nothing moved: pindex is still the tip.
+                m_chainman.m_best_header = best_header;
+            }
             // It's probably hopeless to try to make the mempool consistent
             // here if DisconnectTip failed, but we can try.
             MaybeUpdateMempoolForReorg(disconnectpool, false);
@@ -4237,15 +4511,17 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
 
     // Now mark the blocks we just disconnected as descendants conflicting
     // (note this may not be all descendants).
-    while (pindex_was_in_chain && conflicting_walk_tip != pindex) {
+    while (pindex_was_in_chain && conflicting_walk_tip != pindex && conflicting_walk_tip != m_chain.Tip()) {
         conflicting_walk_tip->nStatus |= BLOCK_CONFLICT_CHAINLOCK;
         setBlockIndexCandidates.erase(conflicting_walk_tip);
         conflicting_walk_tip = conflicting_walk_tip->pprev;
     }
 
-    // Mark the block itself as conflicting.
-    pindex->nStatus |= BLOCK_CONFLICT_CHAINLOCK;
-    setBlockIndexCandidates.erase(pindex);
+    if (!stalled) {
+        // Mark the block itself as conflicting.
+        pindex->nStatus |= BLOCK_CONFLICT_CHAINLOCK;
+        setBlockIndexCandidates.erase(pindex);
+    }
 
     // DisconnectTip will add transactions to disconnectpool; try to add these
     // back to the mempool.
@@ -4262,7 +4538,7 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
         it++;
     }
 
-    ConflictingChainFound(pindex);
+    if (!stalled) ConflictingChainFound(pindex);
     if (this == &m_chainman.ActiveChainstate()) {
         GetMainSignals().SynchronousUpdatedBlockTip(m_chain.Tip(), nullptr, m_chainman.IsInitialBlockDownload());
         GetMainSignals().UpdatedBlockTip(m_chain.Tip(), nullptr, m_chainman.IsInitialBlockDownload());
@@ -4270,9 +4546,9 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
 
     // Only notify about a new block tip if the active chain was modified.
     if (pindex_was_in_chain) {
-        m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *pindex->pprev);
+        m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *m_chain.Tip());
     }
-    return true;
+    return !stalled;
 }
 
 void Chainstate::ResetBlockFailureFlags(CBlockIndex *pindex, bool ignore_chainlocks) {
@@ -5056,7 +5332,8 @@ bool TestBlockValidity(BlockValidationState& state,
                        CBlockIndex* pindexPrev,
                        bool fCheckPOW,
                        bool fCheckMerkleRoot)
-{
+try {
+    const EvoViewScope evo_view{chainstate.EvoView()};
     AssertLockHeld(cs_main);
     assert(pindexPrev && pindexPrev == chainstate.m_chain.Tip());
 
@@ -5098,6 +5375,8 @@ bool TestBlockValidity(BlockValidationState& state,
     assert(state.IsValid());
 
     return true;
+} catch (const evo::LocalStateError& e) {
+    return LocalEvoStateError(chainstate.m_chainman, e, state);
 }
 
 /* This function is called from the RPC code for pruneblockchain */
@@ -5111,6 +5390,7 @@ void PruneBlockFilesManual(Chainstate& active_chainstate, int nManualPruneHeight
 
 bool Chainstate::LoadChainTip()
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockHeld(cs_main);
     const CCoinsViewCache& coins_cache = CoinsTip();
     assert(!coins_cache.GetBestBlock().IsNull()); // Never called when the coins view is empty
@@ -5156,6 +5436,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
     CEvoDB& evoDb,
     int nCheckLevel, int nCheckDepth)
 {
+    const EvoViewScope evo_view{chainstate.EvoView()};
     AssertLockHeld(cs_main);
 
     if (chainstate.m_chain.Tip() == nullptr || chainstate.m_chain.Tip()->pprev == nullptr) {
@@ -5295,6 +5576,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
 /** Apply the effects of a block on the utxo cache, ignoring that it may already have been applied. */
 bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& inputs)
 {
+    const EvoViewScope evo_view{EvoView()};
     AssertLockHeld(cs_main);
 
     // TODO: merge with ConnectBlock
@@ -5309,9 +5591,9 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
     const CAmount blockSubsidy = GetBlockSubsidy(pindex, m_chainman.GetConsensus());
     MNListUpdates mnlist_updates;
     if (!m_special_tx.ProcessSpecialTxsInBlock(*this, m_chain, block, pindex,
-                                                              GetSpecialTxRules(pindex->pprev, m_chainman), inputs,
-                                                              blockSubsidy, /*fJustCheck=*/false,
-                                                              /*fCheckCbTxMerkleRoots=*/false, state, mnlist_updates)) {
+                                               GetSpecialTxRules(pindex->pprev, m_chainman), inputs, blockSubsidy,
+                                               /*fJustCheck=*/false,
+                                               /*fCheckCbTxMerkleRoots=*/false, state, mnlist_updates)) {
         LogError("RollforwardBlock(DASH): ProcessSpecialTxsInBlock for block %s failed with %s\n",
             pindex->GetBlockHash().ToString(), state.ToString());
         return false;
@@ -5336,6 +5618,7 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
 
 bool Chainstate::ReplayBlocks()
 {
+    const EvoViewScope evo_view{EvoView()};
     LOCK(cs_main);
 
     CCoinsView& db = this->CoinsDB();
@@ -5378,9 +5661,10 @@ bool Chainstate::ReplayBlocks()
 
     auto dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
 
-    if (pindexOld) {
+    if (pindexOld && EvoDbIdentity() == ::EvoDbIdentity::NORMAL) {
         // A datadir last run before v22 has no current-format MNHF signal state yet, and
-        // ForceSignalDBUpdate() only migrates it once the replay is done.
+        // ForceSignalDBUpdate() only migrates it once the replay is done. A snapshot view
+        // never held the old format.
         m_special_tx.RebuildMNHFSignals(pindexOld);
     }
 
@@ -5663,7 +5947,7 @@ void ChainstateManager::LoadExternalBlockFile(
                     bool genesis_activation_failure = false;
                     for (auto c : GetAll()) {
                         BlockValidationState state;
-                        if (!c->ActivateBestChain(state, nullptr)) {
+                        if (!c->ActivateBestChain(state, nullptr) && !IsLocalEvoStateError(state)) {
                             genesis_activation_failure = true;
                             break;
                         }
@@ -5686,6 +5970,8 @@ void ChainstateManager::LoadExternalBlockFile(
                         BlockValidationState state;
                         if (!c->ActivateBestChain(state, pblock)) {
                             LogPrint(BCLog::REINDEX, "failed to activate chain (%s)\n", state.ToString());
+                            // A stalled chainstate must not stop the import for the others.
+                            if (IsLocalEvoStateError(state)) continue;
                             activation_failure = true;
                             break;
                         }
@@ -6130,7 +6416,18 @@ Chainstate& ChainstateManager::InitializeChainstate(CTxMemPool* mempool,
     m_ibd_chainstate = std::make_unique<Chainstate>(
         mempool, m_blockman, *this, evoDb, special_tx, chainlocks, isman);
     m_active_chainstate = m_ibd_chainstate.get();
+    m_versionbitscache.SetEvoDb(&evoDb);
+    m_evodb = &evoDb;
     return *m_active_chainstate;
+}
+
+std::shared_ptr<VersionBitsCache> EvoViewVersionBitsCache::ForCurrentView() const
+{
+    const CEvoDB* evodb{WITH_LOCK(m_mutex, return m_evodb)};
+    if (!evodb) throw EvoViewBindingError("versionbits: no EvoDB is set");
+    const EvoViewToken view{evodb->CurrentView()};
+    LOCK(m_mutex);
+    return m_parts.For(view);
 }
 
 const AssumeutxoData* ExpectedAssumeutxo(
@@ -6261,8 +6558,14 @@ bool ChainstateManager::ActivateSnapshot(
             static_cast<size_t>(current_coinstip_cache_size * SNAPSHOT_CACHE_PERC));
     }
 
-    bool snapshot_ok = this->PopulateAndValidateSnapshot(
-        *snapshot_chainstate, coins_file, metadata);
+    bool snapshot_ok;
+    try {
+        snapshot_ok = this->PopulateAndValidateSnapshot(*snapshot_chainstate, coins_file, metadata);
+    } catch (...) {
+        // Never leave a generation bound to a snapshot that did not activate.
+        WITH_LOCK(::cs_main, this->ActiveChainstate().m_evoDb.AbandonSnapshotGeneration());
+        throw;
+    }
 
     // If not in-memory, persist the base blockhash for use during subsequent
     // initialization.
@@ -6276,19 +6579,13 @@ bool ChainstateManager::ActivateSnapshot(
         LOCK(::cs_main);
         this->MaybeRebalanceCaches();
 
-        // PopulateAndValidateSnapshot commits the snapshot best-block and
-        // dual-chainstate markers as its last step, so a later failure (e.g.
-        // WriteSnapshotBaseBlockhash on an unwritable datadir) would leave them
-        // behind on a node that is back to a single chainstate. Erasing them is
-        // a no-op when they were never written.
-        CEvoDB& evo_db = this->ActiveChainstate().m_evoDb;
-        {
-            auto db_tx = evo_db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
-            evo_db.EraseSnapshotMarkers();
-            db_tx->Commit();
-        }
-        if (!evo_db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT)) {
-            AbortNode("Failed to roll back the snapshot EvoDB markers");
+        // PopulateAndValidateSnapshot publishes the snapshot generation and
+        // its dual-chainstate markers as its last step, so a later failure
+        // (e.g. WriteSnapshotBaseBlockhash on an unwritable datadir) would
+        // leave them behind on a node that is back to a single chainstate.
+        // Abandoning is a no-op when no generation was created.
+        if (!this->ActiveChainstate().m_evoDb.AbandonSnapshotGeneration()) {
+            AbortNode("Failed to roll back the snapshot EvoDB generation");
         }
 
         // PopulateAndValidateSnapshot can return (in error) before the leveldb datadir
@@ -6303,6 +6600,9 @@ bool ChainstateManager::ActivateSnapshot(
                 AbortNode(strprintf("Failed to remove snapshot chainstate dir (%s). "
                     "Manually remove it before restarting.\n", fs::PathToString(*snapshot_datadir)));
             }
+        }
+        if (!this->ActiveChainstate().m_evoDb.CollectRejectedGenerations()) {
+            LogPrintf("[snapshot] failed to remove the abandoned snapshot EvoDB generation; retrying at startup\n");
         }
         return false;
     }
@@ -6576,6 +6876,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
     std::optional<uint256> base_mn_list_hash;
     if (const CBlockIndex* ibd_tip = m_ibd_chainstate->m_chain.Tip();
         ibd_tip != nullptr && ibd_tip->GetBlockHash() == base_blockhash) {
+        const EvoViewScope background_view{m_ibd_chainstate->EvoView()};
         base_mn_list_hash =
             snapshot_chainstate.m_special_tx.GetDeterministicMNListHash(snapshot_start_block);
         auto db_tx = snapshot_chainstate.m_evoDb.BeginTransaction(::EvoDbIdentity::NORMAL);
@@ -6590,22 +6891,112 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
         LogPrintf("[snapshot] failed to sync background EvoDB state\n");
         return false;
     }
+    // Everything the snapshot chainstate writes lives in its own generation
+    // namespace, so a rejected snapshot can never leak into NORMAL state.
+    if (!snapshot_chainstate.m_evoDb.CreateSnapshotGeneration(base_blockhash, base_height)) {
+        LogPrintf("[snapshot] failed to create the snapshot EvoDB generation\n");
+        return false;
+    }
     {
+        const EvoViewScope snapshot_view{snapshot_chainstate.EvoView()};
         auto db_tx = snapshot_chainstate.m_evoDb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
         snapshot_chainstate.m_evoDb.WriteBestBlock(EvoDbIdentity::SNAPSHOT, base_blockhash);
-        if (base_mn_list_hash.has_value()) {
-            snapshot_chainstate.m_evoDb.WriteSnapshotBaseMNListHash(*base_mn_list_hash);
-        }
-        snapshot_chainstate.m_evoDb.WriteDualChainstateMarker();
         db_tx->Commit();
     }
-    if (!snapshot_chainstate.m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true)) {
-        LogPrintf("[snapshot] failed to commit snapshot EvoDB marker\n");
+    if (!snapshot_chainstate.m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true) ||
+        !snapshot_chainstate.m_evoDb.PublishSnapshotGeneration(
+            EvoSnapshotConsensusConfig::FromParams(GetParams()).Fingerprint(), base_mn_list_hash)) {
+        LogPrintf("[snapshot] failed to publish the snapshot EvoDB generation\n");
         return false;
     }
 
     LogPrintf("[snapshot] validated snapshot (%.2f MB)\n",
         coins_cache.DynamicMemoryUsage() / (1000 * 1000));
+    return true;
+}
+
+bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason,
+                                                    std::function<void(bilingual_str)> shutdown_fnc)
+{
+    LOCK(::cs_main);
+    if (!m_snapshot_chainstate || m_active_chainstate != m_snapshot_chainstate.get() ||
+        !IsUsable(m_snapshot_chainstate.get()) || !IsUsable(m_ibd_chainstate.get()) ||
+        m_snapshot_chainstate->m_evoDb.HasActiveTransaction()) {
+        return false;
+    }
+
+    const int snapshot_tip_height{m_snapshot_chainstate->m_chain.Height()};
+    const int snapshot_base_height{GetSnapshotBaseHeight().value_or(snapshot_tip_height)};
+    bilingual_str user_error =
+        strprintf(_("%s failed to validate the -assumeutxo snapshot state. "
+                    "This indicates a hardware problem, or a bug in the software, or a "
+                    "bad software modification that allowed an invalid snapshot to be "
+                    "loaded. As a result of this, the node will shut down and stop using any "
+                    "state that was built on the snapshot, resetting the chain height "
+                    "from %d to %d. On the next "
+                    "restart, the node will resume syncing from %d "
+                    "without using any snapshot data. "
+                    "Please report this incident to %s, including how you obtained the snapshot. "
+                    "The invalid snapshot chainstate will be left on disk in case it is "
+                    "helpful in diagnosing the issue that caused this error."),
+                  PACKAGE_NAME, snapshot_tip_height, snapshot_base_height, snapshot_base_height, PACKAGE_BUGREPORT);
+
+    LogPrintf("[snapshot] evo state mismatch: %s\n", reason);
+    LogPrintf("[snapshot] !!! %s\n", user_error.original);
+    LogPrintf("[snapshot] deleting snapshot, reverting to validated chain, and stopping node\n");
+
+    // DiscardSnapshotMarkers needs both identities' transaction trees fully
+    // committed; a rejection raised mid-connection has not flushed them yet.
+    m_ibd_chainstate->ForceFlushStateToDisk();
+    m_snapshot_chainstate->ForceFlushStateToDisk();
+    // A failed LevelDB write throws. The rejection must still switch away from
+    // the snapshot, stop reading its generation and shut down.
+    const auto written{[](const char* what, const auto& write) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        try {
+            return write();
+        } catch (const std::exception& e) {
+            LogPrintf("[snapshot] %s failed: %s\n", what, e.what());
+            return false;
+        }
+    }};
+    const bool evodb_synced{written("syncing EvoDB", [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        return m_ibd_chainstate->m_evoDb.CommitRootTransaction(EvoDbIdentity::NORMAL, /*sync=*/true) &&
+               m_snapshot_chainstate->m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true);
+    })};
+    if (!evodb_synced) {
+        user_error += Untranslated("\nFailed to sync EvoDB before invalidating the snapshot.");
+    }
+
+    m_active_chainstate = m_ibd_chainstate.get();
+    // Hand the mempool back so the again-active background chainstate owns
+    // it for the remainder of this (shutting-down) run.
+    m_ibd_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
+    m_snapshot_chainstate->m_mempool = nullptr;
+    m_snapshot_chainstate->m_disabled = true;
+    assert(!IsUsable(m_snapshot_chainstate.get()));
+    assert(IsUsable(m_ibd_chainstate.get()));
+
+    // Record the rejection before restoring NORMAL: a snapshot directory left
+    // behind without its generation can no longer be activated. If the
+    // rejection does not persist, startup recovery finishes it once the
+    // snapshot directory is set aside.
+    if (!evodb_synced ||
+        !written("recording the snapshot rejection",
+                 [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers(); })) {
+        LogPrintf("[snapshot] failed to record the snapshot rejection in EvoDB\n");
+        // The generation stays live on disk for startup recovery to reject,
+        // but the rest of this run must not read it.
+        m_ibd_chainstate->m_evoDb.RevokeSnapshotGeneration();
+    }
+    auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
+    if (!rename_result) {
+        user_error += Untranslated("\n") + util::ErrorString(rename_result);
+    } else if (!written("removing the rejected snapshot EvoDB generation",
+                        [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return m_ibd_chainstate->m_evoDb.CollectRejectedGenerations(); })) {
+        LogPrintf("[snapshot] failed to remove the rejected snapshot EvoDB generation; retrying at startup\n");
+    }
+
+    shutdown_fnc(user_error);
     return true;
 }
 
@@ -6645,7 +7036,6 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         LogPrintf("[snapshot] on-disk snapshot base block is missing from the block index\n");
         return SnapshotCompletionResult::BASE_BLOCKHASH_MISMATCH;
     }
-    const int snapshot_tip_height = this->ActiveHeight();
     const int snapshot_base_height = *snapshot_base_height_opt;
     const CBlockIndex& index_new = *Assert(m_ibd_chainstate->m_chain.Tip());
 
@@ -6673,41 +7063,8 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
     }
 
     auto handle_invalid_snapshot = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-        bilingual_str user_error = strprintf(_(
-            "%s failed to validate the -assumeutxo snapshot state. "
-            "This indicates a hardware problem, or a bug in the software, or a "
-            "bad software modification that allowed an invalid snapshot to be "
-            "loaded. As a result of this, the node will shut down and stop using any "
-            "state that was built on the snapshot, resetting the chain height "
-            "from %d to %d. On the next "
-            "restart, the node will resume syncing from %d "
-            "without using any snapshot data. "
-            "Please report this incident to %s, including how you obtained the snapshot. "
-            "The invalid snapshot chainstate will be left on disk in case it is "
-            "helpful in diagnosing the issue that caused this error."),
-            PACKAGE_NAME, snapshot_tip_height, snapshot_base_height, snapshot_base_height, PACKAGE_BUGREPORT
-        );
-
-        LogPrintf("[snapshot] !!! %s\n", user_error.original);
-        LogPrintf("[snapshot] deleting snapshot, reverting to validated chain, and stopping node\n");
-
-        m_active_chainstate = m_ibd_chainstate.get();
-        // Hand the mempool back so the again-active background chainstate owns
-        // it for the remainder of this (shutting-down) run.
-        m_ibd_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
-        m_snapshot_chainstate->m_mempool = nullptr;
-        m_snapshot_chainstate->m_disabled = true;
-        assert(!this->IsUsable(m_snapshot_chainstate.get()));
-        assert(this->IsUsable(m_ibd_chainstate.get()));
-
-        auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
-        if (!rename_result) {
-            user_error += Untranslated("\n") + util::ErrorString(rename_result);
-        } else if (!m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers()) {
-            LogPrintf("[snapshot] failed to remove invalid snapshot EvoDB markers\n");
-        }
-
-        shutdown_fnc(user_error);
+        const bool handled{HandleSnapshotStateMismatch("snapshot completion mismatch", shutdown_fnc)};
+        Assume(handled);
     };
 
     if (index_new.GetBlockHash() != snapshot_blockhash) {
@@ -6815,6 +7172,17 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         snapshot_blockhash.ToString());
 
     m_ibd_chainstate->m_disabled = true;
+    // What background validation derived reaches the snapshot chainstate only
+    // when the next startup promotes it: until then the snapshot chainstate
+    // reads its own generation, and a block it stalled on stays out of reach.
+    if (std::ranges::any_of(m_snapshot_chainstate->m_evo_stalls, [&](const auto& stall) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+            return m_snapshot_chainstate->FindEvoStall(stall.first) != nullptr;
+        })) {
+        const std::string detail{"snapshot validation completed; restart to resume from the validated chain"};
+        LogPrintf("WARNING: %s\n", detail);
+        WarnLocalEvoStateUnavailable(detail);
+        GetNotifications().evoStateWarningChanged();
+    }
     this->MaybeRebalanceCaches();
 
     return SnapshotCompletionResult::SUCCESS;
@@ -6825,6 +7193,15 @@ Chainstate& ChainstateManager::ActiveChainstate() const
     LOCK(::cs_main);
     assert(m_active_chainstate);
     return *m_active_chainstate;
+}
+
+const CChain* ChainstateManager::EvoChain(::EvoDbIdentity identity) const
+{
+    AssertLockHeld(::cs_main);
+    for (const Chainstate* chainstate : {m_ibd_chainstate.get(), m_snapshot_chainstate.get()}) {
+        if (IsUsable(chainstate) && chainstate->EvoDbIdentity() == identity) return &chainstate->m_chain;
+    }
+    return nullptr;
 }
 
 bool ChainstateManager::IsSnapshotActive() const
@@ -7023,7 +7400,9 @@ Chainstate* ChainstateManager::ActivateExistingSnapshot(CTxMemPool* mempool, uin
     assert(!m_snapshot_chainstate);
     CEvoDB& evo_db = this->ActiveChainstate().m_evoDb;
     uint256 snapshot_evo_tip;
-    if (!evo_db.ReadBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_evo_tip)) {
+    const auto generation{evo_db.GetSnapshotGeneration()};
+    if (!generation || generation->base != base_blockhash ||
+        !evo_db.ReadBestBlock(EvoDbIdentity::SNAPSHOT, snapshot_evo_tip)) {
         LogPrintf("[snapshot] snapshot EvoDB marker is missing for base block %s\n",
                   base_blockhash.ToString());
         return nullptr;
@@ -7061,15 +7440,13 @@ util::Result<void> Chainstate::InvalidateCoinsDBOnDisk()
 
     fs::path invalid_path{snapshot_datadir};
     invalid_path += node::SNAPSHOT_INVALID_SUFFIX;
-    std::string dbpath = fs::PathToString(snapshot_datadir);
-    std::string target = fs::PathToString(invalid_path);
-    LogPrintf("[snapshot] renaming snapshot datadir %s to %s\n", dbpath, target);
 
     // The invalid snapshot datadir is simply moved and not deleted because we may
     // want to do forensics later during issue investigation. The user is instructed
-    // accordingly in MaybeCompleteSnapshotValidation().
+    // accordingly in MaybeCompleteSnapshotValidation(). An earlier rejection's
+    // datadir keeps its place instead.
     try {
-        RenameDurably(snapshot_datadir, invalid_path);
+        node::SetAsideInvalidSnapshotDir(snapshot_datadir);
     } catch (const fs::filesystem_error& e) {
         auto src_str = fs::PathToString(snapshot_datadir);
         auto dest_str = fs::PathToString(invalid_path);
@@ -7135,6 +7512,13 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
     // The caller of this method will be responsible for reinitializing chainstates
     // if they want to continue operation.
     this->ResetChainstates();
+
+    // Journal the promotion before the first rename, so recovery can tell a
+    // promotion from an interrupted invalid-snapshot cleanup.
+    if (!evo_db.PrepareSnapshotPromotion(snapshot_tip)) {
+        LogPrintf("[snapshot] failed to journal the snapshot EvoDB promotion\n");
+        return false;
+    }
 
     // No chainstates should be considered usable.
     assert(this->GetAll().size() == 0);

@@ -8,6 +8,7 @@
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <hash.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -28,6 +29,7 @@
 #include <unordered_lru_cache.h>
 #include <util/std23.h>
 #include <util/thread.h>
+#include <util/time.h>
 #include <validation.h>
 
 namespace llmq {
@@ -783,15 +785,24 @@ void NetDKG::Interrupt()
 
 void NetDKG::PhaseHandlerThread(ActiveDKGSessionHandler& handler)
 {
+    const std::string round_name{strprintf("dkg %s qi[%d]", handler.params.name, handler.QuorumIndex())};
     while (!handler.IsStopRequested()) {
-        try {
-            LogPrint(BCLog::LLMQ_DKG, "NetDKG::%s -- %s qi[%d] - starting HandleDKGRound\n", __func__,
-                     handler.params.name, handler.QuorumIndex());
-            HandleDKGRound(handler);
-        } catch (AbortPhaseException& e) {
-            m_active->dkgdbgman.MarkAborted(handler.params.type, handler.QuorumIndex());
-            LogPrint(BCLog::LLMQ_DKG, "NetDKG::%s -- %s qi[%d] - aborted current DKG session\n", __func__,
-                     handler.params.name, handler.QuorumIndex());
+        const bool completed{RunActiveEvoRound(m_chainman.EvoDb(), round_name, [&] {
+            try {
+                LogPrint(BCLog::LLMQ_DKG, "NetDKG::PhaseHandlerThread -- %s qi[%d] - starting HandleDKGRound\n",
+                         handler.params.name, handler.QuorumIndex());
+                HandleDKGRound(handler);
+            } catch (AbortPhaseException& e) {
+                m_active->dkgdbgman.MarkAborted(handler.params.type, handler.QuorumIndex());
+                LogPrint(BCLog::LLMQ_DKG, "NetDKG::PhaseHandlerThread -- %s qi[%d] - aborted current DKG session\n",
+                         handler.params.name, handler.QuorumIndex());
+            }
+        })};
+        if (!completed) {
+            // Retry after a second, unless asked to stop meanwhile.
+            for (int i{0}; i < 10 && !handler.IsStopRequested(); ++i) {
+                UninterruptibleSleep(std::chrono::milliseconds{100});
+            }
         }
     }
 }
