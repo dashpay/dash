@@ -2111,6 +2111,31 @@ RPCHelpMan descriptorprocesspsbt()
     };
 }
 
+static RPCHelpMan setinstantsendworkeractive()
+{
+    return RPCHelpMan{"setinstantsendworkeractive",
+        "\nDisable/enable fetching of pending InstantSend locks by the InstantSend worker thread.\n"
+        "While disabled, received locks stay queued and are verified together once re-enabled.\n",
+        {
+            {"state", RPCArg::Type::BOOL, RPCArg::Optional::NO, "true to enable fetching, false to disable"},
+        },
+        RPCResult{RPCResult::Type::BOOL, "", "The value that was passed in"},
+        RPCExamples{""},
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    if (Params().GetChainType() != ChainType::REGTEST) {
+        throw std::runtime_error("setinstantsendworkeractive is for regression testing (-regtest mode) only.");
+    }
+
+    const NodeContext& node = EnsureAnyNodeContext(request.context);
+    const bool active{request.params[0].get_bool()};
+    EnsureInstantSendManager(node).SetFetchPendingActive(active);
+
+    return active;
+},
+    };
+}
+
 void RegisterRawTransactionRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -2133,6 +2158,7 @@ void RegisterRawTransactionRPCCommands(CRPCTable& t)
         {"rawtransactions", &descriptorprocesspsbt},
         {"rawtransactions", &joinpsbts},
         {"rawtransactions", &analyzepsbt},
+        {"hidden", &setinstantsendworkeractive},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);
