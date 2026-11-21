@@ -366,6 +366,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             except BaseException:
                 self.success = TestStatus.FAILED
                 self.log.exception("Unexpected exception caught during shutdown")
+            self.kill_leftover_nodes()
         else:
             for node in self.nodes:
                 node.cleanup_on_exit = False
@@ -704,6 +705,19 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         for node in self.nodes:
             # Wait for nodes to stop
             node.wait_until_stopped()
+
+    def kill_leftover_nodes(self):
+        """Kill every node that is still running and wait until they have all exited"""
+        leftover = [node for node in self.nodes if node.running]
+        for node in leftover:
+            node.log.debug("Killing leftover process")
+            node.process.kill()
+        for node in leftover:
+            try:
+                node.wait_until_killed()
+            except subprocess.TimeoutExpired:
+                self.success = TestStatus.FAILED
+                self.log.exception(f"node{node.index} did not exit after SIGKILL")
 
     def restart_node(self, i, extra_args=None, expected_stderr=''):
         """Stop and start a test node"""
