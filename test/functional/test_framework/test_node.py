@@ -708,6 +708,7 @@ class TestNode():
                                 'Expected message "{}" does not fully match stderr:\n"{}"'.format(expected_msg, stderr))
             except subprocess.TimeoutExpired:
                 self.process.kill()
+                self.process.wait(timeout=self.rpc_timeout)
                 self.running = False
                 self.process = None
                 assert_msg = f'dashd should have exited within {self.rpc_timeout}s '
