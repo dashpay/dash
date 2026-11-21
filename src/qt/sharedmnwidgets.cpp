@@ -89,8 +89,13 @@ bool SharedMnWalletOwnsShare(const WalletModel* wallet_model, const interfaces::
     return wallet_model != nullptr && wallet_model->wallet().isSpendable(PKHash(share.keyIDOwner));
 }
 
-QString SharedMnV24InactiveMessage()
+QString SharedMnV24InactiveMessage(std::optional<bool> v24_active)
 {
+    if (!v24_active) {
+        return QCoreApplication::translate("SharedMnDialog",
+                                           "This node cannot tell yet whether the v24 upgrade is active. Try again "
+                                           "later.");
+    }
     return QCoreApplication::translate("SharedMnDialog",
                                        "Shared masternodes need the v24 upgrade, which is not active on this network "
                                        "yet.");

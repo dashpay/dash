@@ -41,7 +41,11 @@ static void ParseRecipients(interfaces::Chain& chain, const UniValue& address_am
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                                    strprintf("Invalid Dash address: %s (%s)", address, error_msg));
             }
-            if (!chain.isV24Active()) {
+            const auto v24_active{chain.isV24Active()};
+            if (!v24_active) {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot evaluate v24 activation yet");
+            }
+            if (!*v24_active) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER,
                                    strprintf("Invalid param for %s, paying a Platform address requires an asset lock "
                                              "transaction of version 2, which is only valid after v24 activation",

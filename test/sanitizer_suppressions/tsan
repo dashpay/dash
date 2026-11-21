@@ -23,6 +23,13 @@ deadlock:wallet_tests::CreateWallet
 # deadlock false positive (see: https://github.com/dashpay/dash/pull/4563)
 deadlock:Chainstate::ConnectTip
 
+# deadlock false positive: under cs_main this test copies the masternode list into a temporary on
+# the stack, locking the temporary's mutex. Other wallet tests lock a stack CWallet's cs_wallet
+# before cs_main. libstdc++ mutexes are never passed to pthread_mutex_destroy, so TSan keeps each
+# lock order for the stack address and reports a cycle when two of these mutexes land at the same
+# address.
+deadlock:wallet_tests::AbandonedSpendRestoresActiveMasternodeCollateralLock
+
 # Intentional deadlock in tests
 deadlock:sync_tests::potential_deadlock_detected
 

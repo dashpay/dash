@@ -55,6 +55,12 @@ struct ChainstateManagerOpts {
     CoinsViewOptions coins_view{};
     Notifications& notifications;
     int stop_at_height{DEFAULT_STOPATHEIGHT};
+    //! Dash: the node runs as a masternode. It does not load UTXO snapshots.
+    bool masternode{false};
+    //! Dash: the node keeps the -addressindex, -spentindex or -timestampindex
+    //! index, which is not supported with a snapshot chainstate. It does not
+    //! load UTXO snapshots.
+    bool legacy_indexes{false};
 };
 
 } // namespace kernel
