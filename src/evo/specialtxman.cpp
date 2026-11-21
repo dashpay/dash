@@ -291,6 +291,11 @@ bool CSpecialTxProcessor::CheckSpecialTxInner(const CChain* chain, const CTransa
             return chain ? CheckAssetUnlockTx(m_blockman, m_qman, *chain, tx, pindexPrev, indexes, rules.v24, state)
                          : CheckAssetUnlockTx(m_blockman, m_qman, tx, pindexPrev, indexes, rules.v24, state);
         }
+    } catch (const EvoDbInconsistencyError& e) {
+        // Local EvoDB inconsistency, not a property of the transaction. In a block (chain is set),
+        // ProcessSpecialTxsInBlock() reports it as an error, so the block isn't marked invalid.
+        if (chain != nullptr) throw;
+        return state.Error(e.what());
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "failed-check-special-tx");
@@ -903,6 +908,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
 {
     AssertLockHeld(::cs_main);
 
+    const llmq::utils::EvoDbCorruptionThrowScope throw_on_corruption;
     try {
         static SteadyClock::duration nTimeLoop{};
         static SteadyClock::duration nTimeQuorum{};
