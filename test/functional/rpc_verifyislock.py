@@ -70,6 +70,8 @@ class RPCVerifyISLockTest(DashTestFramework):
         # Send the tx and verify the ISDLOCK for a now known transaction
         assert rawtx_txid == node.sendrawtransaction(rawtx)
         assert node.verifyislock(request_id, rawtx_txid, isdlock.sig.hex(), node.getblockcount())
+        # The masternodes had the ISLOCK signature before the transaction, and must still build the ISLOCK
+        self.wait_for_instantlock(rawtx_txid)
 
 
 if __name__ == '__main__':
