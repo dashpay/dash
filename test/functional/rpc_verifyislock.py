@@ -59,6 +59,11 @@ class RPCVerifyISLockTest(DashTestFramework):
         # Mined, should ignore higher maxHeight
         assert node.verifyislock(request_id, txid, rec_sig, node.getblockcount() + 100)
 
+        # Masternodes that recover the ISLOCK signature before its input locks must still build the ISLOCK
+        rawtx = self.create_raw_tx(node, node, 1, 1, 100)['hex']
+        self.create_isdlock(rawtx)
+        self.wait_for_instantlock(node.sendrawtransaction(rawtx))
+
         # Create an ISLOCK using an active quorum which will be replaced when a new cycle happens
         request_id = None
         utxos = node.listunspent()
