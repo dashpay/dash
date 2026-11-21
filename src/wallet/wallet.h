@@ -656,6 +656,12 @@ public:
      * but also shouldn't try to use it again. */
     std::set<COutPoint> setLockedCoins GUARDED_BY(cs_wallet);
 
+    /** Outputs that may be masternode collateral, which LockProTxCoins() could
+     * not classify because the masternode list was not available. They are
+     * kept out of automatic coin selection, apart from any user lock, until a
+     * later block lets them be classified. */
+    std::set<COutPoint> m_unclassified_protx_coins GUARDED_BY(cs_wallet);
+
     int64_t nKeysLeftSinceAutoBackup;
     //! -maxwalletbackups; process-wide like the nWalletBackups global it caps.
     static int nMaxWalletBackups;
@@ -755,9 +761,13 @@ public:
     bool UnlockCoin(const COutPoint& output, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool UnlockAllCoins() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     const std::set<COutPoint>& ListLockedCoins() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    std::vector<COutPoint> ListProTxCoins() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    std::vector<COutPoint> ListProTxCoins(const std::set<COutPoint>& utxos) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    //! Nullopt when the masternode list is not available.
+    std::optional<std::vector<COutPoint>> ListProTxCoins() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    std::optional<std::vector<COutPoint>> ListProTxCoins(const std::set<COutPoint>& utxos) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void LockProTxCoins(const std::set<COutPoint>& utxos, WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    //! Whether `output` awaits classification as masternode collateral.
+    bool IsUnclassifiedProTxCoin(const COutPoint& output) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /** Returns true if the given output of a wallet transaction is a dust protection target:
      *  value is in (0, threshold], tx is normal type, not coinbase, and not from this wallet. */

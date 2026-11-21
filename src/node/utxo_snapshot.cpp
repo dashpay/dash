@@ -101,4 +101,37 @@ std::optional<fs::path> FindSnapshotChainstateDir(const fs::path& data_dir)
     return std::nullopt;
 }
 
+fs::path DiscardedSnapshotDir(const fs::path& snapshot_dir)
+{
+    fs::path discarded{snapshot_dir};
+    discarded += SNAPSHOT_TODELETE_SUFFIX;
+    return discarded;
+}
+
+void SetAsideInvalidSnapshotDir(const fs::path& snapshot_dir)
+{
+    fs::path invalid{snapshot_dir};
+    invalid += SNAPSHOT_INVALID_SUFFIX;
+    if (!fs::exists(invalid)) {
+        LogPrintf("[snapshot] renaming snapshot datadir %s to %s\n", fs::PathToString(snapshot_dir),
+                  fs::PathToString(invalid));
+        RenameDurably(snapshot_dir, invalid);
+        return;
+    }
+    // Moved aside before it is deleted: a deletion cut short in place would
+    // leave a partial snapshot dir for the next startup to load.
+    LogPrintf("[snapshot] %s already exists; deleting %s instead\n", fs::PathToString(invalid),
+              fs::PathToString(snapshot_dir));
+    const fs::path discarded{DiscardedSnapshotDir(snapshot_dir)};
+    // Nothing reads a leftover of a deletion cut short, and it would block the rename.
+    if (fs::exists(discarded)) RemoveAllDurably(discarded);
+    RenameDurably(snapshot_dir, discarded);
+    // Moved aside, the dir is gone for every reader; startup removes what is left.
+    try {
+        RemoveAllDurably(discarded);
+    } catch (const fs::filesystem_error& e) {
+        LogPrintf("[snapshot] unable to delete %s, retrying at startup: %s\n", fs::PathToString(discarded), e.what());
+    }
+}
+
 } // namespace node

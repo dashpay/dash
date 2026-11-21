@@ -76,6 +76,16 @@ constexpr std::string_view SNAPSHOT_TODELETE_SUFFIX = "_todelete";
 //! Return a path to the snapshot-based chainstate dir, if one exists.
 std::optional<fs::path> FindSnapshotChainstateDir(const fs::path& data_dir);
 
+//! Where SetAsideInvalidSnapshotDir() moves `snapshot_dir` to delete it.
+fs::path DiscardedSnapshotDir(const fs::path& snapshot_dir);
+
+//! Durably move a rejected snapshot chainstate dir to its SNAPSHOT_INVALID_SUFFIX
+//! name. An earlier rejection's dir keeps that name, since it may be the one the
+//! user was asked to report, and `snapshot_dir` is moved to
+//! DiscardedSnapshotDir() and deleted instead. Throws fs::filesystem_error if
+//! `snapshot_dir` could not be moved.
+void SetAsideInvalidSnapshotDir(const fs::path& snapshot_dir);
+
 } // namespace node
 
 #endif // BITCOIN_NODE_UTXO_SNAPSHOT_H
