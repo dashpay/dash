@@ -2,8 +2,6 @@
 
 # -fsanitize=undefined suppressions
 # =================================
-nonnull-attribute:dashbls/src/hkdf.cpp
-nonnull-attribute:dashbls/src/util.cpp
 
 # -fsanitize=integer suppressions
 # ===============================
@@ -13,7 +11,6 @@ nonnull-attribute:dashbls/src/util.cpp
 unsigned-integer-overflow:*/include/c++/
 unsigned-integer-overflow:blst/
 unsigned-integer-overflow:FuzzedDataProvider::ConsumeIntegralInRange
-unsigned-integer-overflow:dashbls/depends/mimalloc/
 unsigned-integer-overflow:leveldb/
 unsigned-integer-overflow:minisketch/
 unsigned-integer-overflow:secp256k1*
@@ -23,21 +20,15 @@ implicit-integer-sign-change:*/include/c++/
 implicit-integer-sign-change:*/new_allocator.h
 implicit-integer-sign-change:blst/
 implicit-integer-sign-change:crc32c/
-implicit-integer-sign-change:dashbls/depends/mimalloc/
-implicit-integer-sign-change:dashbls/src/extendedprivatekey.cpp
-implicit-integer-sign-change:dashbls/src/extendedpublickey.cpp
-implicit-integer-sign-change:dashbls/src/test.cpp
 implicit-integer-sign-change:minisketch/
 implicit-integer-sign-change:secp256k1*
 implicit-signed-integer-truncation:*/include/c++/
 implicit-signed-integer-truncation:blst/
-implicit-signed-integer-truncation:dashbls/include/dashbls/test-utils.hpp
 implicit-signed-integer-truncation:leveldb/
 implicit-signed-integer-truncation:secp256k1*
 implicit-signed-integer-truncation,implicit-integer-sign-change:secp256k1_modinv64_posdivsteps_62_var
 implicit-unsigned-integer-truncation:*/include/c++/
 implicit-unsigned-integer-truncation:blst/
-implicit-unsigned-integer-truncation:dashbls/src/util.cpp
 implicit-unsigned-integer-truncation:leveldb/
 implicit-unsigned-integer-truncation:secp256k1*
 implicit-signed-integer-truncation,implicit-integer-sign-change:secp256k1*

@@ -4,7 +4,6 @@
 
 #include <kernel/checks.h>
 
-#include <bls/bls.h>
 #include <key.h>
 #include <random.h>
 #include <util/translation.h>
@@ -17,10 +16,6 @@ std::optional<bilingual_str> SanityChecks(const Context&)
 {
     if (!ECC_InitSanityCheck()) {
         return Untranslated("Elliptic curve cryptography sanity check failure. Aborting.");
-    }
-
-    if (!BLSInit()) {
-        return Untranslated("BLS cryptographic sanity check failure. Aborting.");
     }
 
     if (!Random_SanityCheck()) {

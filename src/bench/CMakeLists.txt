@@ -67,7 +67,7 @@ target_link_libraries(bench_bitcoin
   test_util
   bitcoin_node
   Boost::headers
-  dashbls
+  blst
   leveldb
 )
 

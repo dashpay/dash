@@ -17,7 +17,7 @@ target_link_libraries(test_fuzz
     test_util
     bitcoin_node
     Boost::headers
-    dashbls
+    blst
     leveldb
 )
 

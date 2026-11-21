@@ -4,7 +4,6 @@
 
 #include <kernel/context.h>
 
-#include <bls/bls.h>
 #include <crypto/sha256.h>
 #include <crypto/x11/dispatch.h>
 #include <key.h>
@@ -24,7 +23,6 @@ Context::Context()
     LogPrintf("Using the '%s' SHA256 implementation\n", sha256_algo);
     RandomInit();
     ECC_Start();
-    BLSInit();
 }
 
 Context::~Context()

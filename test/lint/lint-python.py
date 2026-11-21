@@ -22,7 +22,6 @@ os.environ["MYPY_CACHE_DIR"] = str(cache_dir)
 DEPS = ['flake8', 'lief', 'mypy', 'pyzmq']
 FILES_ARGS = ['git', 'ls-files', '--','test/functional/*.py', 'contrib/devtools/*.py', ':(exclude)contrib/devtools/github-merge.py']
 EXCLUDE_DIRS = ['src/blst/',
-                'src/dashbls/',
                 'src/immer/']
 
 ENABLED = (

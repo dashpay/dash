@@ -115,11 +115,6 @@ void CheckWellFormedMessageIsAccepted(std::string_view msg_type, const Consensus
         CheckSerializedMessageIsAccepted(msg_type, qc, params);
     }
 }
-
-void initialize_dkg_message_framing()
-{
-    BLSInit();
-}
 } // namespace
 
 /**
@@ -133,7 +128,7 @@ void initialize_dkg_message_framing()
  * asserted: framing deliberately accepts payloads whose BLS points fail to
  * decode, so that the worker can score the sender.
  */
-FUZZ_TARGET(dkg_message_framing, .init = initialize_dkg_message_framing)
+FUZZ_TARGET(dkg_message_framing)
 {
     FuzzedDataProvider fuzzed_data_provider{buffer.data(), buffer.size()};
 

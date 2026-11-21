@@ -38,7 +38,6 @@ EXCLUDE_DIRS = [
     "src/blst/",
     "src/crc32c/",
     "src/crypto/ctaes/",
-    "src/dashbls/",
     "src/gsl/",
     "src/immer/",
     "src/leveldb/",

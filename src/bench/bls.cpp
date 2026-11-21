@@ -361,6 +361,48 @@ static void BLS_Verify_BatchedParallel(benchmark::Bench& bench)
     blsWorker.Stop();
 }
 
+template <typename T>
+static void SetBytes(benchmark::Bench& bench, const T& obj)
+{
+    const auto bytes{obj.ToBytes()};
+    T decoded;
+    bench.run([&] {
+        decoded.SetBytes(bytes);
+        assert(decoded.IsValid());
+    });
+}
+
+template <typename T>
+static void ToBytes(benchmark::Bench& bench, const T& obj)
+{
+    bench.run([&] { ankerl::nanobench::doNotOptimizeAway(obj.ToBytes()); });
+}
+
+static CBLSSecretKey NewSecretKey()
+{
+    CBLSSecretKey secKey;
+    secKey.MakeNewKey();
+    return secKey;
+}
+
+static void BLS_SecKey_ToBytes(benchmark::Bench& bench) { ToBytes(bench, NewSecretKey()); }
+static void BLS_PubKey_ToBytes(benchmark::Bench& bench) { ToBytes(bench, NewSecretKey().GetPublicKey()); }
+static void BLS_Signature_ToBytes(benchmark::Bench& bench) { ToBytes(bench, NewSecretKey().Sign(GetRandHash())); }
+static void BLS_PubKey_SetBytes(benchmark::Bench& bench) { SetBytes(bench, NewSecretKey().GetPublicKey()); }
+static void BLS_Signature_SetBytes(benchmark::Bench& bench) { SetBytes(bench, NewSecretKey().Sign(GetRandHash())); }
+
+static void BLS_SignatureAggregate_1000(benchmark::Bench& bench)
+{
+    std::vector<CBLSPublicKey> pubKeys;
+    std::vector<CBLSSecretKey> secKeys;
+    std::vector<CBLSSignature> sigs;
+    std::vector<uint256> msgHashes;
+    std::vector<bool> invalid;
+    BuildTestVectors(bench.output() ? 1000 : 1, 0, pubKeys, secKeys, sigs, msgHashes, invalid);
+
+    bench.run([&] { ankerl::nanobench::doNotOptimizeAway(CBLSSignature::AggregateInsecure(sigs)); });
+}
+
 BENCHMARK(BLS_PubKeyAggregate_Normal, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_SecKeyAggregate_Normal, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_SignatureAggregate_Normal, benchmark::PriorityLevel::HIGH)
@@ -375,3 +417,9 @@ BENCHMARK(BLS_Verify_LargeAggregatedBlock1000, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_Verify_LargeAggregatedBlock1000PreVerified, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_Verify_Batched, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_Verify_BatchedParallel, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_SecKey_ToBytes, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKey_ToBytes, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_Signature_ToBytes, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_PubKey_SetBytes, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_Signature_SetBytes, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_SignatureAggregate_1000, benchmark::PriorityLevel::HIGH)
