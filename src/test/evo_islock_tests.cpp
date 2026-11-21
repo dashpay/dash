@@ -15,6 +15,7 @@
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
+#include <masternode/sync.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
 #include <spork.h>
@@ -25,7 +26,9 @@
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <validation.h>
+#include <validationinterface.h>
 
+#include <future>
 #include <string_view>
 
 #include <boost/test/unit_test.hpp>
@@ -49,6 +52,8 @@ struct NetInstantSendTest : TestChain100Setup {
     {
         return net.ProcessPendingInstantSendLocks(params, offset, /*ban=*/true, locks);
     }
+
+    static void ResolveDeferredBlockConflicts(NetInstantSend& net) { net.ResolveDeferredBlockConflicts(); }
 
     // Returns the cycle hash of a quorum whose base block is at `height`. Mining a block afterwards drops it.
     uint256 AddMinedQuorum(int height, const CBLSSecretKey& key)
@@ -89,6 +94,11 @@ struct NetInstantSendTest : TestChain100Setup {
     void Process(NodeId node, const std::shared_ptr<instantsend::InstantSendLock>& islock)
     {
         ProcessBatch(net, params, /*offset=*/0, {{{node, islock}, ::SerializeHash(*islock)}});
+    }
+
+    void ProcessQueuedLocks()
+    {
+        ProcessBatch(net, params, /*offset=*/0, m_node.isman->FetchPendingLocks().m_pending_is);
     }
 };
 
@@ -211,6 +221,73 @@ BOOST_FIXTURE_TEST_CASE(cached_recovered_sig_does_not_authenticate_other_lock, N
         BOOST_REQUIRE(stored);
         BOOST_CHECK(::SerializeHash(*stored) == ::SerializeHash(*authentic));
     }
+}
+
+BOOST_FIXTURE_TEST_CASE(lock_processed_before_mined_conflict_is_seen_disconnects_block, NetInstantSendTest)
+{
+    m_node.mn_sync->SwitchToNextAsset();
+    BOOST_REQUIRE(m_node.mn_sync->IsBlockchainSynced());
+    RegisterValidationInterface(&net);
+    const auto unregister = interfaces::MakeCleanupHandler([&] {
+        UnregisterValidationInterface(&net);
+        SyncWithValidationInterfaceQueue();
+    });
+    mineBlocks(1);
+    SyncWithValidationInterfaceQueue();
+
+    const CScript script = GetScriptForRawPubKey(coinbaseKey.GetPubKey());
+    const auto spend = [&](size_t coinbase_index, CAmount fee, bool submit) {
+        const auto& coinbase = m_coinbase_txns.at(coinbase_index);
+        return CreateValidMempoolTransaction(coinbase, /*input_vout=*/0, /*input_height=*/coinbase_index + 1,
+                                             coinbaseKey, script, coinbase->vout[0].nValue - fee, submit);
+    };
+    const auto mined = spend(0, 1000, /*submit=*/false);
+    const auto locked = spend(0, 2000, /*submit=*/false);
+    const auto tip = [&] { return WITH_LOCK(cs_main, return m_node.chainman->ActiveTip()->GetBlockHash()); };
+    const auto before_conflict = tip();
+
+    // InstantSend learns that a transaction was mined from BlockConnected, which runs from the
+    // validation queue. Holding the queue lets the lock be processed before that callback.
+    const auto hold_queue = [] {
+        auto release = std::make_shared<std::promise<void>>();
+        CallFunctionInValidationInterfaceQueue([held = release->get_future().share()] { held.wait(); });
+        return interfaces::MakeCleanupHandler([release] { release->set_value(); });
+    };
+    auto held_queue = hold_queue();
+    // A locked transaction evicted by the block is announced to InstantSend only after its lock is processed
+    const auto locked_evicted = spend(1, 2000, /*submit=*/true);
+    const auto mined_evicting = spend(1, 1000, /*submit=*/false);
+    const auto conflicting_block = CreateAndProcessBlock({mined, mined_evicting}, script).GetHash();
+    BOOST_REQUIRE(tip() == conflicting_block);
+    BOOST_REQUIRE(!m_node.mempool->exists(locked_evicted.GetHash()));
+
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto cycle_hash = AddMinedQuorum(/*height=*/24, key);
+    Process(/*node=*/1, MakeLock(cycle_hash, key, locked.GetHash(), locked.vin[0].prevout));
+    Process(/*node=*/1, MakeLock(cycle_hash, key, locked_evicted.GetHash(), locked_evicted.vin[0].prevout));
+    ResolveDeferredBlockConflicts(net);
+    BOOST_CHECK(tip() == conflicting_block);
+
+    // The notifications catch up between the worker fetching queued locks and running deferred checks
+    held_queue->disconnect();
+    SyncWithValidationInterfaceQueue();
+    held_queue = hold_queue();
+    ResolveDeferredBlockConflicts(net);
+    BOOST_CHECK(tip() == before_conflict);
+    held_queue->disconnect();
+    SyncWithValidationInterfaceQueue();
+    ProcessQueuedLocks();
+    BOOST_CHECK(m_node.isman->IsWaitingForTx(locked_evicted.GetHash()));
+    BOOST_CHECK(tip() == before_conflict);
+
+    // Without the locked transactions the block may come back, and the locks are not checked again
+    BlockValidationState state;
+    BOOST_REQUIRE(m_node.chainman->ActiveChainstate().ActivateBestChain(state));
+    SyncWithValidationInterfaceQueue();
+    ProcessQueuedLocks();
+    ResolveDeferredBlockConflicts(net);
+    BOOST_CHECK(tip() == conflicting_block);
 }
 
 uint256 CalculateRequestId(const std::vector<COutPoint>& inputs)
