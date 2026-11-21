@@ -6,6 +6,7 @@
 
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <llmq/cache.h>
 #include <llmq/snapshot.h>
 #include <llmq/types.h>
@@ -17,6 +18,7 @@
 #include <chainparams.h>
 #include <deploymentstatus.h>
 #include <random.h>
+#include <shutdown.h>
 #include <util/time.h>
 #include <validation.h>
 
@@ -27,6 +29,7 @@
 #include <limits>
 #include <map>
 #include <optional>
+#include <utility>
 
 /**
  * Forward declarations
@@ -790,19 +793,6 @@ std::vector<std::array<QuorumMembers, 4>> ComputeRotationQuarters(const Consensu
             prev_cycles[idx]->m_snap = opt_snap.value();
         } else {
             if (predicting) return {};
-            // A cycle's snapshot is also missing when computing that cycle failed on a malformed older snapshot.
-            // Keep that failure instead of building on the history before the gap.
-            for (size_t older{idx + 1}; older < prev_cycles.size(); ++older) {
-                const CBlockIndex* older_index{
-                    pWorkBlockIndex->GetAncestor(cycleBaseHeight - (cycleLength * static_cast<int>(older + 1)))};
-                if (older_index == nullptr) break;
-                const auto older_snap{util_params.m_qsnapman.GetSnapshotForBlock(llmqParams.type, older_index)};
-                if (older_snap.has_value() &&
-                    !GetQuorumQuarterMembersBySnapshot(llmqParams, util_params.m_dmnman, chainman.GetConsensus(),
-                                                       chainman.m_blockman, older_index, *older_snap, cycleBaseHeight)) {
-                    return {};
-                }
-            }
             // TODO: Check if it is triggered from outside (P2P, block validation) and maybe throw an exception
             // assert(false);
             break;
@@ -810,7 +800,17 @@ std::vector<std::array<QuorumMembers, 4>> ComputeRotationQuarters(const Consensu
         auto members = GetQuorumQuarterMembersBySnapshot(llmqParams, util_params.m_dmnman, chainman.GetConsensus(),
                                                          chainman.m_blockman, prev_cycles[idx]->m_cycle_index,
                                                          prev_cycles[idx]->m_snap, cycleBaseHeight);
-        if (!members) return {};
+        if (!members) {
+            if (predicting) return {};
+            // Only a corrupted MODE_SHORT_QUARTERS snapshot fails to replay. Stop before anything built on it is
+            // stored or cached; the block being validated isn't at fault.
+            const std::string msg{strprintf("%s -- EvoDB quorum snapshot for llmqType[%d] at block %s can't be "
+                                            "replayed, please restart with -reindex-chainstate",
+                                            __func__, std23::to_underlying(llmqParams.type),
+                                            prev_cycles[idx]->m_cycle_index->GetBlockHash().ToString())};
+            AbortNode(msg);
+            throw EvoDbInconsistencyError(msg);
+        }
         prev_cycles[idx]->m_members = std::move(*members);
     }
 
@@ -894,6 +894,17 @@ std::optional<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersFromWorkBlo
     return quorumMembers[quorumIndex];
 }
 
+namespace {
+thread_local bool g_throw_on_evodb_corruption{false};
+} // namespace
+
+EvoDbCorruptionThrowScope::EvoDbCorruptionThrowScope() :
+    m_prev{std::exchange(g_throw_on_evodb_corruption, true)}
+{
+}
+
+EvoDbCorruptionThrowScope::~EvoDbCorruptionThrowScope() { g_throw_on_evodb_corruption = m_prev; }
+
 QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params, bool reset_cache)
 {
     static RecursiveMutex cs_members;
@@ -965,9 +976,15 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
                                                                                      WORK_DIFF_DEPTH);
         const auto modifier = GetHashModifier(llmq_params, util_params.m_chainman.GetConsensus(),
                                               util_params.m_chainman.m_blockman, pCycleQuorumBaseBlockIndex);
-        auto q = ComputeQuorumMembersByQuarterRotation(llmq_params, util_params.replace_index(pCycleQuorumBaseBlockIndex),
-                                                       pWorkBlockIndex, cycleQuorumBaseHeight, modifier,
-                                                       /*predicting=*/false);
+        std::vector<QuorumMembers> q;
+        try {
+            q = ComputeQuorumMembersByQuarterRotation(llmq_params, util_params.replace_index(pCycleQuorumBaseBlockIndex),
+                                                      pWorkBlockIndex, cycleQuorumBaseHeight, modifier,
+                                                      /*predicting=*/false);
+        } catch (const EvoDbInconsistencyError&) {
+            if (g_throw_on_evodb_corruption) throw;
+            return {};
+        }
         if (q.empty()) {
             return {};
         }

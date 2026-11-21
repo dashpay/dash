@@ -89,8 +89,9 @@ std::optional<std::vector<std::vector<size_t>>> ReplayNewQuarters(size_t list_si
 std::vector<int> LegacySkipListForWalk(size_t list_size, const QuarterWalkResult& walk);
 
 //! Per quorum index, the four quarters in assembly order (H-3C, H-2C, H-C, new). Empty outer vector when
-//! the cycle can't be computed (skip list overflow, or a previous cycle's snapshot is malformed).
-//! GetAllQuorumMembers flattens this.
+//! the cycle can't be computed (skip list overflow, or, when predicting, a previous cycle's snapshot is
+//! malformed). Outside predictions a malformed snapshot is EvoDB corruption: the node is stopped and
+//! EvoDbInconsistencyError thrown. GetAllQuorumMembers flattens this.
 std::vector<std::array<QuorumMembers, 4>> ComputeRotationQuarters(const Consensus::LLMQParams& llmqParams,
                                                                   const UtilParameters& util_params,
                                                                   gsl::not_null<const CBlockIndex*> pWorkBlockIndex,
@@ -121,6 +122,21 @@ uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256
 std::unordered_set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType,
                                                              gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex,
                                                              size_t memberCount, size_t connectionCount);
+
+//! While one is alive on a thread, GetAllQuorumMembers() on that thread lets the EvoDbInconsistencyError from
+//! ComputeRotationQuarters() through. Block validation holds one so that it reports the block as an error
+//! instead of invalid; other callers just find no members while the node shuts down.
+class EvoDbCorruptionThrowScope
+{
+public:
+    EvoDbCorruptionThrowScope();
+    ~EvoDbCorruptionThrowScope();
+    EvoDbCorruptionThrowScope(const EvoDbCorruptionThrowScope&) = delete;
+    EvoDbCorruptionThrowScope& operator=(const EvoDbCorruptionThrowScope&) = delete;
+
+private:
+    const bool m_prev;
+};
 
 // includes members which failed DKG
 std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params,

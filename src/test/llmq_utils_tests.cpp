@@ -9,8 +9,10 @@
 
 #include <arith_uint256.h>
 #include <bls/bls.h>
+#include <chain.h>
 #include <chainparams.h>
 #include <checkqueue.h>
+#include <consensus/merkle.h>
 #include <consensus/params.h>
 #include <dbwrapper.h>
 #include <evo/cbtx.h>
@@ -18,6 +20,7 @@
 #include <evo/evodb.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
+#include <llmq/commitment.h>
 #include <llmq/context.h>
 #include <llmq/net_signing.h>
 #include <llmq/params.h>
@@ -27,19 +30,25 @@
 #include <llmq/snapshot.h>
 #include <llmq/utils.h>
 #include <netaddress.h>
+#include <node/miner.h>
+#include <pow.h>
 #include <random.h>
+#include <shutdown.h>
 #include <streams.h>
 #include <util/strencodings.h>
 #include <validation.h>
+#include <warnings.h>
 
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <limits>
 #include <map>
 #include <optional>
 #include <set>
+#include <string_view>
 #include <vector>
 
 using namespace llmq;
@@ -1101,29 +1110,105 @@ BOOST_FIXTURE_TEST_CASE(rotation_candidate_conflicting_with_previous_member_is_s
     BuildAndCheckCycle(*this, built, 192);
 }
 
-BOOST_FIXTURE_TEST_CASE(rotation_malformed_snapshot_is_unavailable, RotationChainSetup)
+BOOST_FIXTURE_TEST_CASE(rotation_malformed_snapshot_stops_node, RotationChainSetup)
 {
-    // Cycle 192 has short quarters (see rotation_builder_matches_rebuild), so it is stored in MODE_SHORT_QUARTERS
+    // A snapshot that can't be replayed is local EvoDB corruption: the node stops, and a block whose validation
+    // runs into it is neither connected nor marked invalid
+    static std::atomic<int> exit_status{EXIT_SUCCESS};
+    BOOST_REQUIRE(InitShutdownState(exit_status));
+    // AbortNode() leaves a shutdown request, an exit status and a warning behind; don't let them outlive the test
+    struct ShutdownStateCleanup {
+        ~ShutdownStateCleanup()
+        {
+            AbortShutdown();
+            exit_status = EXIT_SUCCESS;
+            SetMiscWarning({});
+        }
+    } const cleanup;
+    const auto expect_stopped = [&] {
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK_EQUAL(exit_status.exchange(EXIT_SUCCESS), EXIT_FAILURE);
+        AbortShutdown();
+    };
+    const auto expect_not_connected_nor_invalid = [&](const CBlock& block) {
+        const int height{Tip()->nHeight};
+        chainman.ProcessNewBlock(std::make_shared<const CBlock>(block), /*force_processing=*/true, nullptr);
+        BOOST_CHECK_EQUAL(Tip()->nHeight, height);
+        LOCK(::cs_main);
+        const CBlockIndex* pindex{chainman.m_blockman.LookupBlockIndex(block.GetHash())};
+        BOOST_REQUIRE(pindex);
+        BOOST_CHECK(!(pindex->nStatus & BLOCK_FAILED_MASK));
+    };
+    const auto malform = [&](int height) {
+        const CBlockIndex* base{Tip()->GetAncestor(height)};
+        auto snapshot{qsnapman.GetSnapshotForBlock(llmq_params.type, base)};
+        BOOST_REQUIRE(snapshot.has_value());
+        const auto original{*snapshot};
+        // A negative first step is malformed
+        snapshot->mnSkipListMode = SnapshotSkipMode::MODE_SHORT_QUARTERS;
+        snapshot->mnSkipList = {-1};
+        qsnapman.StoreSnapshotForBlock(llmq_params.type, base, *snapshot);
+        return original;
+    };
+
     CBLSSecretKey op1, op2;
     Mine({RegisterTx(1, op1), RegisterTx(2, op2)});
     const int cycle{192};
     MineTo(cycle);
     BOOST_REQUIRE_EQUAL(Quarters(cycle).size(), static_cast<size_t>(llmq_params.signingActiveQuorumCount));
-    const CBlockIndex* base = Tip()->GetAncestor(cycle);
-    auto snapshot = qsnapman.GetSnapshotForBlock(llmq_params.type, base);
-    BOOST_REQUIRE(snapshot.has_value());
-    BOOST_REQUIRE(snapshot->mnSkipListMode == SnapshotSkipMode::MODE_SHORT_QUARTERS);
+    const CBlockIndex* cycle_base{Tip()->GetAncestor(cycle)};
 
-    // a negative first step is malformed: the cycles whose window still reaches it can't be computed and store
-    // no snapshot, including the ones after a cycle whose snapshot is missing because of it
-    snapshot->mnSkipList = {-1};
-    qsnapman.StoreSnapshotForBlock(llmq_params.type, base, *snapshot);
-    for (const int k : {1, 2, 3}) {
-        const int next{cycle + k * llmq_params.dkgInterval};
-        MineTo(next);
-        BOOST_CHECK_MESSAGE(Quarters(next).empty(), strprintf("cycle %d", next));
-        BOOST_CHECK(!qsnapman.GetSnapshotForBlock(llmq_params.type, Tip()->GetAncestor(next)).has_value());
-    }
+    // A commitment check meeting it: computing the cycle's members uses the previous cycle's snapshot. Outside
+    // block validation there just are no members.
+    const int prev_cycle{cycle - llmq_params.dkgInterval};
+    const auto original{malform(prev_cycle)};
+    BOOST_CHECK(llmq::utils::GetAllQuorumMembers(llmq_params.type, {dmnman, qsnapman, chainman, cycle_base},
+                                                 /*reset_cache=*/true)
+                    .empty());
+    expect_stopped();
+    CFinalCommitmentTxPayload qc;
+    qc.nVersion = CFinalCommitmentTxPayload::CURRENT_VERSION;
+    qc.nHeight = Tip()->nHeight + 1;
+    qc.commitment.nVersion = CFinalCommitment::BASIC_BLS_INDEXED_QUORUM_VERSION;
+    qc.commitment.llmqType = llmq_params.type;
+    qc.commitment.quorumHash = cycle_base->GetBlockHash();
+    qc.commitment.quorumIndex = 0;
+    qc.commitment.validMembers.assign(llmq_params.size, true);
+    qc.commitment.signers.assign(llmq_params.size, true);
+    CBLSSecretKey quorum_key;
+    quorum_key.MakeNewKey();
+    qc.commitment.quorumPublicKey = quorum_key.GetPublicKey();
+    qc.commitment.quorumVvecHash = uint256::ONE;
+    qc.commitment.membersSig = quorum_key.Sign(uint256::ONE);
+    qc.commitment.quorumSig = quorum_key.Sign(uint256::ONE);
+    CMutableTransaction qc_tx;
+    qc_tx.nVersion = CTransaction::SPECIAL_VERSION;
+    qc_tx.nType = TRANSACTION_QUORUM_COMMITMENT;
+    SetTxPayload(qc_tx, qc);
+    const CBlock qc_block{CreateBlock({qc_tx}, coinbase_pk, chainman.ActiveChainstate())};
+    expect_stopped();
+    expect_not_connected_nor_invalid(qc_block);
+    expect_stopped();
+    qsnapman.StoreSnapshotForBlock(llmq_params.type, Tip()->GetAncestor(prev_cycle), original);
+
+    // The next cycle's base block meeting it: precomputing that cycle's members uses this cycle's snapshot.
+    // Cycle 192 has short quarters (see rotation_builder_matches_rebuild), so it is stored in MODE_SHORT_QUARTERS.
+    BOOST_REQUIRE(qsnapman.GetSnapshotForBlock(llmq_params.type, cycle_base)->mnSkipListMode ==
+                  SnapshotSkipMode::MODE_SHORT_QUARTERS);
+    const int next{cycle + llmq_params.dkgInterval};
+    MineTo(next - 1);
+    malform(cycle);
+    const size_t stored{CountStoredSnapshots()};
+    node::BlockAssembler::Options options;
+    options.test_block_validity = false;
+    CBlock base_block{
+        node::BlockAssembler{chainman.ActiveChainstate(), m_node, nullptr, options}.CreateNewBlock(coinbase_pk)->block};
+    base_block.hashMerkleRoot = BlockMerkleRoot(base_block);
+    while (!CheckProofOfWork(base_block.GetHash(), base_block.nBits, chainman.GetConsensus()))
+        ++base_block.nNonce;
+    expect_not_connected_nor_invalid(base_block);
+    expect_stopped();
+    BOOST_CHECK_EQUAL(CountStoredSnapshots(), stored);
 }
 
 BOOST_FIXTURE_TEST_CASE(rotation_zero_candidates_store_snapshot, RotationChainSetup)
