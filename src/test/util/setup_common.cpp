@@ -162,6 +162,7 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
             "-debug",
             "-debugexclude=libevent",
             "-debugexclude=leveldb",
+            "-checkevobinding",
         },
         extra_args);
     if (G_TEST_COMMAND_LINE_ARGUMENTS) {
@@ -224,7 +225,8 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vecto
     m_node.chainlocks = std::make_unique<chainlock::Chainlocks>(*m_node.sporkman);
     m_node.sbman = std::make_unique<governance::SuperblockManager>();
     m_node.mn_sync = std::make_unique<CMasternodeSync>(std::make_unique<NodeSyncNotifierImpl>(*m_node.connman, *m_node.netfulfilledman));
-    m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true});
+    m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true},
+                                                 m_node.args->GetBoolArg("-checkevobinding", false));
     m_node.dmnman = std::make_unique<CDeterministicMNManager>(*m_node.evodb, *m_node.mn_metaman);
     m_node.isman = std::make_unique<llmq::CInstantSendManager>(*m_node.sporkman, util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true});
 
@@ -389,7 +391,8 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
         m_node.isman.reset();
         m_node.dmnman.reset();
         m_node.evodb.reset();
-        m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true});
+        m_node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true},
+                                                 m_node.args->GetBoolArg("-checkevobinding", false));
         m_node.dmnman = std::make_unique<CDeterministicMNManager>(*m_node.evodb, *m_node.mn_metaman);
         m_node.isman = std::make_unique<llmq::CInstantSendManager>(*m_node.sporkman, util::DbWrapperParams{.path = m_node.args->GetDataDirNet(), .memory = m_dash_dbs_in_memory, .wipe = true});
         m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
@@ -526,6 +529,10 @@ TestChainSetup::TestChainSetup(
             {  100, uint256S("0x6ffb83129c19ebdf1ae3771be6a67fe34b35f4c956326b9ba152fac1649f65ae") },
             /*CommitmentSchemeSetup=*/
             {  101, uint256S("0x585dcb063a3dc1b9bc6f8224814b5b12d3c5eb28bc27372c6b524c45409828aa") },
+            /*SnapshotActivationChainSetup=*/
+            {  102, uint256S("0x37876f3493ac152f9a0bdf0049d85969fe3ba82745733a81c8e1afeefa16ab3b") },
+            /*CreditWindowLateV20Setup=*/
+            {  104, uint256S("0x7da687196d19e677f76e812032881eaac5d7e3453542de561c90e9e6c5f9110c") },
             /*TestChainV19BeforeActivationSetup=*/
             {  103, uint256S("0x13adad9565d0ca558f5675c50e3828f4354d26b64de044ebc88686056f30faab") },
             /*TestChainDIP3BeforeActivationSetup=*/
@@ -639,6 +646,7 @@ CBlock TestChainSetup::CreateBlock(const std::vector<CMutableTransaction>& txns,
     // Manually update CbTx as we modified the block here
     if (block.vtx[0]->nType == TRANSACTION_COINBASE) {
         LOCK(cs_main);
+        const EvoViewScope evo_view{chainstate.EvoView()};
         auto cbTx = GetTxPayload<CCbTx>(*block.vtx[0]);
         Assert(cbTx.has_value());
         BlockValidationState state;
@@ -811,6 +819,13 @@ void TestChainSetup::MockMempoolMinFee(const CFeeRate& target_feerate)
     m_node.mempool->TrimToSize(0);
     assert(m_node.mempool->GetMinFee() == target_feerate);
 }
+
+void NotifyMNListTip(CDeterministicMNManager& dmnman, const CBlockIndex* tip)
+{
+    const ActiveEvoViewScope turn{&dmnman.EvoDb()};
+    dmnman.UpdatedBlockTip(Assert(tip));
+}
+
 /**
  * @returns a real block (0000000000013b8ab2cd513b0261a14096412195a72a0c4827d229dcc7e0f7af)
  *      with 9 txs.

@@ -28,6 +28,8 @@ public:
     void warning(const bilingual_str& warning) override;
 
     void masternodeListChanged(const CDeterministicMNList& list, const CBlockIndex* index) override;
+
+    void evoStateWarningChanged() override;
 };
 } // namespace node
 

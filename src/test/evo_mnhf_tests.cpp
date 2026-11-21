@@ -176,14 +176,19 @@ BOOST_FIXTURE_TEST_CASE(signals_unavailable_for_unconnected_block, TestChainV19S
                                             !sibling_index->IsValid(BLOCK_VALID_SCRIPTS)));
     BOOST_REQUIRE(DeploymentActiveAfter(sibling_index, chainman.GetConsensus(), Consensus::DEPLOYMENT_V20));
 
-    BOOST_CHECK_NO_THROW(mnhfman.GetSignalsStage(connected_index));
-    BOOST_CHECK_THROW(mnhfman.GetSignalsStage(sibling_index), EvoDbMissingStateError);
+    {
+        // A lookup outside a dispatcher binds the active Evo view itself.
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        BOOST_CHECK_NO_THROW(mnhfman.GetSignalsStage(connected_index));
+        BOOST_CHECK_THROW(mnhfman.GetSignalsStage(sibling_index), EvoDbMissingStateError);
+    }
 
     // Connecting the sibling stores its state
     BlockValidationState state;
     BOOST_REQUIRE(chainman.ActiveChainstate().InvalidateBlock(state, connected_index));
     BOOST_REQUIRE(chainman.ActiveChainstate().ActivateBestChain(state));
     BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), sibling_index);
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     BOOST_CHECK_NO_THROW(mnhfman.GetSignalsStage(sibling_index));
 }
 
