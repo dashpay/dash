@@ -21,6 +21,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import types
+import unittest
 from concurrent.futures import ThreadPoolExecutor
 
 from typing import Any, List, Optional, Union
@@ -69,6 +71,7 @@ class TestStatus(Enum):
 TEST_EXIT_PASSED = 0
 TEST_EXIT_FAILED = 1
 TEST_EXIT_SKIPPED = 77
+TEST_EXIT_NODES_NOT_REAPED = 78
 
 TMPDIR_PREFIX = "dash_func_test_"
 
@@ -353,6 +356,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
         self.log.debug('Closing down network thread')
         self.network_thread.close()
+        unreaped = []
         if not self.options.noshutdown:
             self.log.info("Stopping nodes")
             try:
@@ -361,6 +365,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             except BaseException:
                 self.success = TestStatus.FAILED
                 self.log.exception("Unexpected exception caught during shutdown")
+            unreaped = self.kill_leftover_nodes()
         else:
             for node in self.nodes:
                 node.cleanup_on_exit = False
@@ -396,7 +401,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             self.log.error("If this failure happened unexpectedly or intermittently, please file a bug and provide a link or upload of the combined log.")
             self.log.error(self.config['environment']['PACKAGE_BUGREPORT'])
             self.log.error("")
-            exit_code = TEST_EXIT_FAILED
+            exit_code = TEST_EXIT_NODES_NOT_REAPED if unreaped else TEST_EXIT_FAILED
         # Logging.shutdown will not remove stream- and filehandlers, so we must
         # do it explicitly. Handlers are removed so the next test run can apply
         # different log handler settings.
@@ -699,6 +704,22 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         for node in self.nodes:
             # Wait for nodes to stop
             node.wait_until_stopped()
+
+    def kill_leftover_nodes(self):
+        """Kill every node that is still running, wait until they have all exited and return those that did not"""
+        leftover = [node for node in self.nodes if node.running]
+        for node in leftover:
+            node.log.debug("Killing leftover process")
+            node.process.kill()
+        unreaped = []
+        for node in leftover:
+            try:
+                node.wait_until_killed()
+            except subprocess.TimeoutExpired:
+                self.success = TestStatus.FAILED
+                self.log.exception(f"node{node.index} did not exit after SIGKILL")
+                unreaped.append(node)
+        return unreaped
 
     def restart_node(self, i, extra_args=None, expected_stderr=''):
         """Stop and start a test node"""
@@ -2798,3 +2819,43 @@ class DashTestFramework(BitcoinTestFramework):
                     c += 1
             return c >= count
         self.wait_until(test, timeout=timeout)
+
+
+class TestFrameworkShutdown(unittest.TestCase):
+    def test_kill_leftover_nodes(self):
+        events = []
+        log = logging.getLogger("TestFramework.kill_leftover_nodes_test")
+        log.addHandler(logging.NullHandler())
+        log.propagate = False
+
+        class FakeProcess:
+            def __init__(self, index):
+                self.index = index
+
+            def kill(self):
+                events.append(("kill", self.index))
+
+        class FakeNode:
+            def __init__(self, index, running, exits=True):
+                self.index = index
+                self.running = running
+                self.exits = exits
+                self.process = FakeProcess(index)
+                self.log = log
+
+            def wait_until_killed(self):
+                events.append(("wait", self.index))
+                if not self.exits:
+                    raise subprocess.TimeoutExpired("dashd", 0)
+                self.running = False
+
+        reaped = types.SimpleNamespace(nodes=[FakeNode(0, True), FakeNode(1, False)], success=TestStatus.PASSED, log=log)
+        self.assertEqual(BitcoinTestFramework.kill_leftover_nodes(reaped), [])
+        self.assertEqual(events, [("kill", 0), ("wait", 0)])
+        self.assertEqual(reaped.success, TestStatus.PASSED)
+
+        events.clear()
+        stuck = types.SimpleNamespace(nodes=[FakeNode(0, True), FakeNode(1, True, exits=False), FakeNode(2, True)], success=TestStatus.PASSED, log=log)
+        self.assertEqual([node.index for node in BitcoinTestFramework.kill_leftover_nodes(stuck)], [1])
+        self.assertEqual(events, [("kill", 0), ("kill", 1), ("kill", 2), ("wait", 0), ("wait", 1), ("wait", 2)])
+        self.assertEqual(stuck.success, TestStatus.FAILED)

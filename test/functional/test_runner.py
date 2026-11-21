@@ -77,6 +77,7 @@ else:
 
 TEST_EXIT_PASSED = 0
 TEST_EXIT_SKIPPED = 77
+TEST_EXIT_NODES_NOT_REAPED = 78
 
 # List of framework modules containing unit tests. Should be kept in sync with
 # the output of `git grep unittest.TestCase ./test/functional/test_framework`
@@ -93,6 +94,7 @@ TEST_FRAMEWORK_MODULES = [
     "crypto.ripemd160",
     "script",
     "segwit_addr",
+    "test_framework",
     "wallet_util",
 ]
 
@@ -908,7 +910,7 @@ class TestHandler:
                     elif proc.returncode == TEST_EXIT_SKIPPED:
                         status = "Skipped"
                         skip_reason = re.search(r"Test Skipped: (.*)", stdout).group(1)
-                    elif attempt < self.attempts:
+                    elif attempt < self.attempts and proc.returncode != TEST_EXIT_NODES_NOT_REAPED:
                         # cleanup
                         if self.use_term_control:
                             clearline = '\r' + (' ' * dot_count) + '\r'
@@ -938,6 +940,8 @@ class TestHandler:
                         continue
                     else:
                         status = "Failed"
+                        if proc.returncode == TEST_EXIT_NODES_NOT_REAPED and attempt < self.attempts:
+                            print(f"{name} left nodes running at attempt {attempt}/{self.attempts}, not retrying on the same ports")
                     self.jobs.remove(job)
                     if self.use_term_control:
                         clearline = '\r' + (' ' * dot_count) + '\r'
