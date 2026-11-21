@@ -4325,10 +4325,10 @@ PlatformKeyResult<uint32_t> CWallet::PlatformAccountReference(const IdentityAuth
     return result;
 }
 
-PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request)
+PlatformKeyResult<FriendshipKeychain> CWallet::EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request)
 {
     LOCK(cs_wallet);
-    PlatformKeyResult<FriendshipXpub> result;
+    PlatformKeyResult<FriendshipKeychain> result;
     const auto path{platformkeys::FriendshipPath(static_cast<uint32_t>(Params().ExtCoinType()), request.account,
                                                  Span{request.local_id.begin(), uint256::size()},
                                                  Span{request.remote_id.begin(), uint256::size()})};
@@ -4349,6 +4349,7 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
         return result;
     }
 
+    const FriendshipXpub friendship_xpub{key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
     const int64_t birth_time{std::max<int64_t>(request.birth_time, 0)};
     WalletDescriptor descriptor(std::move(parsed), birth_time, /*range_start=*/0,
                                 /*range_end=*/DEFAULT_KEYPOOL_SIZE, /*next_index=*/0);
@@ -4358,14 +4359,21 @@ PlatformKeyResult<FriendshipXpub> CWallet::EnsureFriendshipReceivingKeychain(con
         descriptor.range_start = current.range_start;
         descriptor.range_end = std::max(descriptor.range_end, current.range_end);
         descriptor.next_index = current.next_index;
+        // Held with its key and born no later: no block was scanned without it.
+        if (descriptor.creation_time >= current.creation_time && existing->HavePrivateKeys()) {
+            result.value = {friendship_xpub, /*rescan_from=*/std::nullopt};
+            return result;
+        }
         descriptor.creation_time = std::min(descriptor.creation_time, current.creation_time);
     }
     if (!AddWalletDescriptor(descriptor, provider, /*label=*/"", /*internal=*/false)) {
         result.status = PlatformKeyStatus::IMPORT_ERROR;
         return result;
     }
+    // A held chain is not an active one, so nothing else lowers the wallet's birth to its new one.
+    MaybeUpdateBirthTime(descriptor.creation_time);
 
-    result.value = {key.key.GetPubKey(), key.chaincode, key.parent_fingerprint};
+    result.value = {friendship_xpub, /*rescan_from=*/descriptor.creation_time};
     return result;
 }
 

@@ -8,6 +8,7 @@
 #include <functional>
 #include <future>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdint.h>
 #include <vector>
@@ -218,6 +219,22 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
     }
     m_node.chainman->m_blockman.UnlinkPrunedFiles({file_number});
     BOOST_CHECK(rescan_pruned_from() == std::optional<int>{0});
+
+    // A rescan that cannot read every block it needs fails.
+    {
+        const auto wallet{std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase())};
+        {
+            LOCK(wallet->cs_wallet);
+            wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+            wallet->SetLastBlockProcessed(newTip->nHeight, newTip->GetBlockHash());
+        }
+        AddKey(*wallet, coinbaseKey);
+        WalletContext context;
+        const auto iface{interfaces::MakeWallet(context, wallet)};
+        BOOST_CHECK(iface->rescanFromTime(0) == RescanStatus::FAILURE);
+        // However early the time, the rescan starts at the first block rather than finding none.
+        BOOST_CHECK(iface->rescanFromTime(std::numeric_limits<int64_t>::min()) == RescanStatus::FAILURE);
+    }
 
     // Verify ScanForWalletTransactions only picks transactions in the new block
     // file.

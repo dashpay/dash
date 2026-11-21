@@ -113,6 +113,12 @@ public:
     //! Initiate a rescan. Returns status indicating success, failure, abort, or already rescanning.
     virtual wallet::RescanStatus startRescan(bool from_genesis) = 0;
 
+    //! Rescan, on the calling thread, the blocks a key born at from_time
+    //! (UNIX time in seconds) may be paid in, as importdescriptors does.
+    //! Returns as startRescan() does. Throws std::runtime_error if a wallet
+    //! database write fails: reload the wallet before running it again.
+    virtual wallet::RescanStatus rescanFromTime(int64_t from_time) = 0;
+
     //! Abort a rescan.
     virtual void abortRescan() = 0;
 
@@ -172,9 +178,18 @@ public:
                                                                          const wallet::CompactXpub& compact_xpub) = 0;
 
     //! Ensure our private DIP-15 receiving chain is imported as a ranged
-    //! descriptor and return the corresponding public chain. Derivation,
-    //! descriptor update and result publication are one wallet-locked action.
-    virtual wallet::PlatformKeyResult<wallet::FriendshipXpub> ensureFriendshipReceivingKeychain(
+    //! descriptor born no later than request.birth_time (in seconds) and
+    //! return the corresponding public chain. Derivation, descriptor update
+    //! and result publication are one wallet-locked action. When the chain
+    //! was imported, given its key, or its birth moved earlier,
+    //! the result's rescan_from is set to the chain's birth, which can be
+    //! earlier than the request's, and the caller owes a rescanFromTime()
+    //! from it, as after importdescriptors; one rescan from the lowest
+    //! serves many chains. A later call for the same chain does not report
+    //! it again: the caller keeps it until that rescan returns SUCCESS, and
+    //! to survive a restart in between it records what it is about to
+    //! import before it calls this.
+    virtual wallet::PlatformKeyResult<wallet::FriendshipKeychain> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) = 0;
 
     //! Every credit output of this wallet's asset lock transactions that pays

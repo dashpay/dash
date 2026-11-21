@@ -224,6 +224,36 @@ public:
         Assume(false); // unreachable
         return wallet::RescanStatus::FAILURE; // fallback for release builds
     }
+    wallet::RescanStatus rescanFromTime(int64_t from_time) override
+    {
+        WalletRescanReserver reserver(*m_wallet);
+        if (!reserver.reserve()) {
+            return wallet::RescanStatus::BUSY;
+        }
+        // Not CWallet::RescanFromTime(): it does not say when an abort or a shutdown cut the scan short.
+        uint256 start_hash;
+        int start_height{0};
+        if (!m_wallet->chain().findFirstBlockWithTimeAndHeight(std::max<int64_t>(from_time, 0) - TIMESTAMP_WINDOW,
+                                                               /*min_height=*/0,
+                                                               FoundBlock().hash(start_hash).height(start_height))) {
+            // No block is that recent: only the mempool can pay the key.
+            WITH_LOCK(m_wallet->cs_wallet, m_wallet->chain().requestMempoolTransactions(*m_wallet));
+            return wallet::RescanStatus::SUCCESS;
+        }
+        switch (m_wallet
+                    ->ScanForWalletTransactions(start_hash, start_height, /*max_height=*/std::nullopt, reserver,
+                                                /*fUpdate=*/true, /*save_progress=*/false)
+                    .status) {
+        case CWallet::ScanResult::SUCCESS:
+            return wallet::RescanStatus::SUCCESS;
+        case CWallet::ScanResult::FAILURE:
+            return wallet::RescanStatus::FAILURE;
+        case CWallet::ScanResult::USER_ABORT:
+            return wallet::RescanStatus::USER_ABORT;
+        }
+        Assume(false);                        // unreachable
+        return wallet::RescanStatus::FAILURE; // fallback for release builds
+    }
     void abortRescan() override { m_wallet->AbortRescan(); }
     std::optional<int> rescanPrunedFrom() override
     {
@@ -282,7 +312,7 @@ public:
     {
         return m_wallet->PlatformAccountReference(key, compact_xpub);
     }
-    wallet::PlatformKeyResult<wallet::FriendshipXpub> ensureFriendshipReceivingKeychain(
+    wallet::PlatformKeyResult<wallet::FriendshipKeychain> ensureFriendshipReceivingKeychain(
         const wallet::FriendshipKeychainRequest& request) override
     {
         return m_wallet->EnsureFriendshipReceivingKeychain(request);
