@@ -714,6 +714,11 @@ bool CSigningManager::GetRecoveredSig(Consensus::LLMQType llmqType, const uint25
     return db.GetRecoveredSig(llmqType, id, msgHash, retRecSig);
 }
 
+bool CSigningManager::GetRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& retRecSig) const
+{
+    return db.GetRecoveredSigById(llmqType, id, retRecSig);
+}
+
 bool CSigningManager::IsConflicting(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const
 {
     if (llmqType == Params().GetConsensus().llmqTypePlatform) return false;
