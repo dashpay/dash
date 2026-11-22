@@ -50,11 +50,8 @@ def extract_quorum_members(quorum_info):
     return [d['proTxHash'] for d in quorum_info["members"]]
 
 class LLMQQuorumRotationTest(DashTestFramework):
-    def add_options(self, parser):
-        self.add_wallet_options(parser)
-
     def set_test_params(self):
-        self.set_dash_test_params(9, 8, extra_args=[["-vbparams=testdummy:999999999999:999999999999"]] * 9)
+        self.set_dash_test_params(8, 8, extra_args=[["-vbparams=testdummy:999999999999:999999999999"]] * 8)
         self.set_dash_llmq_test_params(4, 4)
         self.delay_v20_and_mn_rr(height=300)
 
