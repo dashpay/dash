@@ -55,11 +55,18 @@ void CInstantSendManager::EnqueueInstantSendLock(NodeId from, const uint256& has
     pendingInstantSendLocks.emplace(hash, instantsend::PendingISLockFromPeer{from, std::move(islock)});
 }
 
+void CInstantSendManager::SetFetchPendingActive(bool active)
+{
+    LOCK(cs_pendingLocks);
+    m_fetch_pending_active = active;
+}
+
 instantsend::PendingState CInstantSendManager::FetchPendingLocks()
 {
     instantsend::PendingState ret;
 
     LOCK(cs_pendingLocks);
+    if (!m_fetch_pending_active) return ret;
     // only process a max 32 locks at a time to avoid duplicate verification of recovered signatures which have been
     // verified by CSigningManager in parallel
     const size_t maxCount = 32;

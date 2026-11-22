@@ -3,9 +3,18 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+import random
 from decimal import Decimal
+from io import BytesIO
 
-from test_framework.messages import msg_qsendrecsigs
+from test_framework.messages import (
+    COutPoint,
+    CRecoveredSig,
+    hash256,
+    msg_isdlock,
+    msg_qsendrecsigs,
+    msg_qsigrec,
+)
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error
@@ -57,6 +66,8 @@ class InstantSendTest(DashTestFramework):
         self.test_mempool_doublespend()
         self.test_block_doublespend()
         self.test_isdlock_relayed_to_recsigs_observer()
+        self.test_genesis_cycle_islock_isolated()
+        self.test_cached_recsig_islock_isolated()
         self.test_provider_tx_not_locked()
 
     def test_block_doublespend(self):
@@ -171,6 +182,94 @@ class InstantSendTest(DashTestFramework):
 
         for node, _ in observers:
             node.disconnect_p2ps()
+
+    def test_genesis_cycle_islock_isolated(self):
+        self.log.info("A missing-quorum ISDLOCK must not drop the genuine locks batched with it")
+        # A genesis-block cycle hash resolves to height 0, a valid rotation boundary, but selects a
+        # signing height from before any quorum, so the lock has no quorum. Before the fix that
+        # dropped the whole verification batch, taking any genuine lock that shared it. We isolate a
+        # node so its only lock source is our peer, then queue a genuine lock alongside one
+        # quorum-less lock.
+        controller = self.nodes[0]
+        target = self.nodes[self.isolated_idx]
+        connected = [n for i, n in enumerate(self.nodes) if i != self.isolated_idx]
+        self.isolate_node(self.isolated_idx)
+        target.setnetworkactive(True)
+        peer = target.add_p2p_connection(P2PInterface())
+        genesis_hash = int(target.getblockhash(0), 16)
+
+        def genesis_lock(sig):
+            # No quorum signs at height 0; reusing a real signature keeps sig.IsValid() true so the
+            # lock still reaches (and fails) quorum selection instead of being rejected as malformed.
+            return msg_isdlock(1, [COutPoint(random.getrandbits(256), 0)], random.getrandbits(256), genesis_hash, sig)
+
+        txid = controller.sendtoaddress(controller.getnewaddress(), 1)
+        self.wait_for_instantlock(txid, nodes=connected)
+        genuine = msg_isdlock()
+        genuine.deserialize(BytesIO(bytes.fromhex(controller.getislocks([txid])[0]["hex"])))
+        target.sendrawtransaction(controller.getrawtransaction(txid))
+        # Hold the worker so both locks are queued before it fetches them as a single batch.
+        target.setinstantsendworkeractive(False)
+        peer.send_message(genesis_lock(genuine.sig))
+        peer.send_message(genuine)
+        peer.sync_with_ping()
+        # The quorum-less lock is retried against the previous active set after the genuine one is applied.
+        with target.assert_debug_log(["doing verification on old active set", "verified locks. count=0"], timeout=20):
+            target.setinstantsendworkeractive(True)
+            self.wait_until(lambda: target.getrawtransaction(txid, True)["instantlock"], timeout=20)
+        peer.sync_with_ping()
+        assert peer.is_connected
+
+        target.disconnect_p2ps()
+        self.reconnect_isolated_node(self.isolated_idx, 0)
+
+    def test_cached_recsig_islock_isolated(self):
+        self.log.info("A cached recovered sig must not authenticate another ISDLOCK for the same transaction")
+        llmq_type = 104  # llmq_test_instantsend
+        controller = self.nodes[0]
+        target = self.nodes[self.isolated_idx]
+        connected = [n for i, n in enumerate(self.nodes) if i != self.isolated_idx]
+        self.isolate_node(self.isolated_idx)
+        target.setnetworkactive(True)
+        forger = target.add_p2p_connection(P2PInterface())
+        honest = target.add_p2p_connection(P2PInterface())
+
+        locks = []
+        for _ in range(2):
+            txid = controller.sendtoaddress(controller.getnewaddress(), 1)
+            self.wait_for_instantlock(txid, nodes=connected)
+            islock_json = controller.getislocks([txid])[0]
+            islock = msg_isdlock()
+            islock.deserialize(BytesIO(bytes.fromhex(islock_json["hex"])))
+            locks.append((txid, islock, islock_json["id"]))
+            # The target must have both transactions, a reconnect does not relay them again
+            target.sendrawtransaction(controller.getrawtransaction(txid))
+        (txid, genuine, request_id), (_, other, _) = locks
+
+        # The target learns the recovered sig of the lock, but not the lock itself
+        rec_sig_json = self.mninfo[0].get_node(self).quorum("getrecsig", llmq_type, request_id, txid)
+        rec_sig = CRecoveredSig()
+        rec_sig.llmqType = rec_sig_json["llmqType"]
+        rec_sig.quorumHash = int(rec_sig_json["quorumHash"], 16)
+        rec_sig.id = int(rec_sig_json["id"], 16)
+        rec_sig.msgHash = int(rec_sig_json["msgHash"], 16)
+        rec_sig.sig = bytes.fromhex(rec_sig_json["sig"])
+        honest.send_message(msg_qsigrec(rec_sig))
+        self.wait_until(lambda: target.quorum("hasrecsig", llmq_type, request_id, txid))
+
+        # Same transaction, but with a signature that belongs to another lock
+        forged = msg_isdlock(genuine.nVersion, genuine.inputs, genuine.txid, genuine.cycleHash, other.sig)
+        forged_hash = hash256(forged.serialize())[::-1].hex()
+        with target.assert_debug_log([f"txid={txid}, islock={forged_hash}: verification failed"], timeout=20):
+            forger.send_message(forged)
+        assert_equal(target.getislocks([txid]), ["None"])
+
+        honest.send_message(genuine)
+        self.wait_until(lambda: target.getrawtransaction(txid, True)["instantlock"], timeout=20)
+        assert_equal(target.getislocks([txid])[0]["hex"], genuine.serialize().hex())
+
+        target.disconnect_p2ps()
+        self.reconnect_isolated_node(self.isolated_idx, 0)
 
     def test_provider_tx_not_locked(self):
         self.log.info("Provider txs are not locked, but are mined once safe and their block is ChainLocked")
