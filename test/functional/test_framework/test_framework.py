@@ -24,12 +24,16 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from typing import Any, List, Optional, Union
-from .address import ADDRESS_BCRT1_P2SH_OP_TRUE
+from .address import ADDRESS_BCRT1_P2SH_OP_TRUE, address_to_scriptpubkey, key_to_p2pkh
 from .authproxy import JSONRPCException
 from test_framework.masternodes import check_banned, check_punished
 from test_framework.blocktools import TIME_GENESIS_BLOCK
 from . import coverage
+from .key import ECKey
 from .messages import (
+    COIN,
+    CProRegTx,
+    CTxOut,
     hash256,
     msg_isdlock,
     ser_compact_size,
@@ -39,6 +43,7 @@ from .messages import (
 from .script import hash160
 from .p2p import NetworkThread
 from .test_node import TestNode
+from .wallet import MiniWallet
 from .util import (
     PortSeed,
     MAX_NODES,
@@ -1241,6 +1246,42 @@ class MasternodeInfo:
             self.pubKeyOperator = bls_ret['public']
             self.keyOperator = bls_ret['secret']
 
+    def generate_keys(self, node: TestNode, rewards_address: str):
+        """Like generate_addresses(), with keys made in Python instead of in the wallet of the node"""
+        self.keys = {}
+        for name in ('collateral_address', 'ownerAddr', 'votingAddr'):
+            self.keys[name] = ECKey()
+            self.keys[name].generate()
+            setattr(self, name, key_to_p2pkh(self.keys[name].get_pubkey().get_bytes()))
+        self.fundsAddr = rewards_address
+        self.rewards_address = rewards_address
+        bls_ret = node.bls('generate', True) if self.legacy else node.bls('generate')
+        self.pubKeyOperator = bls_ret['public']
+        self.keyOperator = bls_ret['secret']
+
+    def register_fund_miniwallet(self, node: TestNode, wallet: MiniWallet, port: int, operator_reward: int = 0,
+                                 platform_node_id: str = "", addrs_platform_p2p: int = 0, addrs_platform_https: int = 0) -> str:
+        """Like register_fund(), with a transaction made in Python and funded by MiniWallet. Returns the txid."""
+        collateral = self.get_collateral_value() * COIN
+        fee = 10000
+        utxos: List[dict] = []
+        while sum(int(utxo['value'] * COIN) for utxo in utxos) < collateral + fee:
+            utxos.append(wallet.get_utxo())
+        tx = wallet.create_self_transfer_multi(utxos_to_spend=utxos, num_outputs=2)["tx"]
+        tx.vout[1].nValue = sum(int(utxo['value'] * COIN) for utxo in utxos) - collateral - fee
+        tx.vout[0] = CTxOut(collateral, address_to_scriptpubkey(self.collateral_address))
+        tx.nVersion = 3
+        tx.nType = 1
+        payload = CProRegTx(
+            version=1 if self.legacy else 2, mn_type=1 if self.evo else 0, collateralIndex=0, port=port,
+            keyIDOwner=hash160(self.keys['ownerAddr'].get_pubkey().get_bytes()), pubKeyOperator=bytes.fromhex(self.pubKeyOperator),
+            keyIDVoting=hash160(self.keys['votingAddr'].get_pubkey().get_bytes()), nOperatorReward=operator_reward,
+            scriptPayout=address_to_scriptpubkey(self.rewards_address), platformNodeID=bytes.fromhex(platform_node_id),
+            platformP2PPort=addrs_platform_p2p, platformHTTPPort=addrs_platform_https)
+        payload.set_inputs_hash(tx)
+        tx.vExtraPayload = payload.serialize()
+        return wallet.sendrawtransaction(from_node=node, tx_hex=tx.serialize().hex())
+
     def get_collateral_value(self) -> int:
         return EVONODE_COLLATERAL if self.evo else MASTERNODE_COLLATERAL
 
@@ -1541,8 +1582,14 @@ class DashTestFramework(BitcoinTestFramework):
         """Tests must this method to change default values for number of nodes, topology, etc"""
         raise NotImplementedError
 
+    def add_wallet_options(self, parser, *, descriptors=True, legacy=True):
+        self.wallet_options_added = True
+        super().add_wallet_options(parser, descriptors=descriptors, legacy=legacy)
+
     def skip_test_if_missing_module(self):
-        self.skip_if_no_wallet()
+        # as in BitcoinTestFramework, a test without the wallet options runs without the wallet
+        if getattr(self, "wallet_options_added", False):
+            self.skip_if_no_wallet()
 
     def run_test(self):
         """Tests must override this method to define test logic"""
@@ -1558,6 +1605,9 @@ class DashTestFramework(BitcoinTestFramework):
             append_config(self.nodes[0].datadir_path, ["sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"])
 
     def connect_nodes(self, a, b, *, peer_advertises_v2=None):
+        if a == b:
+            # the controller node is a masternode itself
+            return
         for mn2 in self.mninfo: # type: MasternodeInfo
             if mn2.nodeIdx is not None:
                 mn2.get_node(self).setmnthreadactive(False)
@@ -1574,6 +1624,11 @@ class DashTestFramework(BitcoinTestFramework):
         ])
 
     def set_dash_test_params(self, num_nodes, masterodes_count, extra_args=None, evo_count=0):
+        # A test that doesn't add the wallet options (see skip_test_if_missing_module) gets its masternodes
+        # registered by transactions made in Python and funded by MiniWallet (self.wallet); such
+        # masternodes have no operator reward and no update of the service.
+        # With as many masternodes as nodes the controller node (node 0) is the first masternode
+        # itself. A masternode can't have a wallet, so it works only for a test that doesn't require it.
         self.mn_count = masterodes_count
         self.evo_count = evo_count
         self.num_nodes = num_nodes
@@ -1713,12 +1768,23 @@ class DashTestFramework(BitcoinTestFramework):
 
     def dynamically_prepare_masternode(self, idx, evo=False, rnd=None) -> MasternodeInfo:
         mn = MasternodeInfo(evo=evo, legacy=(not softfork_active(self.nodes[0], 'v19')))
-        mn.generate_addresses(self.nodes[0])
 
         node_p2p_port = p2p_port(idx)
         platform_node_id = hash160(b'%d' % rnd).hex() if rnd is not None else hash160(b'%d' % node_p2p_port).hex()
         addrs_platform_p2p = node_p2p_port + 101
         addrs_platform_https = node_p2p_port + 102
+
+        if not self._requires_wallet:
+            mn.generate_keys(self.nodes[0], self.wallet.get_address())
+            proTxHash = mn.register_fund_miniwallet(self.nodes[0], self.wallet, node_p2p_port, platform_node_id=platform_node_id,
+                                                    addrs_platform_p2p=addrs_platform_p2p, addrs_platform_https=addrs_platform_https)
+            self.bury_tx(self.nodes[0], txid=proTxHash)
+            mn.set_params(proTxHash=proTxHash, operator_reward=0, collateral_txid=proTxHash, collateral_vout=0, nodePort=node_p2p_port)
+            self.mninfo.append(mn)
+            self.log.info("Prepared %s %d: protxHash=%s" % ("EvoNode" if evo else "MN", idx, proTxHash))
+            return mn
+
+        mn.generate_addresses(self.nodes[0])
 
         outputs = {mn.collateral_address: mn.get_collateral_value(), mn.fundsAddr: 1}
         collateral_txid = self.nodes[0].sendmany("", outputs)
@@ -1774,6 +1840,17 @@ class DashTestFramework(BitcoinTestFramework):
 
     def prepare_masternode(self, idx):
         mn = MasternodeInfo(evo=False, legacy=(not softfork_active(self.nodes[0], 'v19')))
+        if not self._requires_wallet:
+            port = p2p_port(self.num_nodes - self.mn_count + idx)
+            mn.generate_keys(self.nodes[0], self.wallet.get_address())
+            proTxHash = mn.register_fund_miniwallet(self.nodes[0], self.wallet, port)
+            mn.set_params(proTxHash=proTxHash, operator_reward=0, collateral_txid=proTxHash, collateral_vout=0, nodePort=port)
+            self.mninfo.append(mn)
+            if idx > 0:
+                # same as with a wallet: the registrations are mined here, except when there is only one
+                self.generate(self.nodes[0], 1, sync_fun=self.no_op)
+            self.log.info("Prepared MN %d: protxHash=%s" % (idx, proTxHash))
+            return
         mn.generate_addresses(self.nodes[0])
 
         txid = self.nodes[0].sendtoaddress(mn.fundsAddr, mn.get_collateral_value())
@@ -1814,29 +1891,38 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Prepared MN %d: collateral_txid=%s, collateral_vout=%d, protxHash=%s" % (idx, txid, collateral_vout, proTxHash))
 
     def prepare_datadirs(self):
+        # without a wallet nothing sends an unmined registration again if the node does not keep its mempool
+        unmined = [] if self._requires_wallet else [self.nodes[0].getrawtransaction(txid) for txid in self.nodes[0].getrawmempool()]
         # stop faucet node so that we can copy the datadir
         self.stop_node(0)
 
-        start_idx = len(self.nodes)
-        for idx in range(0, self.mn_count):
-            copy_datadir(0, idx + start_idx, self.options.tmpdir, self.chain)
+        start_idx = self.num_nodes - self.mn_count
+        for idx in range(max(start_idx, 1), self.num_nodes):
+            copy_datadir(0, idx, self.options.tmpdir, self.chain)
+
+        if start_idx == 0:
+            # in the config and not in the arguments, to keep it over the restarts done by tests
+            append_config(self.nodes[0].datadir_path, [f"masternodeblsprivkey={self.mninfo[0].keyOperator}"])
+            self.mninfo[0].set_node(0)
 
         # restart faucet node
         self.start_node(0)
         force_finish_mnsync(self.nodes[0])
+        for tx_hex in unmined:
+            if tx_from_hex(tx_hex).rehash() not in self.nodes[0].getrawmempool():
+                self.nodes[0].sendrawtransaction(tx_hex)
 
     def start_masternodes(self):
         self.log.info("Starting %d masternodes", self.mn_count)
 
-        start_idx = len(self.nodes)
-
-        self.add_nodes(self.mn_count)
+        start_idx = self.num_nodes - self.mn_count
+        self.add_nodes(self.num_nodes - len(self.nodes))
         executor = ThreadPoolExecutor(max_workers=20)
 
         jobs = []
 
         # start up nodes in parallel
-        for idx in range(0, self.mn_count):
+        for idx in range(0 if start_idx > 0 else 1, self.mn_count):
             self.mninfo[idx].set_node(start_idx + idx)
             jobs.append(executor.submit(self.start_masternode, self.mninfo[idx]))
 
@@ -1916,7 +2002,8 @@ class DashTestFramework(BitcoinTestFramework):
 
     def setup_nodes(self):
         self.log.info("Creating and starting controller node")
-        num_simple_nodes = self.num_nodes - self.mn_count
+        assert self.num_nodes > self.mn_count or not self._requires_wallet
+        num_simple_nodes = max(1, self.num_nodes - self.mn_count)
         self.log.info("Creating and starting %s simple nodes", num_simple_nodes)
         for i in range(0, num_simple_nodes):
             self.create_simple_node(self.extra_args)
@@ -1928,10 +2015,16 @@ class DashTestFramework(BitcoinTestFramework):
         # Like the pre-mined chain of BitcoinTestFramework (see _initialize_chain), give the
         # MiniWallet's default address a coinbase, mature by the time the collateral is
         self.bump_mocktime(1)
-        self.generatetoaddress(self.nodes[0], 1, ADDRESS_BCRT1_P2SH_OP_TRUE, sync_fun=self.no_op)
-        while self.nodes[0].getbalance() < required_balance:
-            self.bump_mocktime(1)
-            self.generate(self.nodes[0], 10, sync_fun=self.no_op)
+        if not self._requires_wallet:
+            self.wallet = MiniWallet(self.nodes[0])
+            while sum(utxo['value'] for utxo in self.wallet.get_utxos(mark_as_spent=False)) < required_balance:
+                self.bump_mocktime(1)
+                self.generate(self.wallet, 10, sync_fun=self.no_op)
+        else:
+            self.generatetoaddress(self.nodes[0], 1, ADDRESS_BCRT1_P2SH_OP_TRUE, sync_fun=self.no_op)
+            while self.nodes[0].getbalance() < required_balance:
+                self.bump_mocktime(1)
+                self.generate(self.nodes[0], 10, sync_fun=self.no_op)
 
         # create masternodes
         self.prepare_masternodes()
@@ -1942,7 +2035,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         # non-masternodes where disconnected from the control node during prepare_datadirs,
         # let's reconnect them back to make sure they receive updates
-        num_simple_nodes = self.num_nodes - self.mn_count
+        num_simple_nodes = max(1, self.num_nodes - self.mn_count)
         for i in range(1, num_simple_nodes):
             self.connect_nodes(i, 0)
 

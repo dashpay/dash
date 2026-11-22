@@ -1158,6 +1158,52 @@ class CMerkleBlock:
         return "CMerkleBlock(header=%s txn=%s)" % (repr(self.header), repr(self.txn))
 
 
+class CProRegTx:
+    """Payload of a ProRegTx with an internal collateral, a single address and a single payout script (payload versions 1 and 2)"""
+    __slots__ = ("nVersion", "nType", "collateralIndex", "ip", "port", "keyIDOwner", "pubKeyOperator", "keyIDVoting",
+                 "nOperatorReward", "scriptPayout", "inputsHash", "platformNodeID", "platformP2PPort", "platformHTTPPort")
+
+    def __init__(self, version=2, mn_type=0, collateralIndex=0, ip="127.0.0.1", port=0, keyIDOwner=b"", pubKeyOperator=b"",
+                 keyIDVoting=b"", nOperatorReward=0, scriptPayout=b"", platformNodeID=b"", platformP2PPort=0, platformHTTPPort=0):
+        self.nVersion = version
+        self.nType = mn_type
+        self.collateralIndex = collateralIndex
+        self.ip = ip
+        self.port = port
+        self.keyIDOwner = keyIDOwner
+        self.pubKeyOperator = pubKeyOperator
+        self.keyIDVoting = keyIDVoting
+        self.nOperatorReward = nOperatorReward
+        self.scriptPayout = scriptPayout
+        self.inputsHash = b""
+        self.platformNodeID = platformNodeID
+        self.platformP2PPort = platformP2PPort
+        self.platformHTTPPort = platformHTTPPort
+
+    def set_inputs_hash(self, tx):
+        self.inputsHash = hash256(b"".join(txin.prevout.serialize() for txin in tx.vin))
+
+    def serialize(self):
+        assert self.nVersion in (1, 2)
+        r = b""
+        r += self.nVersion.to_bytes(2, "little") + self.nType.to_bytes(2, "little") + (0).to_bytes(2, "little")
+        # a null hash means that the collateral is an output of this transaction
+        r += COutPoint(0, self.collateralIndex).serialize()
+        r += b"\x00" * 10 + b"\xff" * 2 + socket.inet_aton(self.ip) + self.port.to_bytes(2, "big")
+        r += self.keyIDOwner
+        r += self.pubKeyOperator
+        r += self.keyIDVoting
+        r += self.nOperatorReward.to_bytes(2, "little")
+        r += ser_string(self.scriptPayout)
+        r += self.inputsHash
+        if self.nType == 1:
+            r += self.platformNodeID
+            r += self.platformP2PPort.to_bytes(2, "little") + self.platformHTTPPort.to_bytes(2, "little")
+        # no payload signature: it is required only for an external collateral
+        r += ser_string(b"")
+        return r
+
+
 class CCbTx:
     __slots__ = ("nVersion", "nHeight", "merkleRootMNList", "merkleRootQuorums", "bestCLHeightDiff", "bestCLSignature", "assetLockedAmount")
 
