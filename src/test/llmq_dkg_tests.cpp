@@ -2,6 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <active/dkgsession.h>
+#include <evo/deterministicmns.h>
 #include <llmq/dkgsession.h>
 #include <llmq/dkgsessionhandler.h>
 #include <protocol.h>
@@ -135,6 +137,84 @@ BOOST_AUTO_TEST_CASE(pending_messages_quota_is_per_protx)
     BOOST_CHECK(pending.HasSeen(MakeTestHash(5)));
 
     BOOST_CHECK_EQUAL(pending.PopPendingMessages(6).size(), 5U);
+}
+
+BOOST_AUTO_TEST_CASE(signing_history_registration_and_revival_cutoffs)
+{
+    const auto protx = MakeTestHash(1);
+    const llmq::SigningRecords records{{protx, {{99, false}, {100, true}, {101, false}, {102, true}}}};
+    const auto count = [&](int registered, int revived) {
+        auto state = std::make_shared<CDeterministicMNState>();
+        state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+        state->nRegisteredHeight = registered;
+        state->nPoSeRevivedHeight = revived;
+        auto mn = std::make_shared<CDeterministicMN>(0);
+        mn->proTxHash = protx;
+        mn->collateralOutpoint = COutPoint(protx, 0);
+        state->keyIDOwner.begin()[0] = 1;
+        mn->pdmnState = state;
+        CDeterministicMNList mn_list;
+        mn_list.AddMN(mn);
+        return llmq::CountSignedCommitments(records, mn_list, protx);
+    };
+
+    BOOST_CHECK(count(99, -1) == std::make_pair(3, 2));
+    BOOST_CHECK(count(100, -1) == std::make_pair(2, 1));
+    BOOST_CHECK(count(100, 101) == std::make_pair(1, 1));
+    BOOST_CHECK(count(101, 100) == std::make_pair(1, 1));
+    BOOST_CHECK(count(102, 102) == std::make_pair(0, 0));
+    BOOST_CHECK(llmq::CountSignedCommitments(records, {}, protx) == std::make_pair(0, 0));
+}
+
+BOOST_AUTO_TEST_CASE(signing_history_eligibility_and_quarter_threshold)
+{
+    struct TestCase {
+        int valid;
+        int signed_count;
+        bool insufficient;
+    };
+    for (const auto& test : {TestCase{0, 0, false},
+                             {5, 0, false},
+                             {6, 0, true},
+                             {6, 1, true},
+                             {6, 2, false},
+                             {7, 2, false},
+                             {8, 2, true},
+                             {8, 3, false}}) {
+        BOOST_TEST_CONTEXT("valid=" << test.valid << ", signed=" << test.signed_count)
+        {
+            BOOST_CHECK_EQUAL(llmq::HasInsufficientSigningHistory(test.valid, test.signed_count), test.insufficient);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(signing_history_votes_leave_enough_members_for_the_quorum)
+{
+    CDeterministicMNList mn_list;
+    std::vector<uint256> candidates;
+    llmq::SigningRecords records;
+    for (const auto i : util::irange(8)) {
+        const auto protx = MakeTestHash(static_cast<uint8_t>(i + 1));
+        auto state = std::make_shared<CDeterministicMNState>();
+        state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+        state->keyIDOwner.begin()[0] = static_cast<uint8_t>(i + 1);
+        auto mn = std::make_shared<CDeterministicMN>(i);
+        mn->proTxHash = protx;
+        mn->collateralOutpoint = COutPoint(protx, 0);
+        mn->pdmnState = state;
+        mn_list.AddMN(mn);
+        candidates.emplace_back(protx);
+        const bool non_signer{i < 2};
+        records.emplace(protx, std::vector<llmq::SigningRecord>(6, {1, !non_signer}));
+    }
+
+    const auto votes = llmq::SelectSigningHistoryVotes(records, mn_list, candidates, /*min_size=*/6);
+    BOOST_CHECK_EQUAL(votes.size(), 2U);
+    BOOST_CHECK(votes.at(candidates[0]) == std::make_pair(6, 0));
+    BOOST_CHECK(votes.at(candidates[1]) == std::make_pair(6, 0));
+
+    BOOST_CHECK(llmq::SelectSigningHistoryVotes(records, mn_list, candidates, /*min_size=*/7).empty());
+    BOOST_CHECK(llmq::SelectSigningHistoryVotes(records, mn_list, {candidates.begin(), candidates.begin() + 7}, 6).empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

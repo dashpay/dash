@@ -5,19 +5,34 @@
 #ifndef BITCOIN_ACTIVE_DKGSESSION_H
 #define BITCOIN_ACTIVE_DKGSESSION_H
 
+#include <llmq/blockprocessor.h>
 #include <llmq/dkgsession.h>
 
 #include <optional>
+#include <utility>
+#include <vector>
 
 class CActiveMasternodeManager;
+class CDeterministicMNList;
 class CSporkManager;
 class CMasternodeMetaMan;
 
 namespace llmq {
+std::pair<int, int> CountSignedCommitments(const SigningRecords& records, const CDeterministicMNList& mn_list,
+                                           const uint256& proTxHash);
+bool HasInsufficientSigningHistory(int valid, int signed_count);
+//! Signing counts of the candidates to vote against for too little signing history, or none if
+//! those votes would leave fewer than min_size of the candidates (the members not yet voted bad)
+//! to form the quorum.
+Uint256HashMap<std::pair<int, int>> SelectSigningHistoryVotes(const SigningRecords& records,
+                                                              const CDeterministicMNList& mn_list,
+                                                              const std::vector<uint256>& candidates, size_t min_size);
+
 class ActiveDKGSession final : public llmq::CDKGSession
 {
 private:
     CMasternodeMetaMan& m_mn_metaman;
+    const CQuorumBlockProcessor& m_qblockman;
     const CActiveMasternodeManager& m_mn_activeman;
     const CSporkManager& m_sporkman;
 
@@ -26,7 +41,8 @@ public:
     ActiveDKGSession(const ActiveDKGSession&) = delete;
     ActiveDKGSession& operator=(const ActiveDKGSession&) = delete;
     ActiveDKGSession(CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CDKGDebugManager& dkgdbgman,
-                     CDKGSessionManager& qdkgsman, CMasternodeMetaMan& mn_metaman, CQuorumSnapshotManager& qsnapman,
+                     CDKGSessionManager& qdkgsman, CMasternodeMetaMan& mn_metaman,
+                     const CQuorumBlockProcessor& qblockman, CQuorumSnapshotManager& qsnapman,
                      const CActiveMasternodeManager& mn_activeman, const ChainstateManager& chainman,
                      const CSporkManager& sporkman, const CBlockIndex* base_block_index,
                      const Consensus::LLMQParams& params);
