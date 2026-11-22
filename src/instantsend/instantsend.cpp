@@ -124,6 +124,7 @@ bool CInstantSendManager::AddPendingISLock(const uint256& hash, const instantsen
 {
     // put it in a separate pending map and try again later
     LOCK(cs_pendingLocks);
+    if (pendingNoTxInstantSendLocks.contains(hash)) return true;
     if (pendingNoTxInstantSendLocks.size() >= MAX_PENDING_INSTANTSEND_LOCKS) {
         // Bound this queue too: a malicious quorum could otherwise mint valid islocks
         // for transactions that never arrive, growing it without limit.

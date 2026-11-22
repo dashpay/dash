@@ -136,7 +136,7 @@ public:
     void RemoveBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex);
     void WriteBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex);
     void WriteNewISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, std::optional<int> minedHeight);
-    //! Returns whether the lock was stored: it is dropped while the queue is full.
+    //! Returns whether the lock is stored, possibly from before: a new one is dropped while the queue is full.
     [[nodiscard]] bool AddPendingISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 

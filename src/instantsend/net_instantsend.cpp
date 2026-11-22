@@ -405,6 +405,9 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
     // We only need the ISLOCK from now on to detect conflicts
     TruncateRecoveredSigsForInputs(*islock);
+    // A check deferred when this lock was processed before (without its transaction) is superseded by this one
+    std::erase_if(m_deferred_conflict_checks,
+                  [&](const DeferredConflictCheck& check) { return check.islock_hash == hash; });
     // Read the tip only now that the lock is stored: ConnectBlock rejects later conflicting blocks. A dropped
     // lock is not deferred, so its resubmissions can't grow the deferred checks past the pending queue's bound.
     if (const auto* tip = WITH_LOCK(::cs_main, return m_chainman.ActiveTip()); stored && tip != m_notified_tip) {
