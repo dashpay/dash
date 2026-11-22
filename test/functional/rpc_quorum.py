@@ -15,13 +15,10 @@ Test "quorum" rpc subcommands
 '''
 
 class RPCMasternodeTest(DashTestFramework):
-    def add_options(self, parser):
-        self.add_wallet_options(parser)
-
     def set_test_params(self):
         # A single-member quorum exercises the same per-member `quorum info`
         # output the test asserts, so one masternode is sufficient.
-        self.set_dash_test_params(2, 1)
+        self.set_dash_test_params(1, 1)
         self.set_dash_llmq_test_params(1, 1)
 
     def run_test(self):
