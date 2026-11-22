@@ -22,11 +22,8 @@ Simulate and check DKG errors
 '''
 
 class LLMQDKGErrors(DashTestFramework):
-    def add_options(self, parser):
-        self.add_wallet_options(parser)
-
     def set_test_params(self):
-        self.set_dash_test_params(4, 3, [["-whitelist=127.0.0.1"]] * 4)
+        self.set_dash_test_params(3, 3, [["-whitelist=127.0.0.1"]] * 3)
 
     def run_test(self):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
