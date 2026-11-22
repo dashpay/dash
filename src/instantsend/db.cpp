@@ -88,10 +88,15 @@ void CInstantSendDb::EraseInstantSendLockCache(const uint256& hash, const Instan
 {
     AssertLockHeld(cs_db);
 
+    // Another lock on the same txid or input may have replaced this lock's index entries
+    const auto erase_owned = [&](auto& cache, const auto& key) {
+        uint256 cached_hash;
+        if (cache.get(key, cached_hash) && cached_hash == hash) cache.erase(key);
+    };
     islockCache.erase(hash);
-    txidCache.erase(islock.txid);
+    erase_owned(txidCache, islock.txid);
     for (const auto& in : islock.inputs) {
-        outpointCache.erase(in);
+        erase_owned(outpointCache, in);
     }
 }
 

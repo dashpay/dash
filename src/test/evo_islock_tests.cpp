@@ -48,10 +48,12 @@ BOOST_FIXTURE_TEST_CASE(chainlocked_conflict_overrides_confirmed_locks, TestChai
 
     const auto* tip = WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Tip());
     std::vector<uint256> locked_txids;
-    for (const auto& in : conflict_tx.vin) {
+    // The second lock takes over the cached index entry of the input both locks share
+    const COutPoint& shared_input{conflict_tx.vin[1].prevout};
+    for (const auto& inputs : {std::vector{conflict_tx.vin[0].prevout, shared_input}, std::vector{shared_input}}) {
         auto islock = std::make_shared<instantsend::InstantSendLock>();
         islock->txid = GetRandHash();
-        islock->inputs.push_back(in.prevout);
+        islock->inputs = inputs;
         isman.WriteNewISLock(::SerializeHash(*islock), islock, tip->nHeight);
         locked_txids.push_back(islock->txid);
     }
