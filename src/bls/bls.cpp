@@ -181,6 +181,18 @@ blst_p1 WeightedSum(const std::vector<const blst_p1*>& points, const std::vector
     return sum;
 }
 
+//! The points that objects hold, as WeightedSum() takes them
+template <typename T, typename Point, typename Base>
+std::vector<const Point*> PointsOf(Span<T> objects, Point Base::* impl)
+{
+    std::vector<const Point*> points;
+    points.reserve(objects.size());
+    for (const T& object : objects) {
+        points.push_back(&(object.*impl));
+    }
+    return points;
+}
+
 //! The number an id stands for as the argument of a polynomial
 blst_scalar ScalarFromId(const uint256& id)
 {
@@ -397,14 +409,14 @@ bool CBLSPublicKey::PublicKeyShare(Span<CBLSPublicKey> mpk, const CBLSId& _id)
         }
     }
 
-    // Horner's method: the polynomial with these coefficients, evaluated at the id
+    // The polynomial with these coefficients, evaluated at the id: every coefficient times a power of it
     const blst_scalar x{ScalarFromId(_id.impl)};
-    blst_p1 y{mpk.back().impl};
-    for (size_t i = mpk.size() - 1; i > 0; --i) {
-        Multiply(y, y, x);
-        blst_p1_add_or_double(&y, &y, &mpk[i - 1].impl);
+    std::vector<blst_scalar> powers(mpk.size());
+    powers[0].b[0] = 1;
+    for (size_t i = 1; i < powers.size(); i++) {
+        blst_sk_mul_n_check(&powers[i], &powers[i - 1], &x);
     }
-    impl = y;
+    impl = WeightedSum(PointsOf(mpk, &CBLSPublicKey::impl), powers);
 
     fValid = true;
     return true;
@@ -552,12 +564,7 @@ bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint25
     }
     const std::vector<blst_scalar> factors{SecureAggregationFactors(pk_bytes)};
 
-    std::vector<const blst_p1*> points;
-    points.reserve(pks.size());
-    for (const auto& pk : pks) {
-        points.push_back(&pk.impl);
-    }
-    const blst_p1 aggregated{WeightedSum(points, factors)};
+    const blst_p1 aggregated{WeightedSum(PointsOf(pks, &CBLSPublicKey::impl), factors)};
     if (blst_p1_is_inf(&aggregated)) {
         return false;
     }
