@@ -34,6 +34,9 @@ class NotificationsTest(DashTestFramework):
         self.set_dash_test_params(3, 1, [["-llmqtestinstantsenddip0024=llmq_test_instantsend"]] * 3)
         self.set_dash_llmq_test_params(1, 1)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def setup_network(self):
         self.wallet = ''.join(chr(i) for i in range(FILE_CHAR_START, FILE_CHAR_END) if chr(i) not in FILE_CHARS_DISALLOWED)
         self.alertnotify_dir = os.path.join(self.options.tmpdir, "alertnotify")

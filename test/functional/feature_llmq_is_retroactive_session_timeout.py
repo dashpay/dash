@@ -28,6 +28,9 @@ class LLMQ_IS_RetroactiveSigningSessionTimeout(DashTestFramework):
         # -whitelist is needed to avoid the trickling logic on node0
         self.set_dash_test_params(5, 4, [["-whitelist=127.0.0.1"], [], [], [], ["-minrelaytxfee=0.001"]])
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def assert_no_instantlock(self, txid, node):
         self.log.info(f"Expecting no InstantLock for {txid}")
         assert not node.getrawtransaction(txid, True)["instantlock"]

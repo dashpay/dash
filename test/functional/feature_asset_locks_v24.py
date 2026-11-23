@@ -72,6 +72,9 @@ class AssetLocksV24Test(AssetLocksMixin, DashTestFramework):
             f"-vbparams=v24:0:999999999999:{V24_ACTIVATION_HEIGHT}:10:8:6:5:0",
         ])
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         node_wallet = self.nodes[0]
         node = self.nodes[1]

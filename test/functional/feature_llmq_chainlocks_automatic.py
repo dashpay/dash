@@ -19,6 +19,9 @@ class LLMQChainLocksAutomaticTest(DashTestFramework):
         self.delay_v20_and_mn_rr(height=200)
         self.extra_args[1].append("-sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK")
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         self.activate_v20(expected_activation_height=200)
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)

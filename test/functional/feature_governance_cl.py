@@ -18,6 +18,9 @@ class DashGovernanceTest (DashTestFramework):
     def set_test_params(self):
         self.set_dash_test_params(6, 5, [["-budgetparams=10:10:10"]] * 6)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def prepare_object(self, object_type, parent_hash, creation_time, revision, name, amount, payment_address):
         proposal_rev = revision
         proposal_time = int(creation_time)

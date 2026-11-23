@@ -43,6 +43,9 @@ class ProTxVersionTest(DashTestFramework):
         # regtest requires v20 not earlier than v19
         self.delay_v20_and_mn_rr(200)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def get_peer_ids(self, node_idx):
         return {peer['id'] for peer in self.nodes[node_idx].getpeerinfo()}
 

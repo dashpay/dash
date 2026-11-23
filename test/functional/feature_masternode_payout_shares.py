@@ -28,6 +28,9 @@ class MasternodePayoutSharesTest(DashTestFramework):
             f"-vbparams=v24:{self.mocktime}:999999999999:{V24_ACTIVATION_THRESHOLD}:10:8:6:5:0",
         ]])
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def activate_v24(self):
         self.activate_by_name("v24")
 

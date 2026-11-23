@@ -37,6 +37,9 @@ class LLMQCoinbaseCommitmentsTest(DashTestFramework):
         self.set_dash_test_params(4, 3, extra_args = self.extra_args)
         self.delay_v20_and_mn_rr(height=V20_HEIGHT)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def remove_masternode(self, idx):
         mn: MasternodeInfo = self.mninfo[idx]
         rawtx = self.nodes[0].createrawtransaction([{"txid": mn.collateral_txid, "vout": mn.collateral_vout}], {self.nodes[0].getnewaddress(): 999.9999})

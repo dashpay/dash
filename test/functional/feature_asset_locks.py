@@ -52,6 +52,9 @@ class AssetLocksTest(AssetLocksMixin, DashTestFramework):
         self.set_asset_locks_test_params()
         self.mn_rr_height = 560
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def create_assetunlock_for_oldest_quorum(self, start_index, withdrawal, pubkey):
         expected_quorum_hash = self.nodes[0].quorum('list')['llmq_test_platform'][-1]
         # Quorum selection depends on the request ID. Scan 100 candidates to

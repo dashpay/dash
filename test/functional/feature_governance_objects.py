@@ -28,6 +28,9 @@ class DashGovernanceTest (DashTestFramework):
     def set_test_params(self):
         self.set_dash_test_params(1, 0)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def prepare_object(self, object_type, parent_hash, creation_time, revision, name, amount):
         payment_address = self.nodes[0].getnewaddress()
         return prepare_object(self.nodes[0], object_type, parent_hash, creation_time, revision, name, amount, payment_address)

@@ -25,6 +25,9 @@ class LLMQSimplePoSeTest(SimplePoSeMixin, DashTestFramework):
     def set_test_params(self):
         self.set_simplepose_test_params()
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         self.set_pose_sporks()
 

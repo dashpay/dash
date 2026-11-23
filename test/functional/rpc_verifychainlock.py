@@ -27,6 +27,9 @@ class RPCVerifyChainLockTest(DashTestFramework):
         self.set_dash_test_params(3, 1, [["-whitelist=127.0.0.1"], [], []])
         self.set_dash_llmq_test_params(1, 1)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def cl_helper(self, height, chainlock, mempool):
         return {'height': height, 'chainlock': chainlock, 'mempool': mempool}
 

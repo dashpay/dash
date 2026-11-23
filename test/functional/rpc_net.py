@@ -53,6 +53,9 @@ class NetTest(DashTestFramework):
         self.set_dash_test_params(3, 1)
         self.supports_cli = False
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         # We need miniwallet to make a transaction
         self.wallet = MiniWallet(self.nodes[0])

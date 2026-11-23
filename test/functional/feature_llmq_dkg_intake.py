@@ -130,6 +130,9 @@ class DkgIntakeTest(DashTestFramework):
         extra_args = [common_args + ["-watchquorums=1"]] + [common_args] * 3
         self.set_dash_test_params(4, 3, extra_args=extra_args)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def quorum_hash_prefix(self):
         # llmqType (1 byte) + quorumHash (32 bytes, little-endian) -- the on-wire prefix
         # shared by every DKG message, used so oversized/malformed payloads resolve to a

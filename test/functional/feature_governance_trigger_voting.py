@@ -35,6 +35,9 @@ class GovernanceTriggerVotingTest(DashTestFramework):
     def set_test_params(self):
         self.set_dash_test_params(6, 5, [BUDGET_ARGS] * 6)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def online_nodes(self):
         return [node for node in self.nodes if node.running]
 

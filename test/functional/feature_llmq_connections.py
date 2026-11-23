@@ -28,6 +28,9 @@ class LLMQConnections(DashTestFramework):
         # NOTE: mine_quorum() can bump mocktime quite often internally so make sure this number is high enough.
         self.MAX_AGE = int(120 * self.options.timeout_factor)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
