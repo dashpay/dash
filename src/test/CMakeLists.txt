@@ -27,6 +27,7 @@ add_executable(test_bitcoin
   blockfilter_tests.cpp
   blockmanager_tests.cpp
   bloom_tests.cpp
+  bls_reference_tests.cpp
   bls_tests.cpp
   bswap_tests.cpp
   cachemap_tests.cpp
@@ -188,6 +189,7 @@ target_json_data_sources(test_bitcoin
 )
 target_raw_data_sources(test_bitcoin NAMESPACE test::data
   data/asmap.raw
+  data/bls_reference_vectors.txt
 )
 
 target_link_libraries(test_bitcoin
@@ -195,7 +197,7 @@ target_link_libraries(test_bitcoin
   test_util
   bitcoin_cli
   bitcoin_node
-  dashbls
+  blst
   leveldb
   minisketch
   secp256k1

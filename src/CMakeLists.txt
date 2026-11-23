@@ -83,6 +83,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(consensus_sources
   arith_uint256.cpp
   bls/bls.cpp
+  bls/legacy.cpp
   consensus/merkle.cpp
   consensus/tx_check.cpp
   hash.cpp
@@ -103,7 +104,7 @@ target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
     bitcoin_crypto
-    dashbls
+    blst
     secp256k1
     $<TARGET_NAME_IF_EXISTS:Boost::headers>
 )
@@ -118,6 +119,7 @@ if(BUILD_CONSENSUS_LIB)
     ${consensus_sources}
     ${crypto_base_sources}
     ${crypto_sph_sources}
+    support/lockedpool.cpp
   )
   target_compile_definitions(dashconsensus
     PRIVATE
@@ -129,7 +131,7 @@ if(BUILD_CONSENSUS_LIB)
   target_link_libraries(dashconsensus
     PRIVATE
       core_interface
-      dashbls
+      blst
       secp256k1
   )
   # Releases built with Autotools installed libdashconsensus.so.0.0.0 with an
@@ -249,7 +251,7 @@ target_link_libraries(bitcoin_common
     bitcoin_consensus
     bitcoin_util
     univalue
-    dashbls
+    blst
     secp256k1
     $<TARGET_NAME_IF_EXISTS:Boost::headers>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
@@ -274,7 +276,7 @@ if(ENABLE_WALLET)
       bitcoin_common
       bitcoin_util
       univalue
-      dashbls
+      blst
       Boost::headers
     )
     set_target_properties(bitcoin-wallet PROPERTIES OUTPUT_NAME dash-wallet)
@@ -462,7 +464,7 @@ target_link_libraries(bitcoin_node
     bitcoin_common
     bitcoin_util
     $<TARGET_NAME_IF_EXISTS:bitcoin_zmq>
-    dashbls
+    blst
     leveldb
     minisketch
     univalue
@@ -484,7 +486,7 @@ if(BUILD_DAEMON)
   target_link_libraries(bitcoind
     core_interface
     bitcoin_node
-    dashbls
+    blst
     $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
   set_target_properties(bitcoind PROPERTIES OUTPUT_NAME dashd)
@@ -499,7 +501,7 @@ if(WITH_MULTIPROCESS)
     core_interface
     bitcoin_node
     bitcoin_ipc
-    dashbls
+    blst
     $<TARGET_NAME_IF_EXISTS:bitcoin_wallet>
   )
   set_target_properties(bitcoin-node PROPERTIES OUTPUT_NAME dash-node)

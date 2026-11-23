@@ -58,10 +58,11 @@ target_link_libraries(bitcoin_util
     bitcoin_clientversion
     bitcoin_crypto
     $<TARGET_NAME_IF_EXISTS:Boost::headers>
-    dashbls
+    blst
     univalue
     $<$<PLATFORM_ID:Windows>:ws2_32>
     $<$<PLATFORM_ID:Windows>:iphlpapi>
+    $<$<PLATFORM_ID:Windows>:bcrypt>
   PUBLIC
     $<TARGET_NAME_IF_EXISTS:PkgConfig::libzstd>
 )

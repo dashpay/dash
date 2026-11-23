@@ -156,7 +156,7 @@ target_link_libraries(bitcoinqt
     bitcoin_cli
     bitcoin_common
     bitcoin_util
-    dashbls
+    blst
     leveldb
     univalue
     Boost::headers
@@ -292,7 +292,7 @@ target_link_libraries(bitcoin-qt
   core_interface
   bitcoinqt
   bitcoin_node
-  dashbls
+  blst
 )
 
 import_plugins(bitcoin-qt)
@@ -311,7 +311,7 @@ if(WITH_MULTIPROCESS)
     bitcoinqt
     bitcoin_node
     bitcoin_ipc
-    dashbls
+    blst
   )
   set_target_properties(bitcoin-gui PROPERTIES OUTPUT_NAME dash-gui)
   import_plugins(bitcoin-gui)

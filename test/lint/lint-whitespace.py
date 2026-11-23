@@ -24,7 +24,6 @@ EXCLUDED_DIRS = ["depends/patches/",
                  "src/secp256k1/",
                  "src/minisketch/",
                  "src/blst/",
-                 "src/dashbls/",
                  "src/immer/",
                  "doc/release-notes/",
                  "src/qt/locale"]

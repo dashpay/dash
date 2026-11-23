@@ -38,15 +38,6 @@ deadlock:src/qt/test/*
 deadlock:libdb
 race:libzmq
 
-# Data race in mimalloc metadata allocator during concurrent BLS worker thread execution
-# https://github.com/dashpay/dash/issues/7558
-race:_mi_meta_zalloc
-race:_mi_heap_init
-# mimalloc is not built with -fsanitize=thread, so TSan cannot see how it hands a
-# freed block from a finished thread to another one
-race:dashbls/test/test_secure.cpp
-race:dashbls/depends/mimalloc/
-
 # Race in headers only Boost Test
 race:std::__1::ios_base::flags
 

@@ -25,11 +25,9 @@ export GOAL="install"
 # repeat the libc++ debug hardening mode here to keep it on in this build.
 # SECP256K1_ASM=OFF and ENABLE_BLST_ASM=OFF keep secp256k1 and blst off
 # hand-written assembly, which MSan cannot see through.
-# ENABLE_MIMALLOC=OFF selects the plain malloc secure allocator; mimalloc seeds
-# itself with a raw getrandom syscall before main(), which MSan cannot track.
 export BITCOIN_CONFIG="\
  -DSANITIZERS=memory -DBUILD_GUI=OFF -DWITH_BDB=OFF -DWITH_SQLITE=ON \
- -DSECP256K1_ASM=OFF -DENABLE_BLST_ASM=OFF -DENABLE_MIMALLOC=OFF \
+ -DSECP256K1_ASM=OFF -DENABLE_BLST_ASM=OFF \
  -DAPPEND_CPPFLAGS='-U_FORTIFY_SOURCE -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG' \
 "
 export USE_MEMORY_SANITIZER="true"

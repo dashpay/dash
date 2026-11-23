@@ -20,6 +20,6 @@ target_link_libraries(bitcoin_zmq
     # zmqpublishnotifier.cpp reaches dbwrapper.h through node/blockstorage.h
     # and bls.h through chainlock/chainlock.h.
     leveldb
-    dashbls
+    blst
     zeromq
 )
