@@ -18,6 +18,9 @@ class RPCMasternodeTest(DashTestFramework):
     def set_test_params(self):
         self.set_dash_test_params(4, 3)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         self.log.info("test that results from `winners` and `payments` RPCs match")
         blockhash = ""

@@ -41,6 +41,9 @@ class LLMQSimplePoSeCapabilitiesTest(SimplePoSeMixin, DashTestFramework):
     def set_test_params(self):
         self.set_simplepose_test_params()
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def add_options(self, parser):
         super().add_options(parser)
         parser.add_argument("--disable-spork23", dest="disable_spork23", default=False, action="store_true",

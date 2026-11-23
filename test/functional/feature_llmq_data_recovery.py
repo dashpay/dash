@@ -38,6 +38,9 @@ class QuorumDataRecoveryTest(DashTestFramework):
         self.set_dash_test_params(7, 6, extra_args=extra_args)
         self.set_dash_llmq_test_params(4, 3)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def restart_mns(self, mns=None, exclude=None, reindex=False, qvvec_sync=None, qdata_recovery_enabled=True):
         if qvvec_sync is None:
             qvvec_sync = []

@@ -1582,15 +1582,6 @@ class DashTestFramework(BitcoinTestFramework):
         """Tests must this method to change default values for number of nodes, topology, etc"""
         raise NotImplementedError
 
-    def add_wallet_options(self, parser, *, descriptors=True, legacy=True):
-        self.wallet_options_added = True
-        super().add_wallet_options(parser, descriptors=descriptors, legacy=legacy)
-
-    def skip_test_if_missing_module(self):
-        # as in BitcoinTestFramework, a test without the wallet options runs without the wallet
-        if getattr(self, "wallet_options_added", False):
-            self.skip_if_no_wallet()
-
     def run_test(self):
         """Tests must override this method to define test logic"""
         raise NotImplementedError
@@ -1624,7 +1615,7 @@ class DashTestFramework(BitcoinTestFramework):
         ])
 
     def set_dash_test_params(self, num_nodes, masterodes_count, extra_args=None, evo_count=0):
-        # A test that doesn't add the wallet options (see skip_test_if_missing_module) gets its masternodes
+        # A test that doesn't require the wallet (see skip_if_no_wallet) gets its masternodes
         # registered by transactions made in Python and funded by MiniWallet (self.wallet); such
         # masternodes have no operator reward and no update of the service.
         # With as many masternodes as nodes the controller node (node 0) is the first masternode

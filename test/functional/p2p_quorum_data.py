@@ -191,6 +191,9 @@ class QuorumDataMessagesTest(DashTestFramework):
         extra_args = [["-llmq-data-recovery=0", "-deprecatedrpc=banscore"]] * 4
         self.set_dash_test_params(4, 3, extra_args=extra_args)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def restart_mn(self, mn: MasternodeInfo, reindex=False):
         args = self.extra_args[mn.nodeIdx] + ['-masternodeblsprivkey=%s' % mn.keyOperator]
         if reindex:

@@ -50,6 +50,9 @@ class DashGovernanceTest (DashTestFramework):
         self.set_dash_test_params(7, 5, [BUDGET_ARGS, BUDGET_ARGS + ["-prune=550", "-fastprune"]] + [BUDGET_ARGS] * 5)
         self.delay_v20_and_mn_rr(height=160)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def check_superblockbudget(self, v20_active):
         v20_state = self.nodes[0].getdeploymentinfo()["deployments"]["v20"]
         assert_equal(v20_state["active"], v20_active)

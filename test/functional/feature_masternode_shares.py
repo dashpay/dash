@@ -92,6 +92,9 @@ class MasternodeSharesTest(DashTestFramework):
             f"-vbparams=evo_shares:{self.mocktime}:999999999999:{EVO_SHARES_MIN_ACTIVATION_HEIGHT}:10:8:6:5:0",
         ]] * 2)
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def activate(self, name):
         while not softfork_active(self.nodes[0], name):
             self.bump_mocktime(50)

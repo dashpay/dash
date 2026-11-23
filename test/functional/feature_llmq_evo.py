@@ -36,6 +36,9 @@ class LLMQEvoNodesTest(DashTestFramework):
         self.set_dash_test_params(3, 2, evo_count=4)
         self.mn_rr_height = 320
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         # Connect all nodes to node1 so that we always have the whole network connected
         # Otherwise only masternode connections will be established between nodes, which won't propagate TXs/blocks

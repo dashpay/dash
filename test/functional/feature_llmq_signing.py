@@ -27,6 +27,9 @@ class LLMQSigningTest(DashTestFramework):
         for args in self.extra_args:
             args.append("-llmqtestplatformparams=3:2")
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def add_options(self, parser):
         self.add_wallet_options(parser)
         parser.add_argument("--spork21", dest="spork21", default=False, action="store_true",

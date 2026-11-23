@@ -57,6 +57,9 @@ class InstantSendTest(DashTestFramework):
         self.receiver_idx = 2
         self.sender_idx = 3
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
