@@ -202,10 +202,7 @@ Then open a Pull Request to the [guix.sigs repository](https://github.com/dashpa
 
 ## After 3 or more people have guix-built and their results match
 
-* [ ] Combine the `all.SHA256SUMS.asc` file from all signers into `SHA256SUMS.asc`:
-    ```sh
-    cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
-    ```
+* [ ] Each signer clearsigns the `SHA256SUMS` of the uploaded files (`gpg --clearsign SHA256SUMS`); combine the results into one `SHA256SUMS.asc`: the signed text once, followed by every signer's signature block
 * [ ] GPG sign each download / binary
 * [ ] Upload zips and installers, as well as `SHA256SUMS.asc` from last step, to GitHub as GitHub draft release.
     1. The contents of each `./dash/guix-build-${VERSION}/output/${HOST}/` directory, except for
