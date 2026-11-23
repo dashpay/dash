@@ -24,15 +24,9 @@ from test_framework.util import assert_equal
 
 
 class SpentIndexTest(BitcoinTestFramework):
-    def add_options(self, parser):
-        self.add_wallet_options(parser)
-
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 3
-
-    def skip_test_if_missing_module(self):
-        self.skip_if_no_wallet()
 
     def setup_network(self):
         self.add_nodes(self.num_nodes)
@@ -44,7 +38,6 @@ class SpentIndexTest(BitcoinTestFramework):
         self.connect_nodes(0, 1)
         self.connect_nodes(0, 2)
         self.sync_all()
-        self.import_deterministic_coinbase_privkeys()
 
     def run_test(self):
         self.log.info("Mining blocks...")
@@ -59,7 +52,9 @@ class SpentIndexTest(BitcoinTestFramework):
         privkey = "cU4zhap7nPJAWeMFu4j6jLrfPmqakDAzy8zn8Fhb3oEevdm4e5Lc"
         addressHash = bytes.fromhex("C5E4FB9171C22409809A3E8047A29C83886E325D")
         scriptPubKey = keyhash_to_p2pkh_script(addressHash)
-        unspent = self.nodes[0].listunspent()
+        # the first coinbase, mined to the key of node 0
+        coinbase = self.nodes[0].getblock(self.nodes[0].getblockhash(1), 2)["tx"][0]
+        unspent = [{"txid": coinbase["txid"], "vout": 0, "amount": coinbase["vout"][0]["value"]}]
         tx = CTransaction()
         tx_fee = Decimal('0.00001')
         tx_fee_sat = int(tx_fee * COIN)
@@ -68,7 +63,7 @@ class SpentIndexTest(BitcoinTestFramework):
         tx.vout = [CTxOut(amount, scriptPubKey)]
         tx.rehash()
 
-        signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
+        signed_tx = self.nodes[0].signrawtransactionwithkey(tx.serialize().hex(), [self.nodes[0].get_deterministic_priv_key().key])
         self.log.info("Test that the index catches up without -reindex on a spend mined while it was disabled")
         self.restart_node(1, ["-spentindex=0"])
         self.connect_nodes(0, 1)
@@ -109,8 +104,7 @@ class SpentIndexTest(BitcoinTestFramework):
         tx2.vin = [CTxIn(COutPoint(int(txid, 16), 0))]
         tx2.vout = [CTxOut(amount - int(COIN / 10), scriptPubKey2)]
         tx2.rehash()
-        self.nodes[0].importprivkey(privkey)
-        signed_tx2 = self.nodes[0].signrawtransactionwithwallet(tx2.serialize().hex())
+        signed_tx2 = self.nodes[0].signrawtransactionwithkey(tx2.serialize().hex(), [privkey])
         txid2 = self.nodes[0].sendrawtransaction(signed_tx2["hex"], 0)
 
         # Check the mempool index

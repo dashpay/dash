@@ -21,15 +21,9 @@ from test_framework.util import assert_equal
 
 
 class TxIndexTest(BitcoinTestFramework):
-    def add_options(self, parser):
-        self.add_wallet_options(parser)
-
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 4
-
-    def skip_test_if_missing_module(self):
-        self.skip_if_no_wallet()
 
     def setup_network(self):
         self.add_nodes(self.num_nodes)
@@ -43,7 +37,6 @@ class TxIndexTest(BitcoinTestFramework):
         self.connect_nodes(0, 2)
         self.connect_nodes(0, 3)
         self.sync_all()
-        self.import_deterministic_coinbase_privkeys()
 
     def run_test(self):
         self.log.info("Mining blocks...")
@@ -56,7 +49,9 @@ class TxIndexTest(BitcoinTestFramework):
 
         addressHash = bytes.fromhex("C5E4FB9171C22409809A3E8047A29C83886E325D")
         scriptPubKey = keyhash_to_p2pkh_script(addressHash)
-        unspent = self.nodes[0].listunspent()
+        # the first coinbase, mined to the key of node 0
+        coinbase = self.nodes[0].getblock(self.nodes[0].getblockhash(1), 2)["tx"][0]
+        unspent = [{"txid": coinbase["txid"], "vout": 0, "amount": coinbase["vout"][0]["value"]}]
         tx = CTransaction()
         tx_fee_sat = 1000
         amount = int(unspent[0]["amount"] * 100000000) - tx_fee_sat
@@ -64,7 +59,7 @@ class TxIndexTest(BitcoinTestFramework):
         tx.vout = [CTxOut(amount, scriptPubKey)]
         tx.rehash()
 
-        signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
+        signed_tx = self.nodes[0].signrawtransactionwithkey(tx.serialize().hex(), [self.nodes[0].get_deterministic_priv_key().key])
         txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
         self.generate(self.nodes[0], 1)
 
