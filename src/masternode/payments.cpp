@@ -12,7 +12,6 @@
 #include <consensus/params.h>
 #include <key_io.h>
 #include <logging.h>
-#include <util/std23.h>
 
 #include <algorithm>
 #include <cassert>
@@ -156,10 +155,14 @@ bool IsSuperblockValid(const SuperblockStatus& superblock, const CTransaction& t
     }
 
     // payments should not exceed limit
-    CAmount nPaymentsTotalAmount = std23::ranges::fold_left(payments, CAmount{0}, [](CAmount s, const auto& p) { return s + p.nValue; });
-    if (nPaymentsTotalAmount > nPaymentsLimit) {
-        LogPrintf("%s -- ERROR: Block invalid, payments limit exceeded: payments %lld, limit %lld\n", __func__, nPaymentsTotalAmount, nPaymentsLimit);
-        return false;
+    CAmount nPaymentsTotalAmount{0};
+    for (const CTxOut& payment : payments) {
+        if (payment.nValue > nPaymentsLimit - nPaymentsTotalAmount) {
+            LogPrintf("%s -- ERROR: Block invalid, payments limit exceeded: payments %lld + %lld, limit %lld\n",
+                      __func__, nPaymentsTotalAmount, payment.nValue, nPaymentsLimit);
+            return false;
+        }
+        nPaymentsTotalAmount += payment.nValue;
     }
 
     // miner and masternodes should not get more than they would usually get

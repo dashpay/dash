@@ -12,10 +12,12 @@
 #include <pubkey.h>
 #include <script/script.h>
 
+#include <test/util/logging.h>
 #include <test/util/setup_common.h>
 
 #include <boost/test/unit_test.hpp>
 
+#include <limits>
 #include <vector>
 
 struct SuperblockRegtestSetup : public BasicTestingSetup {
@@ -80,6 +82,45 @@ BOOST_AUTO_TEST_CASE(isvalid_duplicate_payments_require_distinct_outputs)
         txNew.vout.emplace_back(blockReward - nPayAmount, scriptMinerOrMN);
         txNew.vout.emplace_back(nPayAmount, scriptPayee); // single matching output
         BOOST_CHECK(IsSuperblockValid(superblock, CTransaction(txNew), blockReward, /*is_v24=*/false, nPaymentsLimit));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(isvalid_payments_must_fit_the_limit)
+{
+    const auto& consensus = Params().GetConsensus();
+    const int nBlockHeight = consensus.nSuperblockStartBlock + consensus.nSuperblockCycle;
+    const CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nBlockHeight);
+    BOOST_REQUIRE(nPaymentsLimit > 0);
+    const CAmount blockReward = 500 * COIN;
+    const CScript scriptPayee = CScript() << OP_TRUE;
+    const size_t max_money_payments_without_overflow = std::numeric_limits<CAmount>::max() / MAX_MONEY;
+
+    const auto pays = [&](const std::vector<CAmount>& amounts) {
+        std::vector<CTxOut> outputs;
+        outputs.reserve(amounts.size());
+        for (const CAmount amount : amounts) {
+            outputs.emplace_back(amount, scriptPayee);
+        }
+        return outputs;
+    };
+    const auto is_valid = [&](const std::vector<CTxOut>& payments, const std::vector<CTxOut>& coinbase_outputs) {
+        CMutableTransaction txNew;
+        txNew.vout = coinbase_outputs;
+        const SuperblockStatus superblock{.state = SuperblockStatus::State::Triggered, .payments = payments};
+        return IsSuperblockValid(superblock, CTransaction(txNew), blockReward, /*is_v24=*/true, nPaymentsLimit);
+    };
+
+    BOOST_CHECK(is_valid(pays({nPaymentsLimit}), pays({nPaymentsLimit})));
+    BOOST_CHECK(is_valid(pays({nPaymentsLimit - 1, 1}), pays({nPaymentsLimit - 1, 1})));
+    {
+        ASSERT_DEBUG_LOG("payments limit exceeded");
+        BOOST_CHECK(!is_valid(pays({nPaymentsLimit, 1}), pays({nPaymentsLimit, 1})));
+    }
+    for (const size_t count : {max_money_payments_without_overflow, max_money_payments_without_overflow + 1}) {
+        const std::vector<CTxOut> schedule(count, CTxOut{MAX_MONEY, scriptPayee});
+        const std::vector<CTxOut> unpaid(count, CTxOut{0, scriptPayee});
+        ASSERT_DEBUG_LOG("payments limit exceeded");
+        BOOST_CHECK(!is_valid(schedule, unpaid));
     }
 }
 
