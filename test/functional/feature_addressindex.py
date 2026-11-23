@@ -7,6 +7,7 @@
 # Test addressindex generation and fetching
 #
 
+from test_framework.address import address_to_scriptpubkey
 from test_framework.messages import (
     COutPoint,
     CTransaction,
@@ -20,19 +21,13 @@ from test_framework.script_util import (
     scripthash_to_p2sh_script,
 )
 from test_framework.util import assert_equal, assert_greater_than
-from test_framework.wallet import getnewdestination
+from test_framework.wallet import MiniWallet, getnewdestination
 
 class AddressIndexTest(BitcoinTestFramework):
-    def add_options(self, parser):
-        self.add_wallet_options(parser)
-
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 4
         self.supports_cli = False
-
-    def skip_test_if_missing_module(self):
-        self.skip_if_no_wallet()
 
     def setup_network(self):
         self.add_nodes(self.num_nodes)
@@ -46,17 +41,16 @@ class AddressIndexTest(BitcoinTestFramework):
         self.connect_nodes(0, 2)
         self.connect_nodes(0, 3)
         self.sync_all()
-        self.import_deterministic_coinbase_privkeys()
 
     def run_test(self):
         self.log.info("Mining blocks...")
-        mining_address = self.nodes[0].getnewaddress()
+        self.wallet = MiniWallet(self.nodes[0])
+        mining_address = self.wallet.get_address()
         self.generatetoaddress(self.nodes[0], 105, mining_address)
+        self.wallet.rescan_utxos()
 
         chain_height = self.nodes[1].getblockcount()
         assert_equal(chain_height, 105)
-        assert_equal(self.nodes[1].getbalance(), 0)
-        assert_equal(self.nodes[2].getbalance(), 0)
 
         # Check that balances are correct
         balance0 = self.nodes[1].getaddressbalance("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB")
@@ -69,22 +63,22 @@ class AddressIndexTest(BitcoinTestFramework):
         # Check p2pkh and p2sh address indexes
         self.log.info("Testing p2pkh and p2sh address index...")
 
-        txid0 = self.nodes[0].sendtoaddress("yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4", 10)
+        txid0 = self.send_to_address(self.nodes[0], "yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4", 10)
         self.generate(self.nodes[0], 1, sync_fun=self.no_op)
 
-        txidb0 = self.nodes[0].sendtoaddress("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 10)
+        txidb0 = self.send_to_address(self.nodes[0], "93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 10)
         self.generate(self.nodes[0], 1, sync_fun=self.no_op)
 
-        txid1 = self.nodes[0].sendtoaddress("yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4", 15)
+        txid1 = self.send_to_address(self.nodes[0], "yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4", 15)
         self.generate(self.nodes[0], 1, sync_fun=self.no_op)
 
-        txidb1 = self.nodes[0].sendtoaddress("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 15)
+        txidb1 = self.send_to_address(self.nodes[0], "93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 15)
         self.generate(self.nodes[0], 1, sync_fun=self.no_op)
 
-        txid2 = self.nodes[0].sendtoaddress("yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4", 20)
+        txid2 = self.send_to_address(self.nodes[0], "yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4", 20)
         self.generate(self.nodes[0], 1, sync_fun=self.no_op)
 
-        txidb2 = self.nodes[0].sendtoaddress("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 20)
+        txidb2 = self.send_to_address(self.nodes[0], "93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 20)
         self.generate(self.nodes[0], 1)
 
         txids = self.nodes[1].getaddresstxids("yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4")
@@ -128,14 +122,14 @@ class AddressIndexTest(BitcoinTestFramework):
         self.log.info("Testing for txid uniqueness...")
         addressHash = bytes.fromhex("FE30B718DCF0BF8A2A686BF1820C073F8B2C3B37")
         scriptPubKey = scripthash_to_p2sh_script(addressHash)
-        unspent = self.nodes[0].listunspent()
+        unspent = [self.wallet.get_utxo()]
         tx = CTransaction()
         tx.vin = [CTxIn(COutPoint(int(unspent[0]["txid"], 16), unspent[0]["vout"]))]
         tx.vout = [CTxOut(10 * COIN, scriptPubKey), CTxOut(11 * COIN, scriptPubKey)]
         tx.rehash()
 
-        signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
-        sent_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
+        self.wallet.sign_tx(tx)
+        sent_txid = self.nodes[0].sendrawtransaction(tx.serialize().hex(), 0)
 
         self.generate(self.nodes[0], 1)
 
@@ -154,17 +148,16 @@ class AddressIndexTest(BitcoinTestFramework):
         address2 = "yeMpGzMj3rhtnz48XsfpB8itPHhHtgxLc3"
         addressHash2 = bytes.fromhex("C5E4FB9171C22409809A3E8047A29C83886E325D")
         scriptPubKey2 = keyhash_to_p2pkh_script(addressHash2)
-        self.nodes[0].importprivkey(privkey2)
 
-        unspent = self.nodes[0].listunspent()
+        unspent = [self.wallet.get_utxo()]
         tx = CTransaction()
         tx_fee_sat = 1000
         tx.vin = [CTxIn(COutPoint(int(unspent[0]["txid"], 16), unspent[0]["vout"]))]
-        amount = int(unspent[0]["amount"] * 100000000) - tx_fee_sat
+        amount = int(unspent[0]["value"] * 100000000) - tx_fee_sat
         tx.vout = [CTxOut(amount, scriptPubKey2)]
         tx.rehash()
-        signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
-        spending_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
+        self.wallet.sign_tx(tx)
+        spending_txid = self.nodes[0].sendrawtransaction(tx.serialize().hex(), 0)
         self.generate(self.nodes[0], 1)
         balance1 = self.nodes[1].getaddressbalance(address2)
         assert_equal(balance1["balance"], amount)
@@ -176,7 +169,7 @@ class AddressIndexTest(BitcoinTestFramework):
         tx.vout = [CTxOut(change_amount, scriptPubKey2), CTxOut(send_amount, scriptPubKey)]
         tx.rehash()
 
-        signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
+        signed_tx = self.nodes[0].signrawtransactionwithkey(tx.serialize().hex(), [privkey2])
         sent_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
         self.generate(self.nodes[0], 1)
 
@@ -229,9 +222,9 @@ class AddressIndexTest(BitcoinTestFramework):
         # Check sorting of utxos
         self.generate(self.nodes[2], 150, sync_fun=self.no_op)
 
-        self.nodes[2].sendtoaddress(address2, 50)
+        self.send_to_address(self.nodes[2], address2, 50)
         self.generate(self.nodes[2], 1, sync_fun=self.no_op)
-        self.nodes[2].sendtoaddress(address2, 50)
+        self.send_to_address(self.nodes[2], address2, 50)
         self.generate(self.nodes[2], 1)
 
         utxos3 = self.nodes[1].getaddressutxos({"addresses": [address2]})
@@ -249,20 +242,20 @@ class AddressIndexTest(BitcoinTestFramework):
         scriptPubKey3 = keyhash_to_p2pkh_script(addressHash3)
         # address4 = "2N8oFVB2vThAKury4vnLquW2zVjsYjjAkYQ"
         scriptPubKey4 = scripthash_to_p2sh_script(addressHash3)
-        unspent = self.nodes[2].listunspent()
+        unspent = [self.wallet.get_utxo(), self.wallet.get_utxo()]
 
         tx = CTransaction()
         tx.vin = [CTxIn(COutPoint(int(unspent[0]["txid"], 16), unspent[0]["vout"]))]
-        amount = int(unspent[0]["amount"] * 100000000) - tx_fee_sat
+        amount = int(unspent[0]["value"] * 100000000) - tx_fee_sat
         tx.vout = [CTxOut(amount, scriptPubKey3)]
         tx.rehash()
-        signed_tx = self.nodes[2].signrawtransactionwithwallet(tx.serialize().hex())
-        memtxid1 = self.nodes[2].sendrawtransaction(signed_tx["hex"], 0)
+        self.wallet.sign_tx(tx)
+        memtxid1 = self.nodes[2].sendrawtransaction(tx.serialize().hex(), 0)
         self.bump_mocktime(2)
 
         tx2 = CTransaction()
         tx2.vin = [CTxIn(COutPoint(int(unspent[1]["txid"], 16), unspent[1]["vout"]))]
-        amount = int(unspent[1]["amount"] * 100000000) - tx_fee_sat
+        amount = int(unspent[1]["value"] * 100000000) - tx_fee_sat
         tx2.vout = [
             CTxOut(int(amount / 4), scriptPubKey3),
             CTxOut(int(amount / 4), scriptPubKey3),
@@ -270,8 +263,8 @@ class AddressIndexTest(BitcoinTestFramework):
             CTxOut(int(amount / 4), scriptPubKey4)
         ]
         tx2.rehash()
-        signed_tx2 = self.nodes[2].signrawtransactionwithwallet(tx2.serialize().hex())
-        memtxid2 = self.nodes[2].sendrawtransaction(signed_tx2["hex"], 0)
+        self.wallet.sign_tx(tx2)
+        memtxid2 = self.nodes[2].sendrawtransaction(tx2.serialize().hex(), 0)
         self.bump_mocktime(2)
 
         mempool = self.nodes[2].getaddressmempool({"addresses": [address3]})
@@ -295,8 +288,7 @@ class AddressIndexTest(BitcoinTestFramework):
         ]
         tx.vout = [CTxOut(int(amount / 2 - 10000), scriptPubKey2)]
         tx.rehash()
-        self.nodes[2].importprivkey(privKey3)
-        signed_tx3 = self.nodes[2].signrawtransactionwithwallet(tx.serialize().hex())
+        signed_tx3 = self.nodes[2].signrawtransactionwithkey(tx.serialize().hex(), [privKey3])
         self.nodes[2].sendrawtransaction(signed_tx3["hex"], 0)
         self.bump_mocktime(2)
 
@@ -313,7 +305,7 @@ class AddressIndexTest(BitcoinTestFramework):
         address1hash = bytes.fromhex("0909C84A817651502E020AAD0FBCAE5F656E7D8A")
         address1script = keyhash_to_p2pkh_script(address1hash)
 
-        self.nodes[0].sendtoaddress(address1, 10)
+        self.send_to_address(self.nodes[0], address1, 10)
         self.generate(self.nodes[0], 1)
 
         utxos = self.nodes[1].getaddressutxos({"addresses": [address1]})
@@ -326,8 +318,7 @@ class AddressIndexTest(BitcoinTestFramework):
         amount = int(utxos[0]["satoshis"] - 10000)
         tx.vout = [CTxOut(amount, address1script)]
         tx.rehash()
-        self.nodes[0].importprivkey(privkey1)
-        signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
+        signed_tx = self.nodes[0].signrawtransactionwithkey(tx.serialize().hex(), [privkey1])
         self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
 
         self.sync_all()
@@ -337,6 +328,9 @@ class AddressIndexTest(BitcoinTestFramework):
         self.test_reorg_while_disabled()
 
         self.log.info("Passed")
+
+    def send_to_address(self, node, address, amount):
+        return self.wallet.send_to(from_node=node, scriptPubKey=address_to_scriptpubkey(address), amount=amount * COIN)["txid"]
 
     def wait_index_synced(self, node):
         self.wait_until(lambda: node.getindexinfo()["addressindex"] == {"synced": True, "best_block_height": node.getblockcount()})
