@@ -414,9 +414,9 @@ def spend(tx, idx, utxos, **kwargs):
 # - Whether this spend cannot fail
 # - Whether this test demands being placed in a txin with no corresponding txout (for testing SIGHASH_SINGLE behavior)
 
-Spender = namedtuple("Spender", "script,comment,is_standard,sat_function,err_msg,sigops_weight,no_fail,need_vin_vout_mismatch")
+Spender = namedtuple("Spender", "script,comment,is_standard,sat_function,err_msg,sigops,no_fail,need_vin_vout_mismatch")
 
-def make_spender(comment, *, tap=None, script=None, pkh=None, p2sh=False, spk_mutate_pre_p2sh=None, failure=None, standard=True, err_msg=None, sigops_weight=0, need_vin_vout_mismatch=False, **kwargs):
+def make_spender(comment, *, tap=None, script=None, pkh=None, p2sh=False, spk_mutate_pre_p2sh=None, failure=None, standard=True, err_msg=None, sigops=0, need_vin_vout_mismatch=False, **kwargs):
     """Helper for constructing Spender objects using the context signing framework.
 
     * tap: a TaprootInfo object (see taproot_construct), for Taproot spends (cannot be combined with pkh or script)
@@ -427,7 +427,7 @@ def make_spender(comment, *, tap=None, script=None, pkh=None, p2sh=False, spk_mu
     * failure: a dict of entries to override in the context when intentionally failing to spend (if None, no_fail will be set)
     * standard: whether the (valid version of) spending is expected to be standard
     * err_msg: a string with an expected error message for failure (or None, if not cared about)
-    * sigops_weight: the pre-taproot sigops weight consumed by a successful spend
+    * sigops: the pre-taproot sigops consumed by a successful spend
     * need_vin_vout_mismatch: whether this test requires being tested in a transaction input that has no corresponding
                               transaction output.
     """
@@ -473,7 +473,7 @@ def make_spender(comment, *, tap=None, script=None, pkh=None, p2sh=False, spk_mu
             assert failure is not None
             return spend(tx, idx, utxos, **{**conf, **failure})
 
-    return Spender(script=spk, comment=comment, is_standard=standard, sat_function=sat_fn, err_msg=err_msg, sigops_weight=sigops_weight, no_fail=failure is None, need_vin_vout_mismatch=need_vin_vout_mismatch)
+    return Spender(script=spk, comment=comment, is_standard=standard, sat_function=sat_fn, err_msg=err_msg, sigops=sigops, no_fail=failure is None, need_vin_vout_mismatch=need_vin_vout_mismatch)
 
 def add_spender(spenders, *args, **kwargs):
     """Make a spender using make_spender, and add it to spenders."""
@@ -1124,7 +1124,7 @@ def spenders_taproot_active():
     add_spender(spenders, "dash/scriptpath_nonminimal_push", key=secs[1], tap=tap, leaf="pk", inputs=[getter("sign")], failure={"scriptsig": nonminimal_pushes}, **ERR_MINIMALDATA)
 
     # DIP0020 data signature checks execute in tapscript and are charged against the BIP342 validation
-    # weight budget like OP_CHECKSIG; one more check than the scriptSig size pays for fails the spend.
+    # budget like OP_CHECKSIG; one more check than the scriptSig size pays for fails the spend.
     datasig_key = ECKey()
     datasig_key.set(secs[2], True)
     datasig_pub = datasig_key.get_pubkey().get_bytes()
@@ -1169,14 +1169,14 @@ def spenders_taproot_active():
         for p2sh in [False, True]:
             for hashtype in VALID_SIGHASHES_ECDSA + [random.randrange(0x04, 0x80), random.randrange(0x84, 0x100)]:
                 standard = hashtype in VALID_SIGHASHES_ECDSA
-                add_spender(spenders, "legacy/pk-wrongkey", hashtype=hashtype, p2sh=p2sh, standard=standard, script=CScript([pubkey1, OP_CHECKSIG]), **SINGLE_SIG, key=eckey1, failure={"key": eckey2}, sigops_weight=1, **ERR_NO_SUCCESS)
-                add_spender(spenders, "legacy/pkh-sighashflip", hashtype=hashtype, p2sh=p2sh, standard=standard, pkh=pubkey1, key=eckey1, **SIGHASH_BITFLIP, sigops_weight=1, **ERR_NO_SUCCESS)
+                add_spender(spenders, "legacy/pk-wrongkey", hashtype=hashtype, p2sh=p2sh, standard=standard, script=CScript([pubkey1, OP_CHECKSIG]), **SINGLE_SIG, key=eckey1, failure={"key": eckey2}, sigops=1, **ERR_NO_SUCCESS)
+                add_spender(spenders, "legacy/pkh-sighashflip", hashtype=hashtype, p2sh=p2sh, standard=standard, pkh=pubkey1, key=eckey1, **SIGHASH_BITFLIP, sigops=1, **ERR_NO_SUCCESS)
 
     # Verify that OP_CHECKSIGADD wasn't accidentally added to pre-taproot validation logic.
     for p2sh in [False, True]:
         for hashtype in VALID_SIGHASHES_ECDSA + [random.randrange(0x04, 0x80), random.randrange(0x84, 0x100)]:
             standard = hashtype in VALID_SIGHASHES_ECDSA and p2sh
-            add_spender(spenders, "compat/nocsa", hashtype=hashtype, p2sh=p2sh, standard=standard, script=CScript([OP_IF, OP_11, pubkey1, OP_CHECKSIGADD, OP_12, OP_EQUAL, OP_ELSE, pubkey1, OP_CHECKSIG, OP_ENDIF]), key=eckey1, sigops_weight=1, inputs=[getter("sign"), b''], failure={"inputs": [getter("sign"), b'\x01']}, **ERR_UNDECODABLE)
+            add_spender(spenders, "compat/nocsa", hashtype=hashtype, p2sh=p2sh, standard=standard, script=CScript([OP_IF, OP_11, pubkey1, OP_CHECKSIGADD, OP_12, OP_EQUAL, OP_ELSE, pubkey1, OP_CHECKSIG, OP_ENDIF]), key=eckey1, sigops=1, inputs=[getter("sign"), b''], failure={"inputs": [getter("sign"), b'\x01']}, **ERR_UNDECODABLE)
 
     return spenders
 
@@ -1270,13 +1270,13 @@ class TaprootTest(BitcoinTestFramework):
         common_args = ["-par=1", "-dip3params=4000:4000", "-testactivationheight=v20@4000", "-testactivationheight=mn_rr@4000"]
         self.extra_args = [common_args + ["-vbparams=taproot:1:1"], common_args + ["-vbparams=taproot:0:999999999999:0:10:8:6:5:0"]]
 
-    def block_submit(self, node, txs, msg, err_msg, cb_pubkey=None, fees=0, sigops_weight=0, accept=False):
+    def block_submit(self, node, txs, msg, err_msg, cb_pubkey=None, fees=0, sigops=0, accept=False):
 
         # Deplete block of any non-tapscript sigops using a single additional 0-value coinbase output.
         # It is not impossible to fit enough tapscript sigops to hit the old 80k limit without
         # busting txin-level limits. We simply have to account for the p2pk outputs in all
         # transactions.
-        extra_output_script = CScript([OP_CHECKSIG]*(MAX_BLOCK_SIGOPS - sigops_weight))
+        extra_output_script = CScript([OP_CHECKSIG]*(MAX_BLOCK_SIGOPS - sigops))
 
         block = create_block(self.tip, create_coinbase(self.lastblockheight + 1, pubkey=cb_pubkey, extra_output_script=extra_output_script, fees=fees), self.lastblocktime + 1)
         block.nVersion = 4
@@ -1436,7 +1436,7 @@ class TaprootTest(BitcoinTestFramework):
             fee = min(random.randrange(MIN_FEE * 2, MIN_FEE * 4), amount - DUST_LIMIT)  # 10000-20000 sat fee
             in_value = amount - fee
             tx.vin = [CTxIn(outpoint=utxo.outpoint, nSequence=random.randint(min_sequence, 0xffffffff)) for utxo in input_utxos]
-            sigops_weight = sum(utxo.spender.sigops_weight for utxo in input_utxos)
+            sigops = sum(utxo.spender.sigops for utxo in input_utxos)
             self.log.debug("Test: %s" % (", ".join(utxo.spender.comment for utxo in input_utxos)))
 
             # Add 1 to 4 random outputs (but constrained by inputs that require mismatching outputs)
@@ -1452,13 +1452,13 @@ class TaprootTest(BitcoinTestFramework):
                     tx.vout[-1].nValue = random.randint(DUST_LIMIT, in_value)
                 in_value -= tx.vout[-1].nValue
                 tx.vout[-1].scriptPubKey = random.choice(host_spks)
-                sigops_weight += CScript(tx.vout[-1].scriptPubKey).GetSigOpCount(False)
+                sigops += CScript(tx.vout[-1].scriptPubKey).GetSigOpCount(False)
             fee += in_value
             assert fee >= 0
 
             # Select coinbase pubkey
             cb_pubkey = random.choice(host_pubkeys)
-            sigops_weight += 1
+            sigops += 1
 
             # Precompute one satisfying and one failing scriptSig/witness for each input.
             input_data = []
@@ -1493,7 +1493,7 @@ class TaprootTest(BitcoinTestFramework):
                 else:
                     assert_raises_rpc_error(-26, None, node.sendrawtransaction, tx.serialize().hex(), 0)
                 # Submit in a block
-                self.block_submit(node, [tx], msg, accept=fail_input is None, cb_pubkey=cb_pubkey, fees=fee, sigops_weight=sigops_weight, err_msg=expected_fail_msg)
+                self.block_submit(node, [tx], msg, accept=fail_input is None, cb_pubkey=cb_pubkey, fees=fee, sigops=sigops, err_msg=expected_fail_msg)
 
             if (len(spenders) - left) // 200 > (len(spenders) - left - len(input_utxos)) // 200:
                 self.log.info("  - %i tests done" % (len(spenders) - left))

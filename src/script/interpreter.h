@@ -188,10 +188,10 @@ struct ScriptExecutionData
     //! Hash of the annex data.
     uint256 m_annex_hash;
 
-    //! Whether m_validation_weight_left is initialized.
-    bool m_validation_weight_left_init = false;
-    //! How much validation weight is left (decremented for every successful non-empty signature check).
-    int64_t m_validation_weight_left;
+    //! Whether m_validation_size_left is initialized.
+    bool m_validation_size_left_init = false;
+    //! How much of the validation budget is left, in scriptSig bytes (decremented for every successful non-empty signature check).
+    int64_t m_validation_size_left;
 };
 
 /** Signature hash sizes */

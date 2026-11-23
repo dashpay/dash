@@ -353,10 +353,10 @@ static bool EvalChecksigTapscript(const valtype& sig, const valtype& pubkey, Scr
     if (success) {
         // Implement the sigops/scriptSig-size ratio test.
         // Passing with an upgradable public key version is also counted.
-        assert(execdata.m_validation_weight_left_init);
-        execdata.m_validation_weight_left -= VALIDATION_WEIGHT_PER_SIGOP_PASSED;
-        if (execdata.m_validation_weight_left < 0) {
-            return set_error(serror, SCRIPT_ERR_TAPSCRIPT_VALIDATION_WEIGHT);
+        assert(execdata.m_validation_size_left_init);
+        execdata.m_validation_size_left -= VALIDATION_SIZE_PER_SIGOP_PASSED;
+        if (execdata.m_validation_size_left < 0) {
+            return set_error(serror, SCRIPT_ERR_TAPSCRIPT_VALIDATION_SIZE);
         }
     }
     if (pubkey.size() == 0) {
@@ -1137,12 +1137,12 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     bool fSuccess = false;
                     if (vchSig.size()) {
                         // Tapscript charges every attempted signature check against the
-                        // validation weight budget (BIP342), data signatures included
+                        // validation budget (BIP342), data signatures included
                         if (sigversion == SigVersion::TAPSCRIPT) {
-                            assert(execdata.m_validation_weight_left_init);
-                            execdata.m_validation_weight_left -= VALIDATION_WEIGHT_PER_SIGOP_PASSED;
-                            if (execdata.m_validation_weight_left < 0) {
-                                return set_error(serror, SCRIPT_ERR_TAPSCRIPT_VALIDATION_WEIGHT);
+                            assert(execdata.m_validation_size_left_init);
+                            execdata.m_validation_size_left -= VALIDATION_SIZE_PER_SIGOP_PASSED;
+                            if (execdata.m_validation_size_left < 0) {
+                                return set_error(serror, SCRIPT_ERR_TAPSCRIPT_VALIDATION_SIZE);
                             }
                         }
                         fSuccess = checker.CheckDataSig(vchSig, vchMessage, vchPubKey);
@@ -2107,8 +2107,8 @@ static bool VerifyTaprootProgram(const CScript& scriptSig, const std::vector<uns
         execdata.m_tapleaf_hash_init = true;
         if ((control[0] & TAPROOT_LEAF_MASK) == TAPROOT_LEAF_TAPSCRIPT) {
             // Tapscript (leaf version 0xc0)
-            execdata.m_validation_weight_left = ::GetSerializeSize(scriptSig, PROTOCOL_VERSION) + VALIDATION_WEIGHT_OFFSET;
-            execdata.m_validation_weight_left_init = true;
+            execdata.m_validation_size_left = ::GetSerializeSize(scriptSig, PROTOCOL_VERSION) + VALIDATION_SIZE_OFFSET;
+            execdata.m_validation_size_left_init = true;
             return ExecuteTapscript(stack, exec_script, flags, checker, execdata, serror);
         }
         if (flags & SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION) {

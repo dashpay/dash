@@ -50,11 +50,11 @@ static const uint32_t LOCKTIME_MAX = 0xFFFFFFFFU;
 // has meanings independent of the script
 static constexpr unsigned int ANNEX_TAG = 0x50;
 
-// Validation weight per passing signature (Tapscript only, see BIP 342).
-static constexpr int64_t VALIDATION_WEIGHT_PER_SIGOP_PASSED{50};
+// Validation budget, in scriptSig bytes, consumed per passing signature (Tapscript only, see BIP 342).
+static constexpr int64_t VALIDATION_SIZE_PER_SIGOP_PASSED{50};
 
-// How much weight budget is added to the scriptSig size (Tapscript only, see BIP 342).
-static constexpr int64_t VALIDATION_WEIGHT_OFFSET{50};
+// How many bytes of validation budget are added to the scriptSig size (Tapscript only, see BIP 342).
+static constexpr int64_t VALIDATION_SIZE_OFFSET{50};
 
 template <typename T>
 std::vector<unsigned char> ToByteVector(const T& in)
