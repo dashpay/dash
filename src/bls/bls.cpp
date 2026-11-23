@@ -162,6 +162,25 @@ std::vector<blst_scalar> SecureAggregationFactors(const std::vector<PublicKeyByt
     return factors;
 }
 
+//! The sum of every point multiplied by its factor, for points of the subgroup: computed all at once,
+//! which takes a fraction of the time of the multiplications one by one.
+blst_p1 WeightedSum(const std::vector<const blst_p1*>& points, const std::vector<blst_scalar>& factors)
+{
+    assert(!points.empty() && points.size() == factors.size());
+    std::vector<blst_p1_affine> affine(points.size());
+    blst_p1s_to_affine(affine.data(), points.data(), points.size());
+
+    // blst reads an array that follows its first element when the next pointer is null
+    const blst_p1_affine* const affine_arg[]{affine.data(), nullptr};
+    const uint8_t* const factors_arg[]{factors[0].b, nullptr};
+    static_assert(sizeof(blst_scalar) == 32);
+    std::vector<limb_t> scratch(blst_p1s_mult_pippenger_scratch_sizeof(points.size()) / sizeof(limb_t) + 1);
+
+    blst_p1 sum;
+    blst_p1s_mult_pippenger(&sum, affine_arg, points.size(), factors_arg, 256, scratch.data());
+    return sum;
+}
+
 //! The number an id stands for as the argument of a polynomial
 blst_scalar ScalarFromId(const uint256& id)
 {
@@ -533,12 +552,12 @@ bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint25
     }
     const std::vector<blst_scalar> factors{SecureAggregationFactors(pk_bytes)};
 
-    blst_p1 aggregated{};
-    for (size_t i = 0; i < pks.size(); i++) {
-        blst_p1 multiple;
-        Multiply(multiple, pks[i].impl, factors[i]);
-        blst_p1_add_or_double(&aggregated, &aggregated, &multiple);
+    std::vector<const blst_p1*> points;
+    points.reserve(pks.size());
+    for (const auto& pk : pks) {
+        points.push_back(&pk.impl);
     }
+    const blst_p1 aggregated{WeightedSum(points, factors)};
     if (blst_p1_is_inf(&aggregated)) {
         return false;
     }
