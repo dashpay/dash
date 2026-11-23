@@ -1,19 +1,18 @@
-# Dash Core version v24.0.1
+# Dash Core version v24.0.3
 
-This is a new patch version release. It fixes a problem that has delayed the
-`v24` network upgrade on mainnet: `LLMQ_400_85` quorums were failing to form
-because slower masternodes could not finish the last step of the DKG in time,
-and the `v24` EHF signal is only attempted again once a different quorum is
-selected for it. It also changes how masternodes vote on superblock triggers
-so that a superblock cannot be left unpaid by a change in the approved
-proposals, and fixes several other bugs.
+This is a new patch version release with bug fixes, most of them for edge
+cases, across governance, CoinJoin, masternodes, the wallet, the GUI and RPC.
 
-Like v24.0.0, this release carries the `v24` network upgrade (hard fork) and is
-**mandatory** for all nodes. Masternodes should upgrade to v24.0.1 as soon as
-possible. All other nodes must run v24.0.0 or later before the hard fork
-activates, and upgrading to v24.0.1 is strongly recommended. The upgrade itself
-and everything else introduced in v24 are described in the
-[v24.0.0 release notes](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-24.0.0.md).
+Like v24.0.0, v24.0.1 and v24.0.2, this release carries the `v24` network
+upgrade (hard fork), which is **mandatory** for all nodes: every node must run
+v24.0.0 or later before the hard fork activates. Upgrading to v24.0.3 is
+recommended for all nodes. The upgrade itself and everything else introduced
+in v24 are described in the
+[v24.0.0 release notes](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-24.0.0.md),
+the fixes for `v24` activation in the
+[v24.0.1 release notes](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-24.0.1.md),
+and the memory leak fix in the
+[v24.0.2 release notes](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-24.0.2.md).
 
 Please report bugs using the issue tracker at GitHub:
 
@@ -28,17 +27,18 @@ shut down (which might take a few minutes for older versions), then run the
 installer (on Windows) or just copy over /Applications/Dash-Qt (on Mac) or
 dashd/dash-qt (on Linux).
 
-Upgrading from v24.0.0 needs no further steps. If you are upgrading from
-v23.1.x or older, read "How to Upgrade" in the
+Upgrading from v24.0.0, v24.0.1 or v24.0.2 needs no further steps. If you are
+upgrading from v23.1.x or older, read "How to Upgrade" in the
 [v24.0.0 release notes](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-24.0.0.md)
 first: the first start migrates the address, spent and timestamp indexes, and
 some settings changed.
 
 ## Downgrade warning
 
-### Downgrade to v24.0.0
+### Downgrade to v24.0.0, v24.0.1 or v24.0.2
 
-Downgrading to v24.0.0 is possible and needs no special steps.
+Downgrading to v24.0.0, v24.0.1 or v24.0.2 is possible and needs no special
+steps.
 
 ### Downgrade to a version < v24.0.0
 
@@ -48,88 +48,78 @@ activation has caveats. See "Downgrade warning" in the
 
 # Release Notes
 
-## v24 activation
-
-Activation of `v24` starts with masternodes signing an EHF signal with the
-`LLMQ_400_85` quorum, which needs 340 of a quorum's 400 members. On mainnet
-that signal has not been signed yet. When the signal window opened, too few
-members of the selected quorum had upgraded, and a masternode signs the signal
-only once per quorum. The signal is attempted again when a different quorum is
-selected for it, but no `LLMQ_400_85` round on mainnet has formed a quorum
-since then, so the selected quorum has not changed.
-
-- **DKG members no longer reload every verification vector at the commit
-  step.** To build its commitment, and to verify each commitment it received,
-  a member read every other member's verification vector back from disk. For a
-  400-member quorum that took even the fastest masternodes 20 to 30 seconds
-  and slower ones minutes, while the commit phase lasts only four blocks. When
-  those blocks came quickly, too few members finished in time and the quorum
-  did not form. The vectors are now kept in memory for the duration of the DKG
-  session, and a masternode handles its own DKG messages before queued
-  messages from peers.
-  A masternode benefits as soon as it is upgraded, including in quorums whose
-  other members still run v24.0.0. (#8135, #8130)
-- A quorum commitment is no longer dropped from a node's pool when the block
-  that carried it is rejected for an unrelated reason. Previously the
-  commitment was lost on every node that had validated that block and the
-  quorum was not mined in that DKG cycle. (#8104)
-
-An `LLMQ_400_85` DKG runs once a day. Each time a different quorum is selected
-for the signal, its members sign it, including members that run v24.0.0, and
-the signal is completed if 340 of the quorum's 400 members run v24.0.0 or
-later and are online. The selected quorum changes at the latest once four new
-quorums have formed.
-
-The parameters of the `v24` deployment are unchanged from v24.0.0. Miner
-signaling still starts at the first 4032-block window boundary after the EHF
-signal is mined, so the earliest possible activation date given in the v24.0.0
-release notes moves back by about a week for every window boundary that passes
-before the signal is mined.
-
 ## Governance
 
-- A masternode now waits until a superblock trigger for its own candidate
-  exists before it votes NO-FUNDING on other triggers, and casts those NO
-  votes at the latest three blocks before the superblock. Previously it voted
-  NO on every trigger that did not match its candidate at that block and never
-  revisited the vote. If the set of approved proposals changed while triggers
-  were being created, masternodes could end up having voted NO on the trigger
-  that matched their final candidate, and the superblock could pay no
-  proposals. (#8131)
-- After a cycle that ended without a funded trigger, a masternode that had
-  voted YES in that cycle no longer votes NO on the next cycle's trigger.
-  (#8131)
-- On test networks, a node restarted inside the maturity window no longer
-  drops its stored triggers and then rejects the superblock. Mainnet was not
-  affected. (#8097)
+- Create Proposal dialog (Qt): the payment window is now based on the chosen
+  superblocks instead of the time the proposal was created. Previously, a
+  payment could come at a different superblock than the one chosen, or be
+  missed. The dialog also no longer offers superblocks whose voting deadline
+  has passed. (#8154)
+- Hardened the cache of governance votes that arrive before their object.
+  (#8122)
 
-Masternodes running older versions keep the old voting behaviour, so this
-protection becomes effective as masternodes upgrade. Masternode operators
-should upgrade before a superblock's maturity window opens, which is 1662
-blocks before the superblock. For the superblock at block 2575480 the window
-opens at block 2573818 (around November 17).
+## Reindex and indexes
 
-## Other fixes
+- The node now flushes all of its databases once a reindex completes, so an
+  unclean stop right after a reindex no longer needs another reindex. A node
+  that already fails to start for this reason needs one more reindex. (#8103)
+- Fixed index startup after an unclean stop with `-addressindex`,
+  `-spentindex` or `-timestampindex`. (#8047)
 
-- Fixed an assertion failure in governance that could stop a node after a
-  reorg that changed the block in which a masternode registration was mined.
-  The failure repeated on every start until `governance.dat` was deleted.
-  (#8100)
-- The network thread no longer spins at full CPU while a peer's send buffer is
-  full. (#8094)
-- `GET /rest/block/<hash>.json` no longer terminates the node when the block
-  contains a provider transaction whose payload can't be decoded. (#8099)
-- GUI: a shared masternode contribution can be reserved again after it was
-  released. (#8052)
+## Wallet
 
-## Build and tests
+- Mnemonic validation now checks every BIP39 checksum bit, so mnemonics with
+  an invalid checksum are refused instead of creating or restoring a different
+  wallet. Existing wallet files are not affected, but such a mnemonic can no
+  longer be used to restore one. (#8111)
+- Fixed a race in block-filter rescans (`-blockfilterindex`) that could miss
+  transactions when descriptors changed during the rescan. (#8139)
 
-- The depends build fetches the miniupnpc sources from a location that still
-  serves them. (#8088)
-- `test_dash-qt` no longer hangs or crashes when built against a distribution
-  Qt that uses the GLib event loop. (#8080)
+## CoinJoin
 
-# v24.0.1 Change log
+- Masternodes check participants' signatures against the final mixing
+  transaction. (#7815)
+- A participant with several unsigned inputs is now counted once when choosing
+  whose collateral to charge. (#8116)
+- Mixing clients reject queue announcements with an invalid denomination, as
+  masternodes already do. (#7955)
+
+## Masternodes, quorums and sporks
+
+- Nodes now keep the final quorum commitment with the most signers. (#8085)
+- A signature share dropped because the pending queue was full is requested
+  again. (#7994)
+- Spork updates signed within the same second are now accepted by other
+  nodes. (#8127)
+- Re-signing an InstantSend or ChainLock request restarts the signing
+  session's timeout. (#8203)
+- Quorum lists used for ChainLocks and InstantSend are now cached only for the
+  active chain, so a node no longer needs a restart to accept ChainLocks after
+  some reorgs. (#8102)
+
+## GUI
+
+- Address book, Coin Control, options dialog, PSBT dialog, CoinJoin send tab,
+  shared masternode dialogs, wallet migration, proposal list, traffic graph and
+  overview page fixes. (#8123, #8124)
+
+## RPC
+
+- Quorum RPCs reject quorum types outside 0..255 instead of truncating them.
+  (#7954)
+- `masternode payments`, `masternode winners`, `getspecialtxes`,
+  `verifyislock`, `getaddressdeltas`, `evodb verify`/`repair` and
+  `getblockheaders`: argument handling, range checks and locking fixes.
+  (#8118, #8125)
+- `getdeploymentinfo` and REST `/deploymentinfo` now return an error for
+  blocks that are not fully validated. (#8098)
+
+## Contrib
+
+- Fixed the OpenRC init script, `contrib/zmq/zmq_sub.py` on Python 3.14 and
+  IPv6 handling in `contrib/qos/tc.sh`. (#8109)
+
+# v24.0.3 Change log
 
 See detailed [set of changes][set-of-changes].
 
@@ -137,16 +127,16 @@ See detailed [set of changes][set-of-changes].
 
 Thanks to everyone who directly contributed to this release:
 
-- Konstantin Akimov
 - PastaPastaPasta
 
-As well as everyone that submitted issues, reviewed pull requests and helped
-debug the release candidates.
+As well as everyone that submitted issues and reviewed pull requests.
 
 # Older releases
 
 These releases are considered obsolete. Old release notes can be found here:
 
+- [v24.0.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-24.0.2.md) released Nov/14/2026
+- [v24.0.1](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-24.0.1.md) released Nov/13/2026
 - [v24.0.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-24.0.0.md) released Nov/5/2026
 - [v23.1.10](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-23.1.10.md) released Nov/2/2026
 - [v23.1.9](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-23.1.9.md) released Oct/29/2026
@@ -216,4 +206,4 @@ These releases are considered obsolete. Old release notes can be found here:
 - [v0.10.x](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.10.0.md) released Sep/25/2014
 - [v0.9.x](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.9.0.md) released Mar/13/2014
 
-[set-of-changes]: https://github.com/dashpay/dash/compare/v24.0.0...dashpay:v24.0.1
+[set-of-changes]: https://github.com/dashpay/dash/compare/v24.0.2...dashpay:v24.0.3
