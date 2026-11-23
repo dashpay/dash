@@ -21,6 +21,7 @@ from test_framework.test_framework import (
 )
 from test_framework.util import (
     assert_equal,
+    force_finish_mnsync,
     softfork_active,
 )
 
@@ -54,6 +55,17 @@ class ProTxVersionTest(DashTestFramework):
         """
         assert peer_ids, "no peers to wait for, the disconnect assertion would pass trivially"
         self.wait_until(lambda: peer_ids.isdisjoint(self.get_peer_ids(node_idx)))
+
+    def add_masternode_on_node(self, node_idx) -> MasternodeInfo:
+        """Register a regular masternode and run it on an already started node instead of a new one."""
+        mn = self.dynamically_prepare_masternode(node_idx)
+        mn.set_node(node_idx)
+        self.restart_node(node_idx, extra_args=[f'-masternodeblsprivkey={mn.keyOperator}'] + self.extra_args[0])
+        self.connect_nodes(node_idx, 0)
+        self.wait_for_sporks_same()
+        self.sync_blocks()
+        force_finish_mnsync(self.nodes[node_idx])
+        return mn
 
     def run_test(self):
         # Connect all nodes to node1 so that we always have the whole network connected
@@ -139,8 +151,15 @@ class ProTxVersionTest(DashTestFramework):
 
         self.log.info("Checking that adding more regular MNs after v19 doesn't break DKGs and IS/CLs")
 
+        # The nodes of the two masternodes revoked above are idle, so two of the new masternodes run
+        # on them. payout_mn takes extra_legacy_mn's node: node 1 is reconnected to that node after
+        # its restarts, and with that connection the revocation checks of the other two time out.
+        idle_nodes = {0: evo_info_3.nodeIdx, 1: extra_legacy_mn.nodeIdx}
         for i in range(3):
-            new_mn: MasternodeInfo = self.dynamically_add_masternode(evo=False, rnd=(10 + i))
+            if i in idle_nodes:
+                new_mn: MasternodeInfo = self.add_masternode_on_node(idle_nodes[i])
+            else:
+                new_mn = self.dynamically_add_masternode(evo=False, rnd=(10 + i))
             assert new_mn is not None
             if i == 0:
                 # Kept at its basic (v2) state and revoked after v24 to check the version is preserved

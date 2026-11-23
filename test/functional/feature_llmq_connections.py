@@ -22,7 +22,7 @@ class LLMQConnections(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
-        self.set_dash_test_params(11, 10)
+        self.set_dash_test_params(10, 9)
         self.set_dash_llmq_test_params(5, 3)
         # Probes should age after this many seconds.
         # NOTE: mine_quorum() can bump mocktime quite often internally so make sure this number is high enough.
