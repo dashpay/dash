@@ -12,6 +12,7 @@
 #include <key_io.h>
 #include <logging.h>
 #include <script/standard.h>
+#include <util/overflow.h>
 #include <util/std23.h>
 
 #include <algorithm>
@@ -155,8 +156,10 @@ bool IsSuperblockValid(const SuperblockStatus& superblock, const CTransaction& t
         return false;
     }
 
-    // payments should not exceed limit
-    CAmount nPaymentsTotalAmount = std23::ranges::fold_left(payments, CAmount{0}, [](CAmount s, const auto& p) { return s + p.nValue; });
+    // payments should not exceed limit (the sum saturates: a trigger's payment count is not bounded)
+    CAmount nPaymentsTotalAmount = std23::ranges::fold_left(payments, CAmount{0}, [](CAmount s, const auto& p) {
+        return SaturatingAdd(s, p.nValue);
+    });
     if (nPaymentsTotalAmount > nPaymentsLimit) {
         LogPrintf("%s -- ERROR: Block invalid, payments limit exceeded: payments %lld, limit %lld\n", __func__, nPaymentsTotalAmount, nPaymentsLimit);
         return false;

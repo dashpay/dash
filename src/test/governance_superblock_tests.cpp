@@ -16,6 +16,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <limits>
 #include <vector>
 
 struct SuperblockRegtestSetup : public BasicTestingSetup {
@@ -123,6 +124,36 @@ BOOST_AUTO_TEST_CASE(proposal_window_holds_exactly_the_chosen_superblocks)
             }
         }
     }
+}
+
+// The payments total must not overflow. A schedule whose sum exceeds the CAmount
+// range is rejected by the payments limit check instead of wrapping around.
+BOOST_AUTO_TEST_CASE(isvalid_payments_total_does_not_overflow)
+{
+    const auto& consensus = Params().GetConsensus();
+    const int nBlockHeight = consensus.nSuperblockStartBlock + consensus.nSuperblockCycle;
+    BOOST_REQUIRE(CSuperblock::IsValidBlockHeight(nBlockHeight));
+    const CAmount nPaymentsLimit = CSuperblock::GetPaymentsLimit(nBlockHeight);
+    const CAmount blockReward = 500 * COIN;
+
+    CKey key;
+    key.MakeNewKey(/*fCompressed=*/true);
+    const CScript scriptPayee = GetScriptForDestination(PKHash(key.GetPubKey()));
+
+    // The smallest count of MAX_MONEY payments whose sum exceeds the CAmount range.
+    const size_t n = static_cast<size_t>(std::numeric_limits<CAmount>::max() / MAX_MONEY) + 1;
+    SuperblockStatus superblock{.state = SuperblockStatus::State::Triggered};
+    superblock.payments.assign(n, CTxOut{MAX_MONEY, scriptPayee});
+
+    // A coinbase that carries every expected payment.
+    CMutableTransaction txNew;
+    txNew.vout.emplace_back(blockReward, CScript() << OP_RETURN);
+    txNew.vout.insert(txNew.vout.end(), superblock.payments.begin(), superblock.payments.end());
+
+    bool valid{true};
+    BOOST_CHECK_NO_THROW(
+        valid = IsSuperblockValid(superblock, CTransaction(txNew), blockReward, /*is_v24=*/true, nPaymentsLimit));
+    BOOST_CHECK(!valid);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
