@@ -45,8 +45,8 @@ This allows for running dashd without having to do any manual configuration.
 `conf`, `pid`, and `wallet` accept relative paths which are interpreted as
 relative to the data directory. `wallet` *only* supports relative paths.
 
-For an example configuration file that describes the configuration settings,
-see `contrib/debian/examples/dash.conf`.
+To generate an example configuration file that describes the configuration settings,
+see [contrib/devtools/README.md](../contrib/devtools/README.md#gen-dash-confsh).
 
 Paths
 ---------------------------------
