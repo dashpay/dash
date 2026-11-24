@@ -42,6 +42,9 @@ extern const std::function<void(const std::string&)> G_TEST_LOG_FUN;
 /** Retrieve the command line arguments. */
 extern const std::function<std::vector<const char*>()> G_TEST_COMMAND_LINE_ARGUMENTS;
 
+/** Retrieve the unit test name. */
+extern const std::function<std::string()> G_TEST_GET_FULL_NAME;
+
 // Enable BOOST_CHECK_EQUAL for enum class types
 namespace std {
 template <typename T>
@@ -70,7 +73,9 @@ struct BasicTestingSetup {
                                bool dash_dbs_in_memory = true);
     ~BasicTestingSetup();
 
-    const fs::path m_path_root;
+    fs::path m_path_root;
+    fs::path m_path_lock;
+    bool m_has_custom_datadir{false};
     ArgsManager m_args;
     const bool m_dash_dbs_in_memory;
 };
