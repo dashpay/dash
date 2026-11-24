@@ -58,6 +58,7 @@
 #include <QLatin1String>
 #include <QLibraryInfo>
 #include <QLocale>
+#include <QMenu>
 #include <QMessageBox>
 #include <QSettings>
 #include <QThread>
@@ -226,6 +227,30 @@ void DebugMessageHandler(QtMsgType type, const QMessageLogContext& context, cons
     }
 }
 
+#ifdef Q_OS_MACOS
+namespace {
+class MacPopupMenuFilter final : public QObject
+{
+public:
+    using QObject::QObject;
+
+protected:
+    bool eventFilter(QObject* object, QEvent* event) override
+    {
+        if (event->type() != QEvent::Show) return false;
+        auto* menu = qobject_cast<QMenu*>(object);
+        if (!menu || menu->windowType() != Qt::Popup || !menu->windowHandle()) return false;
+
+        // Cocoa paints the system window background behind the rounded QSS corners
+        // unless the popup is frameless. Preserve the widget flags when themes switch.
+        menu->windowHandle()->setFlag(Qt::FramelessWindowHint,
+                                      menu->windowFlags().testFlag(Qt::FramelessWindowHint) || GUIUtil::dashThemeActive());
+        return false;
+    }
+};
+} // namespace
+#endif
+
 static int qt_argc = 1;
 static const char* qt_argv = "dash-qt";
 
@@ -233,6 +258,9 @@ BitcoinApplication::BitcoinApplication()
     : QApplication(qt_argc, const_cast<char**>(&qt_argv))
 {
     RegisterMetaTypes();
+#ifdef Q_OS_MACOS
+    if (platformName() == "cocoa") installEventFilter(new MacPopupMenuFilter(this));
+#endif
     // Qt runs setlocale(LC_ALL, "") on initialization.
     setQuitOnLastWindowClosed(false);
 }
