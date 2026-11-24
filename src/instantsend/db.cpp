@@ -80,11 +80,23 @@ void CInstantSendDb::RemoveInstantSendLock(CDBBatch& batch, const uint256& hash,
     }
 
     if (!keep_cache) {
-        islockCache.erase(hash);
-        txidCache.erase(islock.txid);
-        for (const auto& in : islock.inputs) {
-            outpointCache.erase(in);
-        }
+        EraseInstantSendLockCache(hash, islock);
+    }
+}
+
+void CInstantSendDb::EraseInstantSendLockCache(const uint256& hash, const InstantSendLock& islock)
+{
+    AssertLockHeld(cs_db);
+
+    // Another lock on the same txid or input may have replaced this lock's index entries
+    const auto erase_owned = [&](auto& cache, const auto& key) {
+        uint256 cached_hash;
+        if (cache.get(key, cached_hash) && cached_hash == hash) cache.erase(key);
+    };
+    islockCache.erase(hash);
+    erase_owned(txidCache, islock.txid);
+    for (const auto& in : islock.inputs) {
+        erase_owned(outpointCache, in);
     }
 }
 
@@ -345,15 +357,15 @@ std::vector<uint256> CInstantSendDb::GetInstantSendLocksByParent(const uint256& 
     return result;
 }
 
-std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256& islockHash, const uint256& txid,
-                                                                   int nHeight)
+std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256& islockHash,
+                                                                   const InstantSendLock& islock, int nHeight)
 {
     LOCK(cs_db);
     std::vector<uint256> result;
 
     std::vector<uint256> stack;
     Uint256HashSet added;
-    stack.emplace_back(txid);
+    stack.emplace_back(islock.txid);
 
     CDBBatch batch(*db);
     while (!stack.empty()) {
@@ -376,9 +388,11 @@ std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256
         }
     }
 
-    if (auto islock = GetInstantSendLockByHashInternal(islockHash, /*use_cache=*/false)) {
-        RemoveInstantSendLock(batch, islockHash, *islock, false);
+    if (GetInstantSendLockByHashInternal(islockHash, /*use_cache=*/false)) {
+        RemoveInstantSendLock(batch, islockHash, islock);
     }
+    // Also needed when the lock was already confirmed: that removed it from the db but kept it cached
+    EraseInstantSendLockCache(islockHash, islock);
     WriteInstantSendLockArchived(batch, islockHash, nHeight);
     result.emplace_back(islockHash);
 
