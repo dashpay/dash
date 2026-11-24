@@ -1379,8 +1379,19 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
     const uint256 proTxHash = tx_reg.GetHash();
 
     // Parent ProUpServ for that masternode.
+    const SimpleUTXOMap parent_coins{utxos};
     auto tx_parent = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, 2, CScript(), setup.coinbaseKey);
     BOOST_REQUIRE(!tx_parent.vout.empty());
+
+    // Grind the parent into the lower half of the txid order (uint256 compares bytes front to
+    // back), so every child attempt below sorts after it with probability >= 1/2. With a parent
+    // txid near the top of the range, none of the child attempts would likely sort above it.
+    const auto in_lower_half = [](const uint256& hash) { return *hash.begin() < 0x80; };
+    for (int i = 0; i < 1000 && !in_lower_half(tx_parent.GetHash()); ++i) {
+        --tx_parent.vout[0].nValue;
+        SignTransaction(tx_parent, parent_coins, setup.coinbaseKey);
+    }
+    BOOST_REQUIRE(in_lower_half(tx_parent.GetHash()));
 
     // Child ProUpServ for the same masternode, spending the parent's first output.
     FillableSigningProvider keystore;
