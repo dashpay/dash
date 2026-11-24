@@ -36,6 +36,7 @@ Interesting starting states could be loading a snapshot when the current chain t
 """
 from shutil import rmtree
 
+from test_framework.messages import MAGIC_BYTES
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.test_node import ErrorMatch
 from test_framework.util import (
@@ -380,6 +381,29 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.log.info("Restarting node 3 to ensure (Check|Load)BlockIndex passes")
         self.restart_node(3, extra_args=self.extra_args[3])
         assert_equal(n3.getblockcount(), FINAL_HEIGHT)
+
+        # Node 3: background validation that completes in the startup block import
+        # --------------------------------------------------------------------------
+
+        self.log.info("-- Testing background validation that completes in the startup block import")
+        self.stop_node(3)
+        rmtree(n3.chain_path)
+        self.start_node(3, extra_args=self.extra_args[3])
+        for height in range(1, SNAPSHOT_BASE_HEIGHT + 1):
+            n3.submitheader(n0.getblock(n0.getblockhash(height), 0))
+        loaded = n3.loadtxoutset(dump_output['path'])
+        assert_equal(loaded['base_height'], SNAPSHOT_BASE_HEIGHT)
+        below_base = self.options.tmpdir + "/below_base.dat"
+        with open(below_base, 'wb') as f:
+            for height in range(1, SNAPSHOT_BASE_HEIGHT + 1):
+                block = bytes.fromhex(n0.getblock(n0.getblockhash(height), 0))
+                f.write(MAGIC_BYTES[self.chain] + len(block).to_bytes(4, 'little') + block)
+
+        self.log.info("Completion rebinds the default indexes, and startup then starts them once")
+        self.restart_node(3, extra_args=[f"-loadblock={below_base}", *self.extra_args[3]])
+        self.wait_until(lambda: len(n3.getchainstates()['chainstates']) == 1)
+        at_base_idx = {'synced': True, 'best_block_height': SNAPSHOT_BASE_HEIGHT}
+        self.wait_until(lambda: n3.getindexinfo() == {'govcollateralindex': at_base_idx, 'txindex': at_base_idx})
 
 
 if __name__ == '__main__':

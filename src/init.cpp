@@ -2291,10 +2291,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             // don't have any pending work.
             SyncWithValidationInterfaceQueue();
 
+            LOCK(node.index_start_mutex);
             for (auto* index : node.indexes) {
                 index->Interrupt();
                 index->Stop();
-                if (!(index->Init() && index->StartBackgroundSync())) {
+                if (!(index->Init() && (!node.index_threads_started || index->StartBackgroundSync()))) {
                     LogPrintf("[snapshot] WARNING failed to restart index %s on snapshot chain\n", index->GetName());
                 }
             }
@@ -3043,6 +3044,8 @@ bool StartIndexBackgroundSync(NodeContext& node)
     }
 
     // Start threads
+    LOCK(node.index_start_mutex);
     for (auto index : node.indexes) if (!index->StartBackgroundSync()) return false;
+    node.index_threads_started = true;
     return true;
 }

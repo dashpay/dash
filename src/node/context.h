@@ -6,6 +6,7 @@
 #define BITCOIN_NODE_CONTEXT_H
 
 #include <kernel/context.h>
+#include <sync.h>
 
 #include <atomic>
 #include <cassert>
@@ -96,6 +97,10 @@ struct NodeContext {
     std::unique_ptr<BanMan> banman;
     ArgsManager* args{nullptr}; // Currently a raw pointer because the memory is not managed by this struct
     std::vector<BaseIndex*> indexes; // raw pointers because memory is not managed by this struct
+    //! Startup starts the index threads after the block import. A snapshot
+    //! completion before then rebinds the indexes and leaves starting them to it.
+    Mutex index_start_mutex;
+    bool index_threads_started GUARDED_BY(index_start_mutex){false};
     std::unique_ptr<interfaces::Chain> chain;
     //! List of all chain clients (wallet processes or other client) connected to node.
     std::vector<std::unique_ptr<interfaces::ChainClient>> chain_clients;
