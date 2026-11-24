@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <limits>
 #include <map>
 #include <set>
 #include <string>
@@ -188,6 +189,9 @@ BOOST_AUTO_TEST_CASE(init_auto_backup_clamping)
     check({"-createwalletbackups=15", "-maxwalletbackups=12"}, 12, 12);
     check({"-maxwalletbackups=0"}, 0, 0);
     check({"-maxwalletbackups=-1"}, 0, 0);
+    // Values that don't fit an int are clamped, not wrapped into "disabled".
+    check({"-maxwalletbackups=3000000000"}, DEFAULT_N_WALLET_BACKUPS, std::numeric_limits<int>::max());
+    check({"-createwalletbackups=4294967296"}, MAX_N_WALLET_BACKUPS, DEFAULT_MAX_WALLET_BACKUPS);
 
     nWalletBackups = orig_backups;
     CWallet::nMaxWalletBackups = orig_max_backups;

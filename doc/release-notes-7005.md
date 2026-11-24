@@ -9,7 +9,7 @@ Wallet
   to a total of `-maxwalletbackups` files (default: 30). By default this keeps up
   to 30 files per wallet instead of 10; set `-maxwalletbackups=10` to
   keep the previous footprint. A backup's age is read from the timestamp
-  in its filename, so a renamed backup is never pruned. See section 1.6
+  in its filename, so a renamed backup is never pruned. See section 1.7
   of `doc/managing-wallets.md` for details. (#7005)
 
 Updated settings
