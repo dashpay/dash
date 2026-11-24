@@ -30,6 +30,7 @@
 #include <kernel/coinstats.h>
 #include <kernel/disconnected_transactions.h>
 #include <kernel/mempool_entry.h>
+#include <kernel/messagestartchars.h>
 #include <kernel/notifications_interface.h>
 #include <logging.h>
 #include <logging/timer.h>
@@ -42,7 +43,6 @@
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <script/sigcache.h>
-#include <shutdown.h>
 #include <tinyformat.h>
 #include <txdb.h>
 #include <txmempool.h>
@@ -53,6 +53,7 @@
 #include <util/fs_helpers.h>
 #include <util/hasher.h>
 #include <util/result.h>
+#include <util/signalinterrupt.h>
 #include <util/strencodings.h>
 #include <util/time.h>
 #include <util/trace.h>
@@ -2213,9 +2214,9 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
     return true;
 }
 
-bool AbortNode(BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage)
+bool FatalError(Notifications& notifications, BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage)
 {
-    AbortNode(strMessage, userMessage);
+    notifications.fatalError(strMessage, userMessage);
     return state.Error(strMessage);
 }
 
@@ -2262,7 +2263,7 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
     bool fDIP0003Active = DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003);
     if (fDIP0003Active && !m_evoDb.VerifyBestBlock(EvoDbIdentity(), pindex->GetBlockHash())) {
         // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
-        AbortNode(EvoDbInconsistencyMessage());
+        m_chainman.GetNotifications().fatalError(EvoDbInconsistencyMessage());
         return DISCONNECT_FAILED;
     }
 
@@ -2659,7 +2660,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
             // We don't write down blocks to disk if they may have been
             // corrupted, so this should be impossible unless we're having hardware
             // problems.
-            return AbortNode(state, "Corrupt block found indicating potential hardware failure; shutting down");
+            return FatalError(m_chainman.GetNotifications(), state, "Corrupt block found indicating potential hardware failure; shutting down");
         }
         LogError("%s: Consensus::CheckBlock: %s\n", __func__, state.ToString());
         return false;
@@ -2678,7 +2679,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         bool fDIP0003Active = DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003);
         if (fDIP0003Active && !m_evoDb.VerifyBestBlock(EvoDbIdentity(), pindex->pprev->GetBlockHash())) {
             // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
-            return AbortNode(state, EvoDbInconsistencyMessage());
+            return FatalError(m_chainman.GetNotifications(), state, EvoDbInconsistencyMessage());
         }
     }
     num_blocks_total++;
@@ -3192,7 +3193,7 @@ bool Chainstate::FlushStateToDisk(
         if (fDoFullFlush || fPeriodicWrite) {
             // Ensure we can write block index
             if (!CheckDiskSpace(m_blockman.m_opts.blocks_dir)) {
-                return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
+                return FatalError(m_chainman.GetNotifications(), state, "Disk space is too low!", _("Disk space is too low!"));
             }
             // First make sure all block and undo data is flushed to disk.
             {
@@ -3211,7 +3212,7 @@ bool Chainstate::FlushStateToDisk(
                 LOG_TIME_MILLIS_WITH_CATEGORY("write block index to disk", BCLog::BENCHMARK);
 
                 if (!m_blockman.WriteBlockIndexDB()) {
-                    return AbortNode(state, "Failed to write to block index database");
+                    return FatalError(m_chainman.GetNotifications(), state, "Failed to write to block index database");
                 }
             }
             // Finally remove any pruned files
@@ -3234,19 +3235,19 @@ bool Chainstate::FlushStateToDisk(
                 // an overestimation, as most will delete an existing entry or
                 // overwrite one. Still, use a conservative safety factor of 2.
                 if (!CheckDiskSpace(m_chainman.m_options.datadir, 48 * 2 * 2 * CoinsTip().GetCacheSize())) {
-                    return AbortNode(state, "Disk space is too low!", _("Disk space is too low!"));
+                    return FatalError(m_chainman.GetNotifications(), state, "Disk space is too low!", _("Disk space is too low!"));
                 }
                 // Flush the chainstate (which may refer to block index entries).
                 const auto empty_cache{(mode == FlushStateMode::ALWAYS) || fCacheLarge || fCacheCritical};
                 if (empty_cache ? !CoinsTip().Flush() : !CoinsTip().Sync()) {
-                    return AbortNode(state, "Failed to write to coin database");
+                    return FatalError(m_chainman.GetNotifications(), state, "Failed to write to coin database");
                 }
                 m_last_flushed_block = m_blockman.LookupBlockIndex(CoinsTip().GetBestBlock());
             }
             {
                 LOG_TIME_SECONDS("write evodb cache to disk");
                 if (!m_evoDb.CommitRootTransaction(EvoDbIdentity())) {
-                    return AbortNode(state, "Failed to commit EvoDB");
+                    return FatalError(m_chainman.GetNotifications(), state, "Failed to commit EvoDB");
                 }
             }
             m_last_flush = nNow;
@@ -3264,7 +3265,7 @@ bool Chainstate::FlushStateToDisk(
         GetMainSignals().ChainStateFlushed(GetLocator(m_last_flushed_block));
     }
     } catch (const std::runtime_error& e) {
-        return AbortNode(state, std::string("System error while flushing: ") + e.what());
+        return FatalError(m_chainman.GetNotifications(), state, std::string("System error while flushing: ") + e.what());
     }
     return true;
 }
@@ -3531,7 +3532,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     if (!pblock) {
         std::shared_ptr<CBlock> pblockNew = std::make_shared<CBlock>();
         if (!m_blockman.ReadBlockFromDisk(*pblockNew, *pindexNew)) {
-            return AbortNode(state, "Failed to read block");
+            return FatalError(m_chainman.GetNotifications(), state, "Failed to read block");
         }
         pthisBlock = pblockNew;
     } else {
@@ -3745,7 +3746,7 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
             // If we're unable to disconnect a block during normal operation,
             // then that is a failure of our local system -- we should abort
             // rather than stay on a less work chain.
-            AbortNode(state, "Failed to disconnect block; see debug.log for details");
+            FatalError(m_chainman.GetNotifications(), state, "Failed to disconnect block; see debug.log for details");
             return false;
         }
         fBlocksDisconnected = true;
@@ -3949,23 +3950,27 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                 GetMainSignals().UpdatedBlockTip(pindexNewTip, pindexFork, fInitialDownload);
 
                 // Always notify the UI if a new block tip was connected
-                m_chainman.GetNotifications().blockTip(GetSynchronizationState(fInitialDownload), *pindexNewTip);
+                if (kernel::IsInterrupted(m_chainman.GetNotifications().blockTip(GetSynchronizationState(fInitialDownload), *pindexNewTip))) {
+                    // Just breaking and returning success for now. This could
+                    // be changed to bubble up the kernel::Interrupted value to
+                    // the caller so the caller could distinguish between
+                    // completed and interrupted operations.
+                    break;
+                }
             }
         }
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
-
-        if (m_chainman.StopAtHeight() && pindexNewTip && pindexNewTip->nHeight >= m_chainman.StopAtHeight()) StartShutdown();
 
         if (WITH_LOCK(::cs_main, return m_disabled)) {
             // Background chainstate has reached the snapshot base block, so exit.
             break;
         }
 
-        // We check shutdown only after giving ActivateBestChainStep a chance to run once so that we
-        // never shutdown before connecting the genesis block during LoadChainTip(). Previously this
-        // caused an assert() failure during shutdown in such cases as the UTXO DB flushing checks
+        // We check interrupt only after giving ActivateBestChainStep a chance to run once so that we
+        // never interrupt before connecting the genesis block during LoadChainTip(). Previously this
+        // caused an assert() failure during interrupt in such cases as the UTXO DB flushing checks
         // that the best block hash is non-null.
-        if (ShutdownRequested()) break;
+        if (m_chainman.m_interrupt) break;
     } while (pindexNewTip != pindexMostWork);
 
     m_chainman.CheckBlockIndex();
@@ -4061,7 +4066,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
 
     // Disconnect (descendants of) pindex, and mark them invalid.
     while (true) {
-        if (ShutdownRequested()) break;
+        if (m_chainman.m_interrupt) break;
 
         // Make sure the queue of validation callbacks doesn't grow unboundedly.
         LimitValidationInterfaceQueue();
@@ -4167,7 +4172,14 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
 
     // Only notify about a new block tip if the active chain was modified.
     if (pindex_was_in_chain) {
-        m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *to_mark_failed->pprev);
+        // Ignoring return value for now, this could be changed to bubble up
+        // kernel::Interrupted value to the caller so the caller could
+        // distinguish between completed and interrupted operations. It might
+        // also make sense for the blockTip notification to have an enum
+        // parameter indicating the source of the tip change so hooks can
+        // distinguish user-initiated invalidateblock changes from other
+        // changes.
+        (void)m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *to_mark_failed->pprev);
     }
     return true;
 }
@@ -4271,7 +4283,7 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
 
     // Only notify about a new block tip if the active chain was modified.
     if (pindex_was_in_chain) {
-        m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *pindex->pprev);
+        (void)m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *pindex->pprev);
     }
     return true;
 }
@@ -4969,7 +4981,7 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
         }
         ReceivedBlockTransactions(block, pindex, blockPos);
     } catch (const std::runtime_error& e) {
-        return AbortNode(state, std::string("System error: ") + e.what());
+        return FatalError(GetNotifications(), state, std::string("System error: ") + e.what());
     }
 
     // TODO: FlushStateToDisk() handles flushing of both block and chainstate
@@ -5245,7 +5257,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
                 skipped_l3_checks = true;
             }
         }
-        if (ShutdownRequested()) return VerifyDBResult::INTERRUPTED;
+        if (chainstate.m_chainman.m_interrupt) return VerifyDBResult::INTERRUPTED;
     }
     if (pindexFailure) {
         LogError("Verification error: coin database inconsistencies found (last %i blocks, %i good transactions before that)\n", chainstate.m_chain.Height() - pindexFailure->nHeight + 1, nGoodTransactions);
@@ -5278,7 +5290,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
                 LogError("Verification error: found unconnectable block at %d, hash=%s (%s)\n", pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
                 return VerifyDBResult::CORRUPTED_BLOCK_DB;
             }
-            if (ShutdownRequested()) return VerifyDBResult::INTERRUPTED;
+            if (chainstate.m_chainman.m_interrupt) return VerifyDBResult::INTERRUPTED;
         }
     }
 
@@ -5466,7 +5478,7 @@ bool ChainstateManager::LoadBlockIndex()
                   CBlockIndexHeightOnlyComparator());
 
         for (CBlockIndex* pindex : vSortedByHeight) {
-            if (ShutdownRequested()) return false;
+            if (m_interrupt) return false;
             // If we have an assumeutxo-based chainstate, then the snapshot
             // block will be a candidate for the tip, but it may not be
             // VALID_TRANSACTIONS (eg if we haven't yet downloaded the block),
@@ -5570,7 +5582,7 @@ void ChainstateManager::LoadExternalBlockFile(
         // such as a block fails to deserialize.
         uint64_t nRewind = blkdat.GetPos();
         while (!blkdat.eof()) {
-            if (ShutdownRequested()) return;
+            if (m_interrupt) return;
 
             blkdat.SetPos(nRewind);
             nRewind++; // start one byte further next time, in case of failure
@@ -5579,11 +5591,11 @@ void ChainstateManager::LoadExternalBlockFile(
             bool compressed{false};
             try {
                 // locate a header
-                unsigned char buf[CMessageHeader::MESSAGE_START_SIZE];
+                MessageStartChars buf;
                 blkdat.FindByte(std::byte(params.MessageStart()[0]));
                 nRewind = blkdat.GetPos() + 1;
                 blkdat >> buf;
-                if (memcmp(buf, params.MessageStart(), CMessageHeader::MESSAGE_START_SIZE)) {
+                if (buf != params.MessageStart()) {
                     continue;
                 }
                 // read size
@@ -5742,7 +5754,7 @@ void ChainstateManager::LoadExternalBlockFile(
             }
         }
     } catch (const std::runtime_error& e) {
-        AbortNode(std::string("System error: ") + e.what());
+        GetNotifications().fatalError(std::string("System error: ") + e.what());
     }
     LogPrintf("Loaded %i blocks from external file in %dms\n", nLoaded, Ticks<std::chrono::milliseconds>(SteadyClock::now() - start));
     if (skipped_compressed > 0) {
@@ -6289,7 +6301,7 @@ bool ChainstateManager::ActivateSnapshot(
             db_tx->Commit();
         }
         if (!evo_db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT)) {
-            AbortNode("Failed to roll back the snapshot EvoDB markers");
+            GetNotifications().fatalError("Failed to roll back the snapshot EvoDB markers");
         }
 
         // PopulateAndValidateSnapshot can return (in error) before the leveldb datadir
@@ -6301,7 +6313,7 @@ bool ChainstateManager::ActivateSnapshot(
             snapshot_chainstate.reset();
             bool removed = DeleteCoinsDBFromDisk(*snapshot_datadir, /*is_snapshot=*/true);
             if (!removed) {
-                AbortNode(strprintf("Failed to remove snapshot chainstate dir (%s). "
+                GetNotifications().fatalError(strprintf("Failed to remove snapshot chainstate dir (%s). "
                     "Manually remove it before restarting.\n", fs::PathToString(*snapshot_datadir)));
             }
         }
@@ -6353,13 +6365,13 @@ struct StopHashingException : public std::exception
 {
     const char* what() const noexcept override
     {
-        return "ComputeUTXOStats interrupted by shutdown.";
+        return "ComputeUTXOStats interrupted.";
     }
 };
 
-static void SnapshotUTXOHashBreakpoint()
+static void SnapshotUTXOHashBreakpoint(const util::SignalInterrupt& interrupt)
 {
-    if (ShutdownRequested()) throw StopHashingException();
+    if (interrupt) throw StopHashingException();
 }
 
 bool ChainstateManager::PopulateAndValidateSnapshot(
@@ -6441,7 +6453,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
         // If our average Coin size is roughly 41 bytes, checking every 120,000 coins
         // means <5MB of memory imprecision.
         if (coins_processed % 120000 == 0) {
-            if (ShutdownRequested()) {
+            if (m_interrupt) {
                 return false;
             }
 
@@ -6498,7 +6510,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
 
     try {
         maybe_stats = ComputeUTXOStats(
-            CoinStatsHashType::HASH_SERIALIZED, snapshot_coinsdb, m_blockman, SnapshotUTXOHashBreakpoint);
+            CoinStatsHashType::HASH_SERIALIZED, snapshot_coinsdb, m_blockman, [&interrupt = m_interrupt] { SnapshotUTXOHashBreakpoint(interrupt); });
     } catch (StopHashingException const&) {
         return false;
     }
@@ -6624,8 +6636,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
 //      through IsUsable() checks, or
 //
 //  (ii) giving each chainstate its own lock instead of using cs_main for everything.
-SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
-      std::function<void(bilingual_str)> shutdown_fnc)
+SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation()
 {
     AssertLockHeld(cs_main);
     if (m_ibd_chainstate.get() == &this->ActiveChainstate() ||
@@ -6669,7 +6680,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
         // caller (ConnectTip) discards the result: with the background tip
         // already at the base, nothing would retry completion until restart.
         // Abort like the other unrecoverable EvoDB paths.
-        AbortNode("Failed to sync EvoDB state for snapshot completion");
+        GetNotifications().fatalError("Failed to sync EvoDB state for snapshot completion");
         return SnapshotCompletionResult::STATS_FAILED;
     }
 
@@ -6708,7 +6719,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
             LogPrintf("[snapshot] failed to remove invalid snapshot EvoDB markers\n");
         }
 
-        shutdown_fnc(user_error);
+        GetNotifications().fatalError(user_error.original, user_error);
     };
 
     if (index_new.GetBlockHash() != snapshot_blockhash) {
@@ -6746,7 +6757,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation(
             CoinStatsHashType::HASH_SERIALIZED,
             &ibd_coins_db,
             m_blockman,
-            SnapshotUTXOHashBreakpoint);
+            [&interrupt = m_interrupt] { SnapshotUTXOHashBreakpoint(interrupt); });
     } catch (StopHashingException const&) {
         return SnapshotCompletionResult::STATS_FAILED;
     }
@@ -6956,9 +6967,10 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
     return std::move(opts);
 }
 
-ChainstateManager::ChainstateManager(Options options, node::BlockManager::Options blockman_options)
-    : m_options{Flatten(std::move(options))},
-      m_blockman{std::move(blockman_options)} {}
+ChainstateManager::ChainstateManager(const util::SignalInterrupt& interrupt, Options options, node::BlockManager::Options blockman_options)
+    : m_interrupt{interrupt},
+      m_options{Flatten(std::move(options))},
+      m_blockman{interrupt, std::move(blockman_options)} {}
 
 ChainstateManager::~ChainstateManager()
 {
@@ -7146,13 +7158,13 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
     fs::path tmp_old{ibd_chainstate_path};
     tmp_old += node::SNAPSHOT_TODELETE_SUFFIX;
 
-    auto rename_failed_abort = [](
+    auto rename_failed_abort = [this](
                                    fs::path p_old,
                                    fs::path p_new,
                                    const fs::filesystem_error& err) {
         LogPrintf("Error renaming path (%s) -> (%s): %s\n",
                   fs::PathToString(p_old), fs::PathToString(p_new), err.what());
-        AbortNode(strprintf(
+        GetNotifications().fatalError(strprintf(
             "Rename of '%s' -> '%s' failed. "
             "Cannot clean up the background chainstate leveldb directory.",
             fs::PathToString(p_old), fs::PathToString(p_new)));
@@ -7184,7 +7196,7 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
     }
 
     if (!DeleteCoinsDBFromDisk(tmp_old, /*is_snapshot=*/false)) {
-        // No need to AbortNode because once the unneeded bg chainstate data is
+        // No need to FatalError because once the unneeded bg chainstate data is
         // moved, it will not interfere with subsequent initialization.
         LogPrintf("Deletion of %s failed. Please remove it manually, as the "
                   "directory is now unnecessary.\n",

@@ -95,6 +95,26 @@ def generate_keypair(compressed=True, wif=False):
         privkey = bytes_to_wif(privkey.get_bytes(), compressed)
     return privkey, pubkey
 
+class WalletUnlock():
+    """
+    A context manager for unlocking a wallet with a passphrase and automatically locking it afterward.
+    """
+
+    MAXIMUM_TIMEOUT = 999000
+
+    def __init__(self, wallet, passphrase, timeout=MAXIMUM_TIMEOUT):
+        self.wallet = wallet
+        self.passphrase = passphrase
+        self.timeout = timeout
+
+    def __enter__(self):
+        self.wallet.walletpassphrase(self.passphrase, self.timeout)
+
+    def __exit__(self, *args):
+        _ = args
+        self.wallet.walletlock()
+
+
 def calculate_input_weight(scriptsig_hex):
     """Given a scriptSig for an input in hex format, calculate the total input
        weight (Dash has no witness data, so this is the serialized input size)."""

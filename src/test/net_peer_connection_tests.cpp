@@ -82,7 +82,7 @@ static void AddPeer(NodeId& id, std::vector<CNode*>& nodes, PeerManager& peerman
 
 BOOST_AUTO_TEST_CASE(test_addnode_getaddednodeinfo_and_connection_detection)
 {
-    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman);
+    auto connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman, Params());
     auto peerman = MakePeerManager(*connman, m_node, /*banman=*/nullptr, {});
     NodeId id{0};
     std::vector<CNode*> nodes;

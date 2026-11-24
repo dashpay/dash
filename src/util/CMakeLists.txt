@@ -21,6 +21,7 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   readwritefile.cpp
   ranges_set.cpp
   serfloat.cpp
+  signalinterrupt.cpp
   sock.cpp
   spanparsing.cpp
   strencodings.cpp

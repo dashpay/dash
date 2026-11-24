@@ -115,6 +115,7 @@ bool BuildChainTestingSetup::BuildChain(const CBlockIndex* pindex,
 BOOST_FIXTURE_TEST_CASE(blockfilter_index_initial_sync, BuildChainTestingSetup)
 {
     BlockFilterIndex filter_index(interfaces::MakeChain(m_node), BlockFilterType::BASIC_FILTER, 1 << 20, true);
+    BOOST_REQUIRE(filter_index.Init());
 
     uint256 last_header;
 
@@ -141,7 +142,7 @@ BOOST_FIXTURE_TEST_CASE(blockfilter_index_initial_sync, BuildChainTestingSetup)
     // BlockUntilSyncedToCurrentChain should return false before index is started.
     BOOST_CHECK(!filter_index.BlockUntilSyncedToCurrentChain());
 
-    BOOST_REQUIRE(filter_index.Start());
+    BOOST_REQUIRE(filter_index.StartBackgroundSync());
 
     // Allow filter index to catch up with the block index.
     IndexWaitSynced(filter_index);
@@ -351,7 +352,8 @@ BOOST_FIXTURE_TEST_CASE(index_reorg_crash, BuildChainTestingSetup)
     int blocking_height = WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Tip()->nHeight);
 
     IndexReorgCrash index(interfaces::MakeChain(m_node), blocker, blocking_height);
-    BOOST_REQUIRE(index.Start());
+    BOOST_REQUIRE(index.Init());
+    BOOST_REQUIRE(index.StartBackgroundSync());
 
     auto func_wait_until = [&](int height, std::chrono::milliseconds timeout) {
         auto deadline = std::chrono::steady_clock::now() + timeout;

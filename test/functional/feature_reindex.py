@@ -81,7 +81,7 @@ class ReindexTest(BitcoinTestFramework):
         node = self.nodes[0]
         blockcount = node.getblockcount()
         self.stop_nodes()
-        with node.assert_debug_log(["loadblk thread exit"], timeout=10):
+        with node.assert_debug_log(["initload thread exit"], timeout=10):
             self.start_node(0, extra_args=["-reindex-chainstate" if justchainstate else "-reindex"])
         node.kill_process()
         self.start_node(0)

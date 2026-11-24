@@ -10,7 +10,7 @@
 #include <chainparams.h>
 #include <kernel/cs_main.h>
 #include <kernel/blockmanager_opts.h>
-#include <protocol.h>
+#include <kernel/messagestartchars.h>
 #include <sync.h>
 #include <txdb.h>
 #include <util/fs.h>
@@ -34,8 +34,9 @@ namespace Consensus {
 struct Params;
 }
 namespace util {
+class SignalInterrupt;
 class ZstdFileReader;
-}
+} // namespace util
 
 namespace node {
 /** Higher levels cost several times more CPU per block for no measurable gain */
@@ -49,14 +50,13 @@ static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 
 /** Size of header written before the payload of each block and undo record */
-static constexpr size_t BLOCK_SERIALIZATION_HEADER_SIZE = CMessageHeader::MESSAGE_START_SIZE + sizeof(unsigned int);
+static constexpr size_t BLOCK_SERIALIZATION_HEADER_SIZE = std::tuple_size_v<MessageStartChars> + sizeof(unsigned int);
 /** Set in the size field of a block or undo record whose payload is one zstd frame of the serialized data */
 static constexpr uint32_t BLOCK_RECORD_COMPRESSED{0x80000000};
 static constexpr uint32_t BLOCK_RECORD_SIZE_MASK{~BLOCK_RECORD_COMPRESSED};
 
 extern std::atomic_bool fImporting;
 extern std::atomic_bool fReindex;
-extern std::atomic_bool g_indexes_ready_to_sync;
 
 // Because validation code takes pointers to the map's CBlockIndex objects, if
 // we ever switch to another associative container, we need to either use a
@@ -117,10 +117,10 @@ private:
 
     CAutoFile OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false) const;
 
-    bool WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart) const;
+    bool WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos) const;
     /** Size field of the record already stored at pos */
     std::optional<uint32_t> StoredBlockSizeField(const FlatFilePos& pos) const;
-    bool UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart) const;
+    bool UndoWriteToDisk(const CBlockUndo& blockundo, const std::optional<std::vector<std::byte>>& compressed, uint32_t size_field, FlatFilePos& pos, const uint256& hashBlock) const;
 
     /* Calculate the block/rev files to delete based on height specified by user with RPC command pruneblockchain */
     void FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nManualPruneHeight, int chain_tip_height);
@@ -183,9 +183,13 @@ private:
 public:
     using Options = kernel::BlockManagerOpts;
 
-    explicit BlockManager(Options opts)
+    explicit BlockManager(const util::SignalInterrupt& interrupt, Options opts)
         : m_opts{std::move(opts)},
-          m_prune_mode{m_opts.prune_target > 0} {};
+          m_prune_mode{m_opts.prune_target > 0},
+          m_interrupt{interrupt} {};
+
+    const util::SignalInterrupt& m_interrupt;
+    std::atomic<bool> m_importing{false};
 
     BlockMap m_block_index GUARDED_BY(cs_main);
     PrevBlockMap m_prev_block_index GUARDED_BY(cs_main);
@@ -239,16 +243,21 @@ public:
 
     [[nodiscard]] bool LoadingBlocks() const { return fImporting || fReindex; }
 
-    [[nodiscard]] bool StopAfterBlockImport() const { return m_opts.stop_after_block_import; }
-
     /** Calculate the amount of disk space the block & undo files currently use */
     uint64_t CalculateCurrentUsage();
 
     //! Returns last CBlockIndex* that is a checkpoint
     const CBlockIndex* GetLastCheckpoint(const CCheckpointData& data) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    //! Find the first block that is not pruned
-    const CBlockIndex* GetFirstStoredBlock(const CBlockIndex& start_block LIFETIMEBOUND) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    //! Check if all blocks in the [upper_block, lower_block] range have data available.
+    //! The caller is responsible for ensuring that lower_block is an ancestor of upper_block
+    //! (part of the same chain).
+    bool CheckBlockDataAvailability(const CBlockIndex& upper_block LIFETIMEBOUND, const CBlockIndex& lower_block LIFETIMEBOUND) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! Find the first stored ancestor of start_block immediately after the last
+    //! pruned ancestor. Return value will never be null. Caller is responsible
+    //! for ensuring that start_block has data is not pruned.
+    const CBlockIndex* GetFirstStoredBlock(const CBlockIndex& start_block LIFETIMEBOUND, const CBlockIndex* lower_block=nullptr) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /** True if any block files have ever been pruned. */
     bool m_have_pruned = false;
@@ -287,7 +296,7 @@ FlatFilePos RecordHeaderPos(const FlatFilePos& pos);
 /** Read the header of the block record the file is positioned at and return a reader for its payload; a compressed payload is decompressed to at most MaxBlockSize() bytes */
 util::ZstdFileReader OpenRecordPayload(AutoFile& filein);
 
-void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImportFiles);
+void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles);
 } // namespace node
 
 #endif // BITCOIN_NODE_BLOCKSTORAGE_H
