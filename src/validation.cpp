@@ -1746,6 +1746,13 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
                                              const Package& package, bool test_accept)
 {
     AssertLockHeld(cs_main);
+    // Only the active chainstate holds the mempool, and after a snapshot
+    // rejection none does.
+    if (active_chainstate.GetMempool() != &pool) {
+        PackageValidationState state;
+        state.Invalid(PackageValidationResult::PCKG_MEMPOOL_ERROR, "no-mempool");
+        return PackageMempoolAcceptResult(state, {});
+    }
     const EvoViewScope evo_view{active_chainstate.EvoView()};
     assert(!package.empty());
     assert(std::all_of(package.cbegin(), package.cend(), [](const auto& tx){return tx != nullptr;}));

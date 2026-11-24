@@ -3176,6 +3176,17 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init, SnapshotTestSetup)
     // Runtime activation moved the mempool to the (active) snapshot chainstate.
     BOOST_CHECK_EQUAL(chainman.ActiveChainstate().GetMempool(), m_node.mempool.get());
     BOOST_CHECK(!bg_chainstate.GetMempool());
+    // A package checked against the background chainstate's coins is not
+    // admitted to the mempool the snapshot chainstate now holds.
+    {
+        CMutableTransaction mtx;
+        mtx.vin.emplace_back(COutPoint{InsecureRand256(), 0});
+        mtx.vout.emplace_back(COIN, CScript{} << OP_TRUE);
+        const auto result{WITH_LOCK(::cs_main, return ProcessNewPackage(bg_chainstate, *m_node.mempool,
+                                                                        {MakeTransactionRef(mtx)}, /*test_accept=*/true))};
+        BOOST_CHECK(result.m_state.GetResult() == PackageValidationResult::PCKG_MEMPOOL_ERROR);
+        BOOST_CHECK_EQUAL(result.m_state.GetRejectReason(), "no-mempool");
+    }
 
     // "Rewind" the background chainstate so that its tip is not at the
     // base block of the snapshot - this is so after simulating a node restart,
@@ -5173,6 +5184,14 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_refused_when_loaded, EvoS
     {
         ASSERT_DEBUG_LOG("Stopping the mempool load");
         BOOST_CHECK(!node::LoadMempool(*m_node.mempool, mempool_dump, loaded, {.use_current_time = true}));
+    }
+    BOOST_CHECK_EQUAL(m_node.mempool->size(), 0U);
+    // Nor does package admission reach the mempool.
+    for (Chainstate* chainstate : {&chainman.ActiveChainstate(), &loaded}) {
+        const auto result{
+            WITH_LOCK(::cs_main, return ProcessNewPackage(*chainstate, *m_node.mempool, {tx}, /*test_accept=*/false))};
+        BOOST_CHECK(result.m_state.GetResult() == PackageValidationResult::PCKG_MEMPOOL_ERROR);
+        BOOST_CHECK_EQUAL(result.m_state.GetRejectReason(), "no-mempool");
     }
     BOOST_CHECK_EQUAL(m_node.mempool->size(), 0U);
     {
