@@ -6826,7 +6826,22 @@ bool ChainstateManager::ActivateSnapshot(
         // The snapshot view has not been told its tip yet: until its first
         // block connects, readers of the tip MN list would find none.
         const EvoViewScope snapshot_view{m_snapshot_chainstate->EvoView()};
-        m_snapshot_chainstate->m_special_tx.UpdatedMNListTip(Assert(m_snapshot_chainstate->m_chain.Tip()));
+        const CBlockIndex* snapshot_tip{Assert(m_snapshot_chainstate->m_chain.Tip())};
+        m_snapshot_chainstate->m_special_tx.UpdatedMNListTip(snapshot_tip);
+        if (m_snapshot_chainstate->m_isman) m_snapshot_chainstate->m_isman->CacheTipHeight(snapshot_tip);
+        // No UpdatedBlockTip: the base may lack block data, which ZMQ and block
+        // relay would try to read. Skipped once a later block moved the tip.
+        // Re-seeding the InstantSend tip height undoes a BlockConnected of the
+        // previous chainstate that was still queued at the switch.
+        CallFunctionInValidationInterfaceQueue(WithCapturedEvoView([this, snapshot_tip] {
+            {
+                LOCK(::cs_main);
+                Chainstate& active{ActiveChainstate()};
+                if (active.m_chain.Tip() != snapshot_tip) return;
+                if (active.m_isman) active.m_isman->CacheTipHeight(snapshot_tip);
+            }
+            GetMainSignals().InitializeSnapshotTip(snapshot_tip, IsInitialBlockDownload());
+        }));
     }
     m_snapshot_chainstate->m_evoDb.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
 

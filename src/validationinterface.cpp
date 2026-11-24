@@ -233,6 +233,11 @@ void CMainSignals::InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd) {
     m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.InitializeCurrentBlockTip(tip, ibd); });
 }
 
+void CMainSignals::InitializeSnapshotTip(const CBlockIndex* tip, bool ibd)
+{
+    m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.InitializeSnapshotTip(tip, ibd); });
+}
+
 void CMainSignals::SynchronousUpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {
     m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.SynchronousUpdatedBlockTip(pindexNew, pindexFork, fInitialDownload); });
 }

@@ -34,6 +34,11 @@ void CDSNotificationInterface::InitializeCurrentBlockTip(const CBlockIndex* tip,
     UpdatedBlockTip(tip, nullptr, ibd);
 }
 
+void CDSNotificationInterface::InitializeSnapshotTip(const CBlockIndex* tip, bool ibd)
+{
+    UpdatedBlockTip(tip, nullptr, ibd);
+}
+
 void CDSNotificationInterface::AcceptedBlockHeader(const CBlockIndex *pindexNew)
 {
     m_mn_sync.AcceptedBlockHeader(pindexNew);

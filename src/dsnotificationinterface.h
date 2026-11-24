@@ -27,6 +27,8 @@ public:
 
     // CValidationInterface
     void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd) override;
+    void InitializeSnapshotTip(const CBlockIndex* tip, bool ibd) override;
+
 protected:
     // CValidationInterface
     void AcceptedBlockHeader(const CBlockIndex *pindexNew) override;

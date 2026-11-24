@@ -34,14 +34,17 @@ Interesting starting states could be loading a snapshot when the current chain t
 - TODO: Not an ancestor or a descendant of the snapshot block and has more work
 
 """
+from contextlib import nullcontext
 from shutil import rmtree
 
 from test_framework.messages import MAGIC_BYTES
+from test_framework.p2p import P2PInterface
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.test_node import ErrorMatch
 from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
+    p2p_port,
 )
 from test_framework.wallet import MiniWallet
 
@@ -70,6 +73,8 @@ class AssumeutxoTest(BitcoinTestFramework):
         """Start with the nodes disconnected so that one can generate a snapshot
         including blocks the other hasn't yet seen."""
         self.add_nodes(4)
+        if self.is_zmq_compiled():
+            self.extra_args[2].append(f"-zmqpubrawblock=tcp://127.0.0.1:{p2p_port(self.num_nodes + 1)}")
         self.start_nodes(extra_args=self.extra_args)
 
     def authorize_snapshot(self, dump_output):
@@ -317,9 +322,33 @@ class AssumeutxoTest(BitcoinTestFramework):
         assert_equal(snapshot['snapshot_blockhash'], dump_output['base_hash'])
         assert_equal(snapshot['validated'], False)
 
-        self.connect_nodes(0, 2)
-        self.wait_until(lambda: n2.getchainstates()['chainstates'][-1]['blocks'] == FINAL_HEIGHT)
-        self.sync_blocks(nodes=(n0, n2))
+        self.log.info("Masternode sync leaves the blockchain stage at the best header the snapshot is loaded at")
+        assert_equal(n2.mnsync("status")["AssetName"], "MASTERNODE_SYNC_BLOCKCHAIN")
+        n2.add_p2p_connection(P2PInterface())
+        original_mocktime = n2.mocktime
+        mocktime = original_mocktime
+
+        def past_blockchain_stage():
+            nonlocal mocktime
+            mocktime += 6
+            n2.setmocktime(mocktime)
+            return n2.mnsync("status")["AssetName"] != "MASTERNODE_SYNC_BLOCKCHAIN"
+        self.wait_until(past_blockchain_stage)
+        n2.disconnect_p2ps()
+        n2.setmocktime(original_mocktime)
+
+        zmq = self.is_zmq_compiled()
+        if zmq:
+            self.log.info("The raw block notifier survives the load at a base without block data")
+            n2.syncwithvalidationinterfacequeue()
+            assert_equal([n["type"] for n in n2.getzmqnotifications()], ["pubrawblock"])
+        with n2.assert_debug_log([f"Publish rawblock {n0.getbestblockhash()}"], timeout=10) if zmq else nullcontext():
+            self.connect_nodes(0, 2)
+            self.wait_until(lambda: n2.getchainstates()['chainstates'][-1]['blocks'] == FINAL_HEIGHT)
+            self.sync_blocks(nodes=(n0, n2))
+        if zmq:
+            n2.syncwithvalidationinterfacequeue()
+            assert_equal([n["type"] for n in n2.getzmqnotifications()], ["pubrawblock"])
 
         self.log.info("Ensuring background validation completes")
         self.wait_until(lambda: len(n2.getchainstates()['chainstates']) == 1)

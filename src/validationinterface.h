@@ -121,6 +121,14 @@ protected:
      */
     virtual void InitializeCurrentBlockTip(const CBlockIndex* /*tip*/, bool /*ibd*/) {}
     /**
+     * InitializeCurrentBlockTip for a snapshot tip that became active without
+     * a block connection. The activation already set what
+     * SynchronousUpdatedBlockTip would, and a block may have connected and set
+     * it again before this runs on the validation interface queue, so
+     * implementations must leave that state alone.
+     */
+    virtual void InitializeSnapshotTip(const CBlockIndex* tip, bool ibd) { InitializeCurrentBlockTip(tip, ibd); }
+    /**
      * Same as UpdatedBlockTip, but called from the caller's thread
      */
     virtual void SynchronousUpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
@@ -243,6 +251,7 @@ public:
     void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload);
     void UpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
     void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd);
+    void InitializeSnapshotTip(const CBlockIndex* tip, bool ibd);
     void SynchronousUpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
     void TransactionAddedToMempool(const CTransactionRef&, int64_t, uint64_t mempool_sequence);
     void TransactionRemovedFromMempool(const CTransactionRef&, MemPoolRemovalReason, uint64_t mempool_sequence);
