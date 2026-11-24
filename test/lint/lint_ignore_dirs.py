@@ -5,4 +5,5 @@ SHARED_EXCLUDED_SUBTREES = ["src/blst/",
                  "src/minisketch/",
                  "src/immer/",
                  "src/crypto/x11/",
+                 "src/ipc/libmultiprocess/",
                 ]

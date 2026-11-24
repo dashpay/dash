@@ -34,8 +34,12 @@ add_dependencies(bitcoin_clientversion generate_build_info)
 
 add_subdirectory(crypto)
 add_subdirectory(univalue)
+if (ENABLE_IPC AND NOT WITH_EXTERNAL_LIBMULTIPROCESS)
+  include(../cmake/libmultiprocess.cmake)
+  add_libmultiprocess(ipc/libmultiprocess)
+endif()
 add_subdirectory(util)
-if(WITH_MULTIPROCESS)
+if(ENABLE_IPC)
   add_subdirectory(ipc)
 endif()
 
@@ -493,7 +497,7 @@ if(BUILD_DAEMON)
   set_target_properties(bitcoind PROPERTIES OUTPUT_NAME dashd)
   list(APPEND installable_targets bitcoind)
 endif()
-if(WITH_MULTIPROCESS)
+if(ENABLE_IPC)
   add_executable(bitcoin-node
     bitcoind.cpp
     init/bitcoin-node.cpp
@@ -507,6 +511,22 @@ if(WITH_MULTIPROCESS)
   )
   set_target_properties(bitcoin-node PROPERTIES OUTPUT_NAME dash-node)
   list(APPEND installable_targets bitcoin-node)
+
+  if(BUILD_TESTS)
+    # bitcoin_ipc_test library target is defined here in src/CMakeLists.txt
+    # instead of src/test/CMakeLists.txt so capnp files in src/test/ are able to
+    # reference capnp files in src/ipc/capnp/ by relative path. The Cap'n Proto
+    # compiler only allows importing by relative path when the importing and
+    # imported files are underneath the same compilation source prefix, so the
+    # source prefix must be src/, not src/test/
+    add_library(bitcoin_ipc_test STATIC EXCLUDE_FROM_ALL
+      test/ipc_test.cpp
+    )
+    target_capnp_sources(bitcoin_ipc_test ${PROJECT_SOURCE_DIR}
+      test/ipc_test.capnp
+    )
+    add_dependencies(bitcoin_ipc_test bitcoin_ipc_headers)
+  endif()
 endif()
 
 

@@ -4,7 +4,7 @@ _This document describes usage of the multiprocess feature. For design informati
 
 ## Build Option
 
-On unix systems, the `-DWITH_MULTIPROCESS=ON` option can be passed to CMake to build `dash-node` alongside `dashd`, and `dash-gui` alongside `dash-qt` when the GUI is enabled.
+On unix systems, the `-DENABLE_IPC=ON` option can be passed to CMake to build `dash-node` alongside `dashd`, and `dash-gui` alongside `dash-qt` when the GUI is enabled.
 
 ## Debugging
 
@@ -12,22 +12,30 @@ The `-debug=ipc` command line option can be used to see requests and responses b
 
 ## Installation
 
-The multiprocess feature requires [Cap'n Proto](https://capnproto.org/) and [libmultiprocess](https://github.com/bitcoin-core/libmultiprocess) as dependencies. A simple way to get started using it without installing these dependencies manually is to use the [depends system](../depends) with the `MULTIPROCESS=1` [dependency option](../depends#dependency-options) passed to make:
+Specifying `-DENABLE_IPC=ON` requires [Cap'n Proto](https://capnproto.org/) to be installed. See [build-unix.md](build-unix.md) and [build-osx.md](build-osx.md) for information about installing dependencies.
+
+### Depends installation
+
+Alternately the [depends system](../depends) can be used to avoid need to install local dependencies. A simple way to get started is to pass the `MULTIPROCESS=1` [dependency option](../depends#dependency-options) to make:
 
 ```
 cd <DASH_SOURCE_DIRECTORY>
 make -C depends NO_QT=1 MULTIPROCESS=1
-cmake -B build --toolchain depends/x86_64-pc-linux-gnu/toolchain.cmake
+# Set host platform to output of gcc -dumpmachine or clang -dumpmachine or check the depends/ directory for the generated subdirectory name
+HOST_PLATFORM="x86_64-pc-linux-gnu"
+cmake -B build --toolchain=depends/$HOST_PLATFORM/toolchain.cmake
 cmake --build build
 build/src/dash-node -regtest -printtoconsole -debug=ipc
 DASHD=dash-node build/test/functional/test_runner.py
 ```
 
 The toolchain file supplies settings and library locations from depends, so there
-is no need to pass `-DWITH_MULTIPROCESS=ON` separately when using the depends
+is no need to pass `-DENABLE_IPC=ON` separately when using the depends
 system (it is controlled by the `MULTIPROCESS=1` option).
 
-Alternately, you can install [Cap'n Proto](https://capnproto.org/) and [libmultiprocess](https://github.com/bitcoin-core/libmultiprocess) packages on your system, and just run `cmake -B build -DWITH_MULTIPROCESS=ON` without using the depends system. CMake will locate the installed packages using their CMake package configuration files. See [Installation](https://github.com/bitcoin-core/libmultiprocess/blob/master/doc/install.md) section of the libmultiprocess readme for install steps. See [build-unix.md](build-unix.md) and [build-osx.md](build-osx.md) for information about installing dependencies in general.
+### Cross-compiling
+
+When cross-compiling and not using depends, native code generation tools from [libmultiprocess](https://github.com/bitcoin-core/libmultiprocess) and [Cap'n Proto](https://capnproto.org/) are required. They can be passed to the cmake build by specifying `-DMPGEN_EXECUTABLE=/path/to/mpgen -DCAPNP_EXECUTABLE=/path/to/capnp -DCAPNPC_CXX_EXECUTABLE=/path/to/capnpc-c++` options.
 
 ## Usage
 

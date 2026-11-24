@@ -72,7 +72,7 @@ void PrepareShutdown(node::NodeContext& node);
 /**
  * Register all arguments with the ArgsManager
  */
-void SetupServerArgs(ArgsManager& argsman);
+void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc=false);
 
 /** Validates requirements to run the indexes and spawns each index initial sync thread */
 bool StartIndexBackgroundSync(node::NodeContext& node);

@@ -20,7 +20,7 @@ zmq_packages=zeromq
 
 zstd_packages=zstd
 
-multiprocess_packages = libmultiprocess capnp
+multiprocess_packages = capnp
 multiprocess_native_packages = native_libmultiprocess native_capnp
 
 platform_packages = rust_stdlib platform_cxx
