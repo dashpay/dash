@@ -4,7 +4,8 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 """
-Test MNAUTH emission on the registered masternode service only.
+Test that a masternode sends MNAUTH only to inbound peers that reached it on its registered
+service: the local port must match and the connection must not come from another network class.
 """
 
 import platform
@@ -15,6 +16,7 @@ from test_framework.test_framework import (
 )
 from test_framework.util import (
     assert_equal,
+    force_finish_mnsync,
     p2p_port,
 )
 
@@ -24,51 +26,55 @@ class P2PMNAUTHTest(DashTestFramework):
         self.add_wallet_options(parser)
 
     def set_test_params(self):
-        # Disable the framework's implicit `bind=127.0.0.1` so all binds for the
-        # masternode are visible in this file rather than coming from the conf.
+        # Keep every bind of the masternode visible here instead of the implicit bind=127.0.0.1
         self.bind_to_localhost_only = False
-        self.alt_port = p2p_port(10)
         self.mn_port = p2p_port(2)
-        # NAT-style variant requires a non-127.0.0.1 loopback bind; only Linux
-        # routes 127.0.0.0/8 to lo by default.
-        self.nat_capable = platform.system() == "Linux"
+        self.alt_port = p2p_port(10)
+        # Only Linux routes all of 127.0.0.0/8 to the loopback interface by default
+        self.has_loopback_aliases = platform.system() == "Linux"
 
-        mn_args = [
-            f"-bind=127.0.0.1:{self.mn_port}",
-            f"-bind=127.0.0.1:{self.alt_port}",
-            f"-externalip=127.0.0.1:{self.mn_port}",
-        ]
-        if self.nat_capable:
-            mn_args.append(f"-bind=127.0.0.2:{self.mn_port}")
+        self.mn_args = [f"-externalip=127.0.0.1:{self.mn_port}"]
+        binds = [f"-bind=127.0.0.1:{self.mn_port}", f"-bind=127.0.0.1:{self.alt_port}"]
+        if self.has_loopback_aliases:
+            binds.append(f"-bind=127.0.0.2:{self.mn_port}")
+        self.set_dash_test_params(3, 1, extra_args=[[], [], self.mn_args + binds])
 
-        self.set_dash_test_params(3, 1, extra_args=[[], [], mn_args])
+    def probe(self, addr, *, expect_mnauth):
+        transport = 'v2' if self.options.v2transport else 'v1'
+        self.log.info(f"Probe {addr} over {transport}, expect {'MNAUTH' if expect_mnauth else 'no MNAUTH'}")
+        if expect_mnauth:
+            connector_log = f"Masternode probe successful for {self.mn.proTxHash}"
+            mn_log = "Sending MNAUTH"
+        else:
+            connector_log = "connection is a masternode probe but first received message is not MNAUTH"
+            mn_log = "Not sending MNAUTH on unexpected local service"
+        with self.mn_node.assert_debug_log([mn_log]), self.connector.assert_debug_log([connector_log]):
+            assert_equal(self.connector.masternode("connect", addr, self.options.v2transport), "successfully connected")
+
+    def wait_for_ready(self):
+        self.wait_until(lambda: self.mn_node.masternode("status")["state"] == "READY")
+        assert_equal(self.mn_node.masternode("status")["service"], f"127.0.0.1:{self.mn_port}")
 
     def run_test(self):
-        masternode: MasternodeInfo = self.mninfo[0]
-        masternode_node = masternode.get_node(self)
-        connector = self.nodes[1]
-        use_v2transport = self.options.v2transport
+        self.mn: MasternodeInfo = self.mninfo[0]
+        self.mn_node = self.mn.get_node(self)
+        self.connector = self.nodes[1]
+        assert_equal(self.mn.nodePort, self.mn_port)
 
-        expected_addr = f"127.0.0.1:{masternode.nodePort}"
-        alternate_addr = f"127.0.0.1:{self.alt_port}"
+        self.wait_for_ready()
+        self.probe(f"127.0.0.1:{self.mn_port}", expect_mnauth=True)
+        self.probe(f"127.0.0.1:{self.alt_port}", expect_mnauth=False)
+        if self.has_loopback_aliases:
+            # NAT-style: the bind address differs from the advertised one, the port matches
+            self.probe(f"127.0.0.2:{self.mn_port}", expect_mnauth=True)
 
-        self.wait_until(lambda: masternode_node.masternode("status")["state"] == "READY")
-        assert_equal(masternode_node.masternode("status")["service"], expected_addr)
-
-        self.log.info(f"Connect to the registered masternode service over {'v2' if use_v2transport else 'v1'} and expect MNAUTH")
-        with connector.assert_debug_log([f"Masternode probe successful for {masternode.proTxHash}"]):
-            assert_equal(connector.masternode("connect", expected_addr, use_v2transport), "successfully connected")
-
-        self.log.info(f"Connect to the alternate bind over {'v2' if use_v2transport else 'v1'} and expect no MNAUTH")
-        with masternode_node.assert_debug_log(["Not sending MNAUTH on unexpected local service"]):
-            with connector.assert_debug_log(["connection is a masternode probe but first received message is not MNAUTH"]):
-                assert_equal(connector.masternode("connect", alternate_addr, use_v2transport), "successfully connected")
-
-        if self.nat_capable:
-            nat_addr = f"127.0.0.2:{self.mn_port}"
-            self.log.info(f"Connect to a different loopback IP on the registered port over {'v2' if use_v2transport else 'v1'} (NAT-style: addrBind address differs from advertised externalip, ports match) and expect MNAUTH")
-            with connector.assert_debug_log([f"Masternode probe successful for {masternode.proTxHash}"]):
-                assert_equal(connector.masternode("connect", nat_addr, use_v2transport), "successfully connected")
+        self.log.info("Tag the registered port as an onion listener: port matches, only the network differs")
+        self.stop_node(self.mn.nodeIdx)
+        self.start_node(self.mn.nodeIdx, extra_args=[f"-masternodeblsprivkey={self.mn.keyOperator}",
+                                                     f"-bind=127.0.0.1:{self.mn_port}=onion"] + self.mn_args)
+        force_finish_mnsync(self.mn_node)
+        self.wait_for_ready()
+        self.probe(f"127.0.0.1:{self.mn_port}", expect_mnauth=False)
 
 
 if __name__ == '__main__':
