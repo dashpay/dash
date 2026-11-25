@@ -507,6 +507,14 @@ public:
         consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_25_67;
         consensus.llmqTypeMnhf = Consensus::LLMQType::LLMQ_50_60;
 
+        // DCG's testnet evonodes. An address is self-declared and only has to be unused, so the
+        // range is exact: a spare address in it could be claimed by anyone to take a reserved seat.
+        consensus.platform_reserved_seats = {
+            .height = 1620000,
+            .percent = 90,
+            .ranges = {{{68, 67, 122, 1}, {68, 67, 122, 29}}},
+        };
+
         fDefaultConsistencyChecks = false;
         fRequireRoutableExternalIP = true;
         fAllowMultipleAddressesFromGroup = false;

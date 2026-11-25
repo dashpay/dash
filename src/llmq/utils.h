@@ -83,7 +83,8 @@ std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqTy
                                                       bool reset_cache = false);
 
 // Members of a non-rotated quorum based at quorum_height: the best-scoring masternodes of mn_list
-// under modifier, in descending score order.
+// under modifier, in descending score order. Where Consensus::Params::platform_reserved_seats
+// applies, a Platform quorum first seats the best-scoring evonodes of the reserved address ranges.
 std::vector<CDeterministicMNCPtr> SelectQuorumMembers(const Consensus::LLMQParams& llmq_params,
                                                       const Consensus::Params& consensus,
                                                       const CDeterministicMNList& mn_list, const uint256& modifier,

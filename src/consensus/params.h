@@ -9,6 +9,7 @@
 #include <uint256.h>
 #include <llmq/params.h>
 
+#include <array>
 #include <chrono>
 #include <limits>
 #include <vector>
@@ -91,6 +92,25 @@ struct BIP9Deployment {
      *  This is useful for integrating the code changes for a new feature
      *  prior to deploying it on some or all networks. */
     static constexpr int64_t NEVER_ACTIVE = -2;
+};
+
+/** Inclusive IPv4 address range, each bound written as its four octets. */
+struct IPv4Range {
+    std::array<uint8_t, 4> first;
+    std::array<uint8_t, 4> last;
+};
+
+/**
+ * Reserves seats in Platform quorums for evonodes whose core P2P address is in `ranges`.
+ * Only set on testnet: collateral there is free, so nothing else stops anyone from
+ * registering enough evonodes to keep Platform quorums from forming or signing.
+ */
+struct PlatformReservedSeats {
+    /** First quorum base height the reservation applies to */
+    int height{std::numeric_limits<int>::max()};
+    /** Share of the quorum size that is reserved, rounded up to whole seats */
+    int percent{0};
+    std::vector<IPv4Range> ranges;
 };
 
 /**
@@ -205,6 +225,7 @@ struct Params {
     LLMQType llmqTypeDIP0024InstantSend{LLMQType::LLMQ_NONE};
     LLMQType llmqTypePlatform{LLMQType::LLMQ_NONE};
     LLMQType llmqTypeMnhf{LLMQType::LLMQ_NONE};
+    PlatformReservedSeats platform_reserved_seats;
 
     int DeploymentHeight(BuriedDeployment dep) const
     {

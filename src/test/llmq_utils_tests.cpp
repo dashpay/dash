@@ -6,11 +6,17 @@
 #include <test/util/llmq_tests.h>
 #include <test/util/setup_common.h>
 
+#include <arith_uint256.h>
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <checkqueue.h>
+#include <common/args.h>
 #include <consensus/params.h>
 #include <dbwrapper.h>
+#include <evo/deterministicmns.h>
+#include <evo/dmnstate.h>
+#include <evo/netinfo.h>
+#include <evo/providertx.h>
 #include <llmq/context.h>
 #include <llmq/net_signing.h>
 #include <llmq/params.h>
@@ -21,6 +27,8 @@
 #include <netaddress.h>
 #include <random.h>
 #include <streams.h>
+#include <tinyformat.h>
+#include <util/chaintype.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -575,6 +583,103 @@ BOOST_AUTO_TEST_CASE(qbsigshares_accepts_aggregate_at_cap)
     BOOST_CHECK_EQUAL(decoded.size(), 2U);
     BOOST_CHECK_EQUAL(decoded[0].sigShares.size(), 200U);
     BOOST_CHECK_EQUAL(decoded[1].sigShares.size(), MAX_MSGS_TOTAL_BATCHED_SIGS - 200);
+}
+
+static CDeterministicMNCPtr MakeEvoNode(uint32_t id, const std::string& ip, bool banned)
+{
+    auto state{std::make_shared<CDeterministicMNState>()};
+    state->nVersion = ProTxVersion::BasicBLS;
+    WriteLE32(state->keyIDOwner.begin(), id);
+    WriteLE32(state->platformNodeID.begin(), id);
+    state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+    BOOST_REQUIRE_EQUAL(state->netInfo->AddEntry(NetInfoPurpose::CORE_P2P,
+                                                 strprintf("%s:%d", ip, Params().GetDefaultPort())),
+                        NetInfoStatus::Success);
+    if (banned) state->BanIfNotBanned(/*height=*/1);
+
+    auto dmn{std::make_shared<CDeterministicMN>(id, MnType::Evo)};
+    dmn->proTxHash = ArithToUint256(arith_uint256{id});
+    dmn->collateralOutpoint = COutPoint{dmn->proTxHash, 0};
+    state->UpdateConfirmedHash(dmn->proTxHash, uint256::ONE);
+    dmn->pdmnState = std::move(state);
+    return dmn;
+}
+
+BOOST_AUTO_TEST_CASE(testnet_platform_quorum_reserves_seats_for_dcg_evonodes)
+{
+    const auto testnet{CreateChainParams(ArgsManager{}, ChainType::TESTNET)};
+    const auto& consensus{testnet->GetConsensus()};
+    const auto llmq_params{testnet->GetLLMQ(consensus.llmqTypePlatform).value()};
+    const auto mainnet{CreateChainParams(ArgsManager{}, ChainType::MAIN)};
+    const auto& main_consensus{mainnet->GetConsensus()};
+    const auto main_llmq_params{mainnet->GetLLMQ(main_consensus.llmqTypePlatform).value()};
+    const int active_height{consensus.platform_reserved_seats.height};
+    BOOST_REQUIRE_EQUAL(active_height % llmq_params.dkgInterval, 0);
+    constexpr size_t RESERVED_SEATS{23}; // 90% of 25, rounded up
+    constexpr uint32_t DCG_NODES{29};
+
+    // Outside evonodes outnumber DCG's four to one and include the addresses bordering DCG's range.
+    const std::vector<std::string> outside_edges{"68.67.122.0",  "68.67.122.30", "68.67.122.255",
+                                                 "68.67.121.29", "68.67.123.1",  "85.209.243.1"};
+    std::set<uint256> dcg;
+    const auto make_list{[&](uint32_t dcg_banned) {
+        dcg.clear();
+        CDeterministicMNList list{uint256::ONE, active_height, 0};
+        uint32_t id{0};
+        for (uint32_t i{1}; i <= DCG_NODES; ++i) {
+            const auto dmn{MakeEvoNode(++id, strprintf("68.67.122.%d", i), /*banned=*/i <= dcg_banned)};
+            dcg.insert(dmn->proTxHash);
+            list.AddMN(dmn);
+        }
+        for (const auto& ip : outside_edges) {
+            list.AddMN(MakeEvoNode(++id, ip, /*banned=*/false));
+        }
+        for (uint32_t i{0}; i < 114; ++i) {
+            list.AddMN(MakeEvoNode(++id, strprintf("45.77.%d.%d", i / 250, i % 250 + 1), /*banned=*/false));
+        }
+        return list;
+    }};
+    const auto split{[&](const std::vector<CDeterministicMNCPtr>& members) {
+        std::pair<std::vector<uint256>, std::vector<uint256>> ret;
+        for (const auto& dmn : members) {
+            (dcg.count(dmn->proTxHash) ? ret.first : ret.second).push_back(dmn->proTxHash);
+        }
+        return ret;
+    }};
+
+    for (const uint8_t modifier_byte : {1, 2, 3}) {
+        const uint256 modifier{modifier_byte};
+
+        const auto list{make_list(/*dcg_banned=*/0)};
+        const auto before{utils::SelectQuorumMembers(llmq_params, consensus, list, modifier,
+                                                     active_height - llmq_params.dkgInterval)};
+        const auto [dcg_before, outside_before]{split(before)};
+        BOOST_REQUIRE_EQUAL(before.size(), 25U);
+        // Score alone seats far fewer DCG evonodes than the reservation does
+        BOOST_REQUIRE_LT(dcg_before.size(), RESERVED_SEATS);
+
+        const auto after{utils::SelectQuorumMembers(llmq_params, consensus, list, modifier, active_height)};
+        const auto [dcg_after, outside_after]{split(after)};
+        BOOST_CHECK_EQUAL(after.size(), 25U);
+        BOOST_CHECK_EQUAL(dcg_after.size(), RESERVED_SEATS);
+        // The reservation only adds DCG evonodes, and the open seats still go to the best scores
+        BOOST_CHECK(std::equal(dcg_before.begin(), dcg_before.end(), dcg_after.begin()));
+        BOOST_REQUIRE_EQUAL(outside_after.size(), 2U);
+        BOOST_CHECK(std::equal(outside_after.begin(), outside_after.end(), outside_before.begin()));
+
+        // With too few eligible DCG evonodes all of them are seated and the rest is open to everyone
+        const auto short_list{make_list(/*dcg_banned=*/19)};
+        const auto [dcg_short, outside_short]{
+            split(utils::SelectQuorumMembers(llmq_params, consensus, short_list, modifier, active_height))};
+        BOOST_CHECK_EQUAL(dcg_short.size(), 10U);
+        BOOST_CHECK_EQUAL(outside_short.size(), 15U);
+
+        // Mainnet reserves nothing
+        const auto [dcg_main, outside_main]{split(
+            utils::SelectQuorumMembers(main_llmq_params, main_consensus, list, modifier, /*quorum_height=*/3'000'000))};
+        BOOST_CHECK_EQUAL(dcg_main.size() + outside_main.size(), 100U);
+        BOOST_CHECK_LT(dcg_main.size(), size_t{DCG_NODES});
+    }
 }
 
 BOOST_AUTO_TEST_CASE(deterministic_outbound_connection_test)

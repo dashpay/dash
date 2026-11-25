@@ -21,6 +21,8 @@
 #include <validation.h>
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <iterator>
 #include <map>
 #include <optional>
@@ -153,6 +155,15 @@ std::vector<MasternodeScore> CalculateScoresForQuorum(const CDeterministicMNList
         scores.emplace_back(calculateQuorumScore(dmn, modifier), dmn);
     });
     return scores;
+}
+
+bool InRanges(const std::vector<Consensus::IPv4Range>& ranges, const CNetAddr& addr)
+{
+    in_addr ipv4;
+    if (!addr.GetInAddr(&ipv4)) return false;
+    std::array<uint8_t, 4> octets;
+    std::memcpy(octets.data(), &ipv4.s_addr, octets.size());
+    return std::ranges::any_of(ranges, [&](const auto& range) { return range.first <= octets && octets <= range.last; });
 }
 
 /**
@@ -658,11 +669,35 @@ void BlsCheck::swap(BlsCheck& obj) noexcept
 QuorumMembers SelectQuorumMembers(const Consensus::LLMQParams& llmq_params, const Consensus::Params& consensus,
                                   const CDeterministicMNList& mn_list, const uint256& modifier, int quorum_height)
 {
+    const bool is_platform{llmq_params.type == consensus.llmqTypePlatform};
     // V19 is a buried deployment, so whether it is active after the quorum base block is a pure
     // height check, which also holds for a base block that is not mined yet.
-    const bool evo_only{llmq_params.type == consensus.llmqTypePlatform &&
-                        quorum_height + 1 >= consensus.DeploymentHeight(Consensus::DEPLOYMENT_V19)};
-    return CalculateQuorum(mn_list, modifier, llmq_params.size, evo_only);
+    const bool evo_only{is_platform && quorum_height + 1 >= consensus.DeploymentHeight(Consensus::DEPLOYMENT_V19)};
+    const auto size{static_cast<size_t>(llmq_params.size)};
+
+    const auto& reserved{consensus.platform_reserved_seats};
+    if (!is_platform || quorum_height < reserved.height) {
+        return CalculateQuorum(mn_list, modifier, size, evo_only);
+    }
+
+    auto candidates{CalculateQuorum(mn_list, modifier, /*maxSize=*/0, evo_only)};
+    const auto in_reserved_range{[&](const CDeterministicMNCPtr& dmn) {
+        return InRanges(reserved.ranges, dmn->pdmnState->netInfo->GetPrimary());
+    }};
+    // Seats the reserved ranges cannot fill stay open to every candidate.
+    size_t reserved_seats{
+        std::min<size_t>((size * reserved.percent + 99) / 100, std::ranges::count_if(candidates, in_reserved_range))};
+    size_t open_seats{size - reserved_seats};
+
+    QuorumMembers members;
+    members.reserve(size);
+    for (auto& dmn : candidates) {
+        size_t& seats{reserved_seats > 0 && in_reserved_range(dmn) ? reserved_seats : open_seats};
+        if (seats == 0) continue;
+        --seats;
+        members.emplace_back(std::move(dmn));
+    }
+    return members;
 }
 
 std::optional<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersFromWorkBlock(
