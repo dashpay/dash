@@ -616,25 +616,26 @@ BOOST_AUTO_TEST_CASE(testnet_platform_quorum_reserves_seats_for_dcg_evonodes)
     const int active_height{consensus.platform_reserved_seats.height};
     BOOST_REQUIRE_EQUAL(active_height % llmq_params.dkgInterval, 0);
     constexpr size_t RESERVED_SEATS{23}; // 90% of 25, rounded up
-    constexpr uint32_t DCG_NODES{29};
+    constexpr uint32_t DCG_NODES{30};
 
     // Outside evonodes outnumber DCG's four to one and include the addresses bordering DCG's range.
-    const std::vector<std::string> outside_edges{"68.67.122.0",  "68.67.122.30", "68.67.122.255",
-                                                 "68.67.121.29", "68.67.123.1",  "85.209.243.1"};
+    const std::vector<std::string> outside_edges{"68.67.122.0", "68.67.121.255", "68.67.123.1", "85.209.243.1"};
     std::set<uint256> dcg;
     const auto make_list{[&](uint32_t dcg_banned) {
         dcg.clear();
         CDeterministicMNList list{uint256::ONE, active_height, 0};
         uint32_t id{0};
         for (uint32_t i{1}; i <= DCG_NODES; ++i) {
-            const auto dmn{MakeEvoNode(++id, strprintf("68.67.122.%d", i), /*banned=*/i <= dcg_banned)};
+            // The last DCG evonode sits on the last address of the range
+            const auto dmn{MakeEvoNode(++id, strprintf("68.67.122.%d", i < DCG_NODES ? i : 255),
+                                       /*banned=*/i <= dcg_banned)};
             dcg.insert(dmn->proTxHash);
             list.AddMN(dmn);
         }
         for (const auto& ip : outside_edges) {
             list.AddMN(MakeEvoNode(++id, ip, /*banned=*/false));
         }
-        for (uint32_t i{0}; i < 114; ++i) {
+        for (uint32_t i{0}; i < 116; ++i) {
             list.AddMN(MakeEvoNode(++id, strprintf("45.77.%d.%d", i / 250, i % 250 + 1), /*banned=*/false));
         }
         return list;
@@ -668,7 +669,7 @@ BOOST_AUTO_TEST_CASE(testnet_platform_quorum_reserves_seats_for_dcg_evonodes)
         BOOST_CHECK(std::equal(outside_after.begin(), outside_after.end(), outside_before.begin()));
 
         // With too few eligible DCG evonodes all of them are seated and the rest is open to everyone
-        const auto short_list{make_list(/*dcg_banned=*/19)};
+        const auto short_list{make_list(/*dcg_banned=*/20)};
         const auto [dcg_short, outside_short]{
             split(utils::SelectQuorumMembers(llmq_params, consensus, short_list, modifier, active_height))};
         BOOST_CHECK_EQUAL(dcg_short.size(), 10U);
