@@ -146,6 +146,11 @@ class AssumeutxoTest(BitcoinTestFramework):
                 f.write(valid_snapshot_contents[(32 + 8 + offset + len(content)):])
             expected_error(log_msg=f"[snapshot] bad snapshot content hash: expected {self.snapshot_hash}, got ")
 
+    def test_headers_not_synced(self, node, dump_output):
+        assert_raises_rpc_error(-32603, f"The base block header ({dump_output['base_hash']}) must appear in the headers chain. Make sure all headers are syncing, and call this RPC again.",
+                                node.loadtxoutset,
+                                dump_output['path'])
+
     def test_invalid_chainstate_scenarios(self):
         self.log.info("Test different scenarios of invalid snapshot chainstate in datadir")
 
@@ -192,8 +197,6 @@ class AssumeutxoTest(BitcoinTestFramework):
         # Mock time for a deterministic chain
         for n in self.nodes:
             n.setmocktime(n.getblockheader(n.getbestblockhash())['time'])
-
-        self.sync_blocks()
 
         # Generate a series of blocks that `n0` will have in the snapshot,
         # but that n1 doesn't yet see. In order for the snapshot to activate,
@@ -530,6 +533,8 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.stop_node(3)
         rmtree(n3.chain_path)
         self.start_node(3, extra_args=self.extra_args[3])
+        self.log.info("Test loading snapshot when headers are not synced")
+        self.test_headers_not_synced(n3, dump_output)
         for height in range(1, SNAPSHOT_BASE_HEIGHT + 1):
             n3.submitheader(n0.getblock(n0.getblockhash(height), 0))
         loaded = n3.loadtxoutset(dump_output['path'])
