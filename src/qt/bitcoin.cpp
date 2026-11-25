@@ -229,6 +229,8 @@ void DebugMessageHandler(QtMsgType type, const QMessageLogContext& context, cons
 
 #ifdef Q_OS_MACOS
 namespace {
+// TODO: After migrating to Qt 6, verify Cocoa's popup background fix
+// (QTBUG-106108) and remove this filter.
 class MacPopupMenuFilter final : public QObject
 {
 public:
