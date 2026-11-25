@@ -305,12 +305,13 @@ class AssumeutxoTest(BitcoinTestFramework):
         assert 'NETWORK' in ibd_node.getpeerinfo()[0]['servicesnames']
         self.sync_blocks(nodes=(ibd_node, snapshot_node))
 
-    def test_sync_to_most_work_chain_after_promotion(self):
+    def test_sync_to_most_work_chain_after_promotion(self, snapshot_path):
         """
-        A node whose snapshot is validated but not yet promoted by a restart
-        does not download from peers without the snapshot block in their
-        chain: it could not disconnect below the base's carried Evo state.
-        After the promoting restart it follows their chain.
+        A node whose snapshot is not yet promoted by a restart does not
+        download from peers without the snapshot block in their chain, nor
+        switch to such a chain from blocks it has: it lacks the Evo state
+        below the base to follow it. After the promoting restart it follows
+        their chain.
         """
         self.log.info("Testing sync to the most-work chain without the snapshot block after promotion")
 
@@ -330,6 +331,36 @@ class AssumeutxoTest(BitcoinTestFramework):
         # With the mock time fixed, mining to the usual address would rebuild the invalidated block.
         self.generatetoaddress(forking_node, (forking_node_old_height - fork_point) + 1, getnewdestination()[2], sync_fun=self.no_op)
         assert int(forking_node.getblockchaininfo()['chainwork'], 16) > forking_node_old_chainwork
+        fork_blocks = [forking_node.getblock(forking_node.getblockhash(height), 0)
+                       for height in range(fork_point + 1, forking_node.getblockcount() + 1)]
+
+        def keeps_tip_with_fork_on_disk(node):
+            with node.assert_debug_log(expected_msgs=[], unexpected_msgs=["- Disconnect block", "local Evo state error"]):
+                for block in fork_blocks:
+                    node.submitblock(block)
+            assert_equal(node.getbestblockhash(), snapshot_tip)
+
+        self.log.info("Before its background validation reaches the base, a snapshot node keeps its tip with the fork on disk")
+        pending_node = self.nodes[3]
+        self.stop_node(pending_node.index)
+        rmtree(pending_node.chain_path)
+        self.start_node(pending_node.index, extra_args=self.extra_args[pending_node.index])
+        main_blocks = {height: snapshot_node.getblock(snapshot_node.getblockhash(height), 0)
+                       for height in range(1, FINAL_HEIGHT + 1)}
+        for height in range(1, FINAL_HEIGHT + 1):
+            pending_node.submitheader(main_blocks[height])
+        pending_node.loadtxoutset(snapshot_path)
+        for height in range(1, FINAL_HEIGHT + 1):
+            if height != SNAPSHOT_BASE_HEIGHT:
+                pending_node.submitblock(main_blocks[height])
+        normal, snapshot = pending_node.getchainstates()['chainstates']
+        assert_equal(normal['blocks'], fork_point)
+        assert_equal(snapshot['blocks'], FINAL_HEIGHT)
+        keeps_tip_with_fork_on_disk(pending_node)
+        assert_equal(len(pending_node.getchainstates()['chainstates']), 2)
+
+        self.log.info("Once validated, the snapshot node keeps its tip with the fork on disk")
+        keeps_tip_with_fork_on_disk(snapshot_node)
 
         self.log.info("Before promotion the snapshot node does not download the chain without the snapshot block")
         # Validated, but still the snapshot chainstate until a restart promotes it.
@@ -344,8 +375,11 @@ class AssumeutxoTest(BitcoinTestFramework):
         self.restart_node(snapshot_node.index, extra_args=self.extra_args[snapshot_node.index])
         chainstate, = snapshot_node.getchainstates()['chainstates']
         assert_equal(chainstate.get('snapshot_blockhash'), None)
+        fork_tip = self.generatetoaddress(forking_node, 1, getnewdestination()[2], sync_fun=self.no_op)[0]
+        assert_raises_rpc_error(-5, "Block not found", snapshot_node.getblockheader, fork_tip)
         self.connect_nodes(snapshot_node.index, forking_node.index)
         self.sync_blocks(nodes=(snapshot_node, forking_node))
+        assert_equal(snapshot_node.getbestblockhash(), fork_tip)
 
     def assert_only_network_limited_service(self, node):
         node_services = node.getnetworkinfo()['localservicesnames']
@@ -813,7 +847,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         # The following test cleans node2 and node3 chain directories.
         self.test_sync_from_assumeutxo_node(snapshot=dump_output)
 
-        self.test_sync_to_most_work_chain_after_promotion()
+        self.test_sync_to_most_work_chain_after_promotion(dump_output['path'])
 
 
 @dataclass

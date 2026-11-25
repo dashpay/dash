@@ -3896,6 +3896,11 @@ Chainstate::MostWorkChain Chainstate::FindMostWorkChain()
         reach_usable_blocks.insert(path.begin(), path.end());
         return false;
     }};
+    // Until a restart promotes it, a snapshot chainstate lacks the Evo state
+    // below its base to follow a chain that forks there, so such chains stay
+    // candidates for after the promotion.
+    const CBlockIndex* snapshot_base{SnapshotBase()};
+    const bool keep_snapshot_base{snapshot_base && m_chain.Contains(snapshot_base)};
     do {
         CBlockIndex *pindexNew = nullptr;
 
@@ -3903,6 +3908,7 @@ Chainstate::MostWorkChain Chainstate::FindMostWorkChain()
         // out of reach stay candidates for when the stall ends, unless their
         // chain is unusable anyway: the walk below removes those.
         for (auto it{setBlockIndexCandidates.rbegin()}; it != setBlockIndexCandidates.rend(); ++it) {
+            if (keep_snapshot_base && (*it)->GetAncestor(snapshot_base->nHeight) != snapshot_base) continue;
             const CBlockIndex* obstruction{stall_obstructing(*it)};
             if (obstruction == nullptr || reaches_unusable_block(*it)) {
                 pindexNew = *it;
