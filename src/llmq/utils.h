@@ -22,6 +22,7 @@
 #include <vector>
 
 class CBlockIndex;
+class CDeterministicMNList;
 class CDeterministicMNManager;
 class ChainstateManager;
 class CSporkManager;
@@ -80,6 +81,13 @@ std::unordered_set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType
 // includes members which failed DKG
 std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParameters& util_params,
                                                       bool reset_cache = false);
+
+// Members of a non-rotated quorum based at quorum_height: the best-scoring masternodes of mn_list
+// under modifier, in descending score order.
+std::vector<CDeterministicMNCPtr> SelectQuorumMembers(const Consensus::LLMQParams& llmq_params,
+                                                      const Consensus::Params& consensus,
+                                                      const CDeterministicMNList& mn_list, const uint256& modifier,
+                                                      int quorum_height);
 
 // Predicts the members of a future v20 quorum from its already-known work block, before the
 // quorum's own (cycle) base block exists on chain. Returns std::nullopt when V20 is not yet

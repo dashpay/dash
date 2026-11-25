@@ -293,8 +293,6 @@ std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshot(const Consensus::LL
 QuorumMembers ComputeQuorumMembers(Consensus::LLMQType llmqType, const CChainParams& chainparams, const node::BlockManager& blockman,
                                    const CDeterministicMNList& mn_list, const CBlockIndex* pQuorumBaseBlockIndex)
 {
-    bool EvoOnly = (chainparams.GetConsensus().llmqTypePlatform == llmqType) &&
-                   DeploymentActiveAfter(pQuorumBaseBlockIndex, chainparams.GetConsensus(), Consensus::DEPLOYMENT_V19);
     const auto& llmq_params_opt = chainparams.GetLLMQ(llmqType);
     assert(llmq_params_opt.has_value());
     if (llmq_params_opt->useRotation || pQuorumBaseBlockIndex->nHeight % llmq_params_opt->dkgInterval != 0) {
@@ -303,7 +301,8 @@ QuorumMembers ComputeQuorumMembers(Consensus::LLMQType llmqType, const CChainPar
     }
 
     const auto modifier = GetHashModifier(llmq_params_opt.value(), chainparams.GetConsensus(), blockman, pQuorumBaseBlockIndex);
-    return CalculateQuorum(mn_list, modifier, llmq_params_opt->size, EvoOnly);
+    return llmq::utils::SelectQuorumMembers(llmq_params_opt.value(), chainparams.GetConsensus(), mn_list, modifier,
+                                            pQuorumBaseBlockIndex->nHeight);
 }
 
 void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const Consensus::Params& consensus_params, const node::BlockManager& blockman,
@@ -656,6 +655,16 @@ void BlsCheck::swap(BlsCheck& obj) noexcept
     std::swap(m_scheme, obj.m_scheme);
 }
 
+QuorumMembers SelectQuorumMembers(const Consensus::LLMQParams& llmq_params, const Consensus::Params& consensus,
+                                  const CDeterministicMNList& mn_list, const uint256& modifier, int quorum_height)
+{
+    // V19 is a buried deployment, so whether it is active after the quorum base block is a pure
+    // height check, which also holds for a base block that is not mined yet.
+    const bool evo_only{llmq_params.type == consensus.llmqTypePlatform &&
+                        quorum_height + 1 >= consensus.DeploymentHeight(Consensus::DEPLOYMENT_V19)};
+    return CalculateQuorum(mn_list, modifier, llmq_params.size, evo_only);
+}
+
 std::optional<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersFromWorkBlock(
     Consensus::LLMQType llmqType, const UtilParameters& util_params, gsl::not_null<const CBlockIndex*> pWorkBlockIndex,
     int quorumHeight)
@@ -684,13 +693,8 @@ std::optional<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersFromWorkBlo
     const auto modifier = GetHashModifierFromWorkBlock(llmq_params, util_params.m_chainman.m_blockman, pWorkBlockIndex.get());
 
     if (!llmq_params.useRotation) {
-        // Canonical member selection gates EvoOnly on V19 at the future quorum base block; V19
-        // is a buried deployment, so that state is a pure height check even though the block
-        // itself is not mined yet.
-        const bool EvoOnly = llmq_params.type == consensus.llmqTypePlatform &&
-                             quorumHeight + 1 >= consensus.DeploymentHeight(Consensus::DEPLOYMENT_V19);
-        return CalculateQuorum(util_params.m_dmnman.GetListForBlock(pWorkBlockIndex), modifier, llmq_params.size,
-                               EvoOnly);
+        return SelectQuorumMembers(llmq_params, consensus, util_params.m_dmnman.GetListForBlock(pWorkBlockIndex),
+                                   modifier, quorumHeight);
     }
 
     auto quorumMembers = ComputeQuorumMembersByQuarterRotation(llmq_params, util_params, pWorkBlockIndex,
