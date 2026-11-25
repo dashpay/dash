@@ -463,6 +463,16 @@ class TestNode():
         self.wait_until_stopped(expected_ret_code=1 if platform.system() == "Windows" else -9)
         assert self.is_node_stopped()
 
+    def wait_until_killed(self):
+        """Wait until a process sent SIGKILL has exited and released its ports, then free its resources."""
+        self.process.wait(timeout=self.rpc_timeout)
+        self.stdout.close()
+        self.stderr.close()
+        self.running = False
+        self.process = None
+        self.rpc_connected = False
+        self.rpc = None
+
     def replace_in_config(self, replacements):
         """
         Perform replacements in the configuration file.
@@ -698,6 +708,7 @@ class TestNode():
                                 'Expected message "{}" does not fully match stderr:\n"{}"'.format(expected_msg, stderr))
             except subprocess.TimeoutExpired:
                 self.process.kill()
+                self.process.wait(timeout=self.rpc_timeout)
                 self.running = False
                 self.process = None
                 assert_msg = f'dashd should have exited within {self.rpc_timeout}s '
