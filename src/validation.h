@@ -869,6 +869,10 @@ private:
     //! setBlockIndexCandidates, as a chain rewound below its best candidates
     //! or a chainstate made active by a snapshot rejection needs them.
     void RestoreBlockIndexCandidates() EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    //! Move the best header up to the most-work header descending from
+    //! `reconsidered` that neither it nor an ancestor outside m_chain marks
+    //! failed or conflicting with a ChainLock, if that has more work.
+    void RaiseBestHeader(CBlockIndex& reconsidered) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     std::string EvoStallWarningSource() const;
 
     void InvalidBlockFound(CBlockIndex* pindex, const BlockValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);

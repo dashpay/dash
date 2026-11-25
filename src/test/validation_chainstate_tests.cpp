@@ -320,4 +320,58 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
     }
 }
 
+//! Reconsidering blocks raises the best header that invalidating them lowered,
+//! to the most-work header whose chain is neither invalid nor in conflict with
+//! a ChainLock.
+BOOST_FIXTURE_TEST_CASE(chainstate_reconsider_restores_best_header, TestChain100Setup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    Chainstate& chainstate = chainman.ActiveChainstate();
+    const CScript script{GetScriptForRawPubKey(coinbaseKey.GetPubKey())};
+    const auto best_header{[&] { return WITH_LOCK(::cs_main, return chainman.m_best_header); }};
+    const auto tip{[&] { return WITH_LOCK(::cs_main, return chainstate.m_chain.Tip()); }};
+    const auto index{[&](const CBlock& block) {
+        return Assert(WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(block.GetHash())));
+    }};
+    const auto submit_header{[&](const CBlock& block) {
+        BlockValidationState state;
+        BOOST_REQUIRE(chainman.ProcessNewBlockHeaders({block.GetBlockHeader()}, state));
+        return index(block);
+    }};
+    const auto reconsider{[&](CBlockIndex* block) { WITH_LOCK(::cs_main, chainstate.ResetBlockFailureFlags(block)); }};
+    BlockValidationState state;
+
+    CBlockIndex* const parent{tip()};
+    BOOST_REQUIRE(chainstate.InvalidateBlock(state, parent));
+    BOOST_REQUIRE_EQUAL(best_header(), parent->pprev);
+    reconsider(parent);
+    BOOST_CHECK_EQUAL(best_header(), parent);
+    BOOST_REQUIRE(chainstate.ActivateBestChain(state));
+
+    CBlockIndex* const header{submit_header(CreateBlock({}, CScript{} << OP_2, chainstate))};
+    BOOST_REQUIRE_EQUAL(best_header(), header);
+    BOOST_REQUIRE(chainstate.InvalidateBlock(state, header));
+    BOOST_REQUIRE_EQUAL(best_header(), parent);
+    reconsider(header);
+    BOOST_CHECK_EQUAL(best_header(), header);
+
+    // A ChainLock picks a sibling of a fork whose next header is known.
+    const CBlock locked{CreateBlock({}, script, chainstate)};
+    const CBlock conflicting{CreateAndProcessBlock({}, CScript{} << OP_TRUE)};
+    CreateAndProcessBlock({}, script);
+    CBlockIndex* const conflicting_header{submit_header(CreateBlock({}, script, chainstate))};
+    BOOST_REQUIRE(chainman.ProcessNewBlock(std::make_shared<const CBlock>(locked), /*force_processing=*/true,
+                                           /*new_block=*/nullptr));
+    chainstate.EnforceBlock(state, index(locked));
+    BOOST_REQUIRE(chainstate.ActivateBestChain(state));
+    BOOST_REQUIRE_EQUAL(tip(), index(locked));
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return index(conflicting)->nStatus & BLOCK_CONFLICT_CHAINLOCK));
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return !(conflicting_header->nStatus & BLOCK_CONFLICT_CHAINLOCK)));
+
+    BOOST_REQUIRE(chainstate.InvalidateBlock(state, parent));
+    BOOST_REQUIRE_EQUAL(best_header(), parent->pprev);
+    reconsider(parent);
+    BOOST_CHECK_EQUAL(best_header(), index(locked));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

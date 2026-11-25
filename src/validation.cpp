@@ -4670,6 +4670,7 @@ void Chainstate::ResetBlockFailureFlags(CBlockIndex *pindex, bool ignore_chainlo
         }
     }
 
+    CBlockIndex* const reconsidered_root{pindex};
     int nHeight = pindex->nHeight;
     // Candidate admission is deferred to a second pass over every usable
     // chainstate (upstream reinserts inline into the invoking chainstate
@@ -4727,6 +4728,8 @@ void Chainstate::ResetBlockFailureFlags(CBlockIndex *pindex, bool ignore_chainlo
         pindex = pindex->pprev;
     }
 
+    RaiseBestHeader(*reconsidered_root);
+
     // Failure flags and m_best_invalid are shared by all chainstates, so
     // candidate admission must be recomputed for all of them as well.
     const auto chainstates{m_chainman.GetAll()};
@@ -4736,6 +4739,39 @@ void Chainstate::ResetBlockFailureFlags(CBlockIndex *pindex, bool ignore_chainlo
             chainstate->TryAddBlockIndexCandidate(reconsidered);
         }
     }
+}
+
+void Chainstate::RaiseBestHeader(CBlockIndex& reconsidered)
+{
+    AssertLockHeld(cs_main);
+
+    constexpr auto excluded_flags{BLOCK_FAILED_MASK | BLOCK_CONFLICT_CHAINLOCK};
+    for (const CBlockIndex* block{&reconsidered}; block; block = block->pprev) {
+        if (block->nStatus & excluded_flags) return;
+        if (m_chain.Contains(block)) break;
+    }
+
+    CBlockIndex* best{nullptr};
+    std::vector<const CBlockIndex*> to_visit{&reconsidered};
+    while (!to_visit.empty()) {
+        const CBlockIndex* const parent{to_visit.back()};
+        to_visit.pop_back();
+        const auto [first, last]{m_blockman.m_prev_block_index.equal_range(parent->GetBlockHash())};
+        for (auto it{first}; it != last; ++it) {
+            CBlockIndex* const child{it->second};
+            if (child->nStatus & excluded_flags) continue;
+            if ((!m_chainman.m_best_header || m_chainman.m_best_header->nChainWork < child->nChainWork) &&
+                (!best || CBlockIndexWorkComparator()(best, child))) {
+                best = child;
+            }
+            to_visit.push_back(child);
+        }
+    }
+    if ((!m_chainman.m_best_header || m_chainman.m_best_header->nChainWork < reconsidered.nChainWork) &&
+        (!best || CBlockIndexWorkComparator()(best, &reconsidered))) {
+        best = &reconsidered;
+    }
+    if (best) m_chainman.m_best_header = best;
 }
 
 void Chainstate::TryAddBlockIndexCandidate(CBlockIndex* pindex)
