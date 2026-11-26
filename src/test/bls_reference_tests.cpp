@@ -12,7 +12,6 @@
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <util/string.h>
-#include <version.h>
 
 #include <blst.h>
 

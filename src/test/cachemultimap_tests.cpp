@@ -4,7 +4,6 @@
 
 #include <cachemultimap.h>
 #include <streams.h>
-#include <version.h>
 
 #include <algorithm>
 #include <iostream>

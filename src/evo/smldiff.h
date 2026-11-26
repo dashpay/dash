@@ -17,6 +17,7 @@
 #include <pubkey.h>
 #include <sync.h>
 #include <threadsafety.h>
+#include <version.h>
 
 class CBlockIndex;
 class CDeterministicMNList;

@@ -35,7 +35,6 @@
 #include <util/check.h>
 #include <util/strencodings.h>
 #include <validation.h>
-#include <version.h>
 
 #include <string>
 

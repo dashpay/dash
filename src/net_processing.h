@@ -8,7 +8,6 @@
 
 #include <net.h>
 #include <validationinterface.h>
-#include <version.h>
 
 #include <msg_result.h>
 

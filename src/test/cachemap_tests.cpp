@@ -4,7 +4,6 @@
 
 #include <cachemap.h>
 #include <streams.h>
-#include <version.h>
 
 #include <boost/test/unit_test.hpp>
 
