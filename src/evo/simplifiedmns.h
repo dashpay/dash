@@ -13,6 +13,7 @@
 
 #include <merkleblock.h>
 #include <netaddress.h>
+#include <protocol_ser_params.h>
 #include <pubkey.h>
 
 #include <gsl/pointers.h>
@@ -76,7 +77,9 @@ public:
 
     SERIALIZE_METHODS(CSimplifiedMNListEntry, obj)
     {
-        if ((s.GetType() & SER_NETWORK) && s.GetVersion() >= SMNLE_VERSIONED_PROTO_VERSION) {
+        const ProtocolSerParams& params = s.GetParams();
+        const bool network{params.fmt == ProtocolSerParams::Format::Network};
+        if (network && params.nVersion >= SMNLE_VERSIONED_PROTO_VERSION) {
             READWRITE(
                 obj.nVersion);
         }
@@ -85,7 +88,7 @@ public:
                                     obj.nVersion >= ProTxVersion::ExtAddr),
                   BLSEncoded(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.OperatorKeyScheme()),
                   obj.keyIDVoting, obj.isValid);
-        if ((s.GetType() & SER_NETWORK) && s.GetVersion() < DMN_TYPE_PROTO_VERSION) {
+        if (network && params.nVersion < DMN_TYPE_PROTO_VERSION) {
             return;
         }
         if (obj.nVersion >= ProTxVersion::BasicBLS) {

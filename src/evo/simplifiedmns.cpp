@@ -7,14 +7,13 @@
 #include <evo/netinfo.h>
 #include <util/std23.h>
 
-#include <clientversion.h>
 #include <consensus/merkle.h>
+#include <hash.h>
 #include <key_io.h>
 #include <logging.h>
 #include <serialize.h>
 #include <sync.h>
 #include <util/time.h>
-#include <version.h>
 
 #include <univalue.h>
 
@@ -44,8 +43,8 @@ CSimplifiedMNListEntry::CSimplifiedMNListEntry(const uint256& proreg_tx_hash, co
 
 uint256 CSimplifiedMNListEntry::CalcHash() const
 {
-    CHashWriter hw(SER_GETHASH, CLIENT_VERSION);
-    hw << *this;
+    HashWriter hw;
+    hw << PROTOCOL_DISK(*this);
     return hw.GetHash();
 }
 
