@@ -42,6 +42,8 @@ add_executable(fuzz
   dkg_message_framing.cpp
   eval_script.cpp
   fee_rate.cpp
+  feefrac.cpp
+  feeratediagram.cpp
   fees.cpp
   flatfile.cpp
   float.cpp

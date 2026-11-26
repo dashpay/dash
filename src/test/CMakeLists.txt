@@ -65,6 +65,7 @@ add_executable(test_bitcoin
   evo_snapshot_tests.cpp
   evo_trivialvalidation.cpp
   evo_utils_tests.cpp
+  feefrac_tests.cpp
   flatfile_tests.cpp
   fs_tests.cpp
   getarg_tests.cpp
