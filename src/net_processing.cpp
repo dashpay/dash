@@ -2252,7 +2252,7 @@ void PeerManagerImpl::BlockConnected(const std::shared_ptr<const CBlock>& pblock
     {
         LOCK(m_recent_confirmed_transactions_mutex);
         for (const auto& ptx : pblock->vtx) {
-            m_recent_confirmed_transactions.insert(ptx->GetHash());
+            m_recent_confirmed_transactions.insert(ptx->GetHash().ToUint256());
             // Version 2 asset unlocks are announced and deduplicated by instance hash; record the
             // mined instance so AlreadyHave() stops re-requesting it once it leaves the mempool.
             if (IsAssetUnlockWithStableTxid(*ptx)) {
@@ -3437,7 +3437,7 @@ bool PeerManagerImpl::ProcessOrphanTx(NodeId node_id)
     while (CTransactionRef porphanTx = m_orphanage.GetTxToReconsider(node_id)) {
         const MempoolAcceptResult result = m_chainman.ProcessTransaction(porphanTx);
         const TxValidationState& state = result.m_state;
-        const uint256& orphanHash = porphanTx->GetHash();
+        const Txid& orphanHash = porphanTx->GetHash();
 
         if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {
             LogPrint(BCLog::TXPACKAGES, "   accepted orphan tx %s\n", orphanHash.ToString());
@@ -3466,7 +3466,7 @@ bool PeerManagerImpl::ProcessOrphanTx(NodeId node_id)
             // Has inputs but not accepted to mempool
             // Probably non-standard or insufficient fee
             LogPrint(BCLog::TXPACKAGES, "   removed orphan tx %s\n", orphanHash.ToString());
-            m_recent_rejects.insert(orphanHash);
+            m_recent_rejects.insert(orphanHash.ToUint256());
             m_orphanage.EraseTx(orphanHash);
             ForgetTx(orphanHash);
             return true;
@@ -5094,7 +5094,7 @@ void PeerManagerImpl::ProcessMessage(
                 LogPrint(BCLog::MEMPOOL, "not keeping orphan with rejected parents %s\n",tx.GetHash().ToString());
                 // We will continue to reject this tx since it has rejected
                 // parents so avoid re-requesting it from other peers.
-                m_recent_rejects.insert(tx.GetHash());
+                m_recent_rejects.insert(tx.GetHash().ToUint256());
                 ForgetTx(tx.GetHash());
                 m_isman.TransactionIsRemoved(ptx);
             }

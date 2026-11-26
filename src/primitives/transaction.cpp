@@ -13,6 +13,7 @@
 #include <tinyformat.h>
 #include <uint256.h>
 #include <util/strencodings.h>
+#include <util/transaction_identifier.h>
 #include <version.h>
 
 #include <cassert>
@@ -88,10 +89,10 @@ uint256 ComputeStableUnlockHash(const TxType& tx)
 }
 } // anonymous namespace
 
-uint256 CMutableTransaction::GetHash() const
+Txid CMutableTransaction::GetHash() const
 {
-    if (IsAssetUnlockWithStableTxid(*this)) return ComputeStableUnlockHash(*this);
-    return SerializeHash(*this);
+    if (IsAssetUnlockWithStableTxid(*this)) return Txid::FromUint256(ComputeStableUnlockHash(*this));
+    return Txid::FromUint256(SerializeHash(*this));
 }
 
 std::string CMutableTransaction::ToString() const
@@ -112,16 +113,16 @@ std::string CMutableTransaction::ToString() const
     return str;
 }
 
-uint256 CTransaction::ComputeHash() const
+Txid CTransaction::ComputeHash() const
 {
-    if (IsAssetUnlockWithStableTxid(*this)) return ComputeStableUnlockHash(*this);
-    return SerializeHash(*this);
+    if (IsAssetUnlockWithStableTxid(*this)) return Txid::FromUint256(ComputeStableUnlockHash(*this));
+    return Txid::FromUint256(SerializeHash(*this));
 }
 
 uint256 CTransaction::GetInstanceHash() const
 {
     if (IsAssetUnlockWithStableTxid(*this)) return SerializeHash(*this);
-    return hash;
+    return hash.ToUint256();
 }
 
 CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), vExtraPayload(tx.vExtraPayload), hash{ComputeHash()} {}

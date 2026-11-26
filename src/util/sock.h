@@ -6,6 +6,7 @@
 #define BITCOIN_UTIL_SOCK_H
 
 #include <compat/compat.h>
+#include <span.h>
 #include <util/threadinterrupt.h>
 #include <util/time.h>
 
@@ -329,7 +330,14 @@ public:
      * @throws std::runtime_error if the operation cannot be completed. In this case only some of
      * the data will be written to the socket.
      */
-    virtual void SendComplete(const std::string& data,
+    virtual void SendComplete(Span<const unsigned char> data,
+                              std::chrono::milliseconds timeout,
+                              CThreadInterrupt& interrupt) const;
+
+    /**
+     * Convenience method, equivalent to `SendComplete(MakeUCharSpan(data), timeout, interrupt)`.
+     */
+    virtual void SendComplete(Span<const char> data,
                               std::chrono::milliseconds timeout,
                               CThreadInterrupt& interrupt) const;
 

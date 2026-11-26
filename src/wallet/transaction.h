@@ -22,6 +22,10 @@
 #include <variant>
 #include <vector>
 
+namespace interfaces {
+class Chain;
+} // namespace interfaces
+
 namespace wallet {
 //! State of transaction confirmed in a block.
 struct TxStateConfirmed {
@@ -332,12 +336,16 @@ public:
     template<typename T> const T* state() const { return std::get_if<T>(&m_state); }
     template<typename T> T* state() { return std::get_if<T>(&m_state); }
 
+    //! Update transaction state when attaching to a chain, filling in heights
+    //! of conflicted and confirmed blocks
+    void updateState(interfaces::Chain& chain);
+
     bool isAbandoned() const { return state<TxStateInactive>() && state<TxStateInactive>()->abandoned; }
     bool isConflicted() const { return state<TxStateConflicted>(); }
     bool isInactive() const { return state<TxStateInactive>(); }
     bool isUnconfirmed() const { return !isAbandoned() && !isConflicted() && !isConfirmed(); }
     bool isConfirmed() const { return state<TxStateConfirmed>(); }
-    const uint256& GetHash() const LIFETIMEBOUND { return tx->GetHash(); }
+    const Txid& GetHash() const LIFETIMEBOUND { return tx->GetHash(); }
     bool IsCoinBase() const { return tx->IsCoinBase(); }
     bool IsPlatformTransfer() const { return tx->IsPlatformTransfer(); }
 
