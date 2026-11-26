@@ -61,9 +61,6 @@ static const int ISDLOCK_CYCLEHASH_UPDATE_VERSION = 70237;
 //! Introduced new p2p message platform pose BAN
 static const int PLATFORM_BAN_VERSION = 70238;
 
-//! Ban of re-propagation of old QFCOMMIT enforcement
-static const int QFCOMMIT_STALE_REPROP_BAN_VERSION = 70239;
-
 //! PLATFORMBAN added to v2 short IDs (short ID 168)
 static const int PLATFORMBAN_V2_SHORT_ID_VERSION = 70240;
 

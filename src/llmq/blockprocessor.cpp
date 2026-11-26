@@ -165,9 +165,8 @@ MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer,
         if (pQuorumBaseBlockIndex->nHeight < (active_chainstate.m_chain.Height() - llmq_params_opt->dkgInterval)) {
             LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- block %s is too old, peer=%d\n", __func__,
                      qc.quorumHash.ToString(), peer.GetId());
-            if (peer.GetCommonVersion() >= QFCOMMIT_STALE_REPROP_BAN_VERSION) {
-                ret.m_error = MisbehavingError{100};
-            }
+            // NOTE: do not punish here, a peer that is still catching up relays commitments that are
+            // recent at its own tip
             return ret;
         }
         if (!DeploymentActiveAfter(pQuorumBaseBlockIndex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)) {
