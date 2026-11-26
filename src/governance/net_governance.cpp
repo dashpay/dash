@@ -173,7 +173,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
     else if (msg_type == NetMsgType::MNGOVERNANCEOBJECT) {
         // MAKE SURE WE HAVE A VALID REFERENCE TO THE TIP BEFORE CONTINUING
         CGovernanceObject govobj;
-        vRecv >> govobj;
+        vRecv >> GOVERNANCE_NETWORK(govobj);
 
         uint256 nHash = govobj.GetHash();
 
@@ -207,7 +207,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
         // in CGovernanceVote scores the peer instead of falling through to
         // the outer log-only handler.
         try {
-            vRecv >> vote;
+            vRecv >> GOVERNANCE_NETWORK(vote);
         } catch (const std::ios_base::failure&) {
             m_peer_manager->PeerMisbehaving(peer.GetId(), 100, "malformed governance vote");
             return;

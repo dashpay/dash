@@ -200,9 +200,10 @@ public:
     GovernanceStore();
     ~GovernanceStore() = default;
 
-    template<typename Stream>
-    void Serialize(Stream &s) const EXCLUSIVE_LOCKS_REQUIRED(!cs_store)
+    template<typename Stream_>
+    void Serialize(Stream_& s_) const EXCLUSIVE_LOCKS_REQUIRED(!cs_store)
     {
+        ParamsStream s{GOVERNANCE_DISK, s_};
         LOCK(cs_store);
         s   << SERIALIZATION_VERSION_STRING
             << mapErasedGovernanceObjects
@@ -212,9 +213,10 @@ public:
             << *lastMNListForVotingKeys;
     }
 
-    template<typename Stream>
-    void Unserialize(Stream &s) EXCLUSIVE_LOCKS_REQUIRED(!cs_store)
+    template<typename Stream_>
+    void Unserialize(Stream_& s_) EXCLUSIVE_LOCKS_REQUIRED(!cs_store)
     {
+        ParamsStream s{GOVERNANCE_DISK, s_};
         Clear();
 
         LOCK(cs_store);

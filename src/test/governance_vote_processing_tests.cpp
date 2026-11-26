@@ -369,7 +369,7 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
     BOOST_CHECK(govman.SerializeVoteForHash(vote.GetHash(), serialized_vote));
     if (!serialized_vote.empty()) {
         CGovernanceVote served_vote;
-        serialized_vote >> served_vote;
+        serialized_vote >> GOVERNANCE_NETWORK(served_vote);
         BOOST_CHECK_EQUAL(served_vote.GetHash(), vote.GetHash());
         BOOST_CHECK(served_vote.IsValid(tip_mn_list(), /*useVotingKey=*/true));
         BOOST_CHECK(serialized_vote.empty());
@@ -712,7 +712,7 @@ BOOST_AUTO_TEST_CASE(legacy_governance_cache_is_discarded)
            << std::map<uint256, int64_t>{}
            << legacy_invalid_votes
            << CacheMultiMap<uint256, governance::OrphanVote>{3}
-           << objects
+           << GOVERNANCE_DISK(objects)
            << std::map<COutPoint, TestGovernanceStore::last_object_rec>{}
            << CDeterministicMNList{};
 
@@ -725,7 +725,7 @@ BOOST_AUTO_TEST_CASE(legacy_governance_cache_is_discarded)
     current << std::string{"CGovernanceManager-Version-17"}
             << std::map<uint256, int64_t>{}
             << CacheMultiMap<uint256, governance::OrphanVote>{3}
-            << objects
+            << GOVERNANCE_DISK(objects)
             << std::map<COutPoint, TestGovernanceStore::last_object_rec>{}
             << CDeterministicMNList{};
 

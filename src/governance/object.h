@@ -297,7 +297,8 @@ public:
     {
         // SERIALIZE DATA FOR SAVING/LOADING OR NETWORK FUNCTIONS
         s << m_obj;
-        if (s.GetType() & SER_DISK) {
+        const GovernanceSerParams& params = s.GetParams();
+        if (params.fmt == GovernanceSerParams::Format::Disk) {
             // Only include these for the disk file format
             LOCK(cs);
             s << nDeletionTime << fExpired << mapCurrentMNVotes << fileVotes;
@@ -308,7 +309,8 @@ public:
     void Unserialize(Stream& s) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
         s >> m_obj;
-        if (s.GetType() & SER_DISK) {
+        const GovernanceSerParams& params = s.GetParams();
+        if (params.fmt == GovernanceSerParams::Format::Disk) {
             // Only include these for the disk file format
             LOCK(cs);
             s >> nDeletionTime >> fExpired >> mapCurrentMNVotes >> fileVotes;

@@ -54,6 +54,16 @@ public:
     static std::string ConvertSignalToString(vote_signal_enum_t nSignal);
 };
 
+/** Serialization parameters of governance objects and votes: objects carry their local state only on
+ *  disk, and votes received from the network are size-checked. */
+struct GovernanceSerParams {
+    enum class Format { Disk, Network };
+    const Format fmt;
+    SER_PARAMS_OPFUNC
+};
+inline constexpr GovernanceSerParams GOVERNANCE_DISK{GovernanceSerParams::Format::Disk};
+inline constexpr GovernanceSerParams GOVERNANCE_NETWORK{GovernanceSerParams::Format::Network};
+
 //
 // CGovernanceVote - Allow a masternode to vote and broadcast throughout the network
 //
@@ -186,23 +196,31 @@ public:
 
     std::string ToString(const CDeterministicMNList& tip_mn_list) const;
 
-    SERIALIZE_METHODS(CGovernanceVote, obj)
+    template <typename Stream>
+    void Serialize(Stream& s) const
     {
-        READWRITE(obj.masternodeOutpoint, obj.nParentHash, obj.nVoteOutcome, obj.nVoteSignal, obj.nTime);
+        s << masternodeOutpoint << nParentHash << nVoteOutcome << nVoteSignal << nTime;
         if (!std::is_same_v<Stream, SigHashWriter>) {
-            // Network reads: cap the signature vector before allocation and require
-            // one of the two legitimate encodings. Other paths (disk, hash, write)
-            // keep the unbounded default.
-            if (ser_action.ForRead() && (s.GetType() & SER_NETWORK)) {
-                READWRITE(LIMITED_VECTOR(obj.vchSig, BLS_SIG_SIZE));
-                if (obj.vchSig.size() != COMPACT_SIG_SIZE && obj.vchSig.size() != BLS_SIG_SIZE) {
-                    throw std::ios_base::failure("bad governance vote signature size");
-                }
-            } else {
-                READWRITE(obj.vchSig);
-            }
+            s << vchSig;
         }
-        SER_READ(obj, obj.UpdateHash());
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        s >> masternodeOutpoint >> nParentHash >> nVoteOutcome >> nVoteSignal >> nTime;
+        // Network reads: cap the signature vector before allocation and require
+        // one of the two legitimate encodings. Disk reads keep the unbounded default.
+        const GovernanceSerParams& params = s.GetParams();
+        if (params.fmt == GovernanceSerParams::Format::Network) {
+            s >> LIMITED_VECTOR(vchSig, BLS_SIG_SIZE);
+            if (vchSig.size() != COMPACT_SIG_SIZE && vchSig.size() != BLS_SIG_SIZE) {
+                throw std::ios_base::failure("bad governance vote signature size");
+            }
+        } else {
+            s >> vchSig;
+        }
+        UpdateHash();
     }
 };
 

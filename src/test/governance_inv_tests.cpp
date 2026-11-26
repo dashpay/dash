@@ -173,7 +173,7 @@ CGovernanceObject MakeGovernanceObject(int64_t creation_time, const uint256& col
 void ProcessGovernanceObject(NetGovernance& net_gov, CNode& peer, const CGovernanceObject& govobj)
 {
     CDataStream object_stream{SER_NETWORK, PROTOCOL_VERSION};
-    object_stream << govobj;
+    object_stream << GOVERNANCE_NETWORK(govobj);
     net_gov.ProcessMessage(peer, NetMsgType::MNGOVERNANCEOBJECT, object_stream);
 }
 

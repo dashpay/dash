@@ -227,7 +227,7 @@ bool CGovernanceManager::SerializeObjectForHash(const uint256& nHash, CDataStrea
         if (it == mapPostponedObjects.end())
             return false;
     }
-    ss << it->second;
+    ss << GOVERNANCE_NETWORK(it->second);
     return true;
 }
 
