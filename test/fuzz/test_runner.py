@@ -206,15 +206,15 @@ def transform_process_message_target(targets, src_dir):
     p2p_msg_target = "process_message"
     if (p2p_msg_target, {}) in targets:
         lines = subprocess.run(
-            ["git", "grep", "--function-context", "g_all_net_message_types{", src_dir / "src" / "protocol.cpp"],
+            ["git", "grep", "--function-context", "ALL_NET_MESSAGE_TYPES{", src_dir / "src" / "protocol.h"],
             check=True,
             stdout=subprocess.PIPE,
             text=True,
         ).stdout.splitlines()
         # Dash: NetMsgType identifiers do not always match the message type string (e.g. DSACCEPT is "dsa"),
-        # so map each identifier to the string given in its MAKE_MSG() definition
-        msg_types = {l.split("(", 1)[1].split(",")[0]: l.split("\"")[1] for l in (src_dir / "src" / "protocol.cpp").read_text().splitlines() if l.startswith("MAKE_MSG(")}
-        lines = [msg_types[l.split("::", 1)[1].split(",")[0]] for l in lines if l.startswith("src/protocol.cpp-    NetMsgType::")]
+        # so map each identifier to the string given in its NetMsgType definition
+        msg_types = {l.split("char* ", 1)[1].split("{")[0]: l.split("\"")[1] for l in (src_dir / "src" / "protocol.h").read_text().splitlines() if l.startswith("inline constexpr const char* ")}
+        lines = [msg_types[l.split("::", 1)[1].split(",")[0]] for l in lines if l.startswith("src/protocol.h-    NetMsgType::")]
         assert len(lines)
         targets += [(p2p_msg_target, {"LIMIT_TO_MESSAGE_TYPE": m}) for m in lines]
     return targets
