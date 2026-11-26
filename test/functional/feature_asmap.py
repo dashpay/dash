@@ -27,6 +27,7 @@ import os
 import shutil
 
 from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import assert_equal
 
 DEFAULT_ASMAP_FILENAME = 'ip_asn.map' # defined in src/init.cpp
 ASMAP = '../../src/test/data/asmap.raw' # path to unit test skeleton asmap
@@ -117,6 +118,14 @@ class AsmapTest(BitcoinTestFramework):
         msg = "ASMap Health Check: 2 clearnet peers are mapped to 1 ASNs with 0 peers being unmapped"
         with self.node.assert_debug_log(expected_msgs=[msg]):
             self.start_node(0, extra_args=['-asmap'])
+        raw_addrman = self.node.getrawaddrman()
+        asns = []
+        for _, entries in raw_addrman.items():
+            for _, entry in entries.items():
+                asn = entry['mapped_as']
+                if asn not in asns:
+                    asns.append(asn)
+        assert_equal(len(asns), 1)
         os.remove(self.default_asmap)
 
     def run_test(self):
