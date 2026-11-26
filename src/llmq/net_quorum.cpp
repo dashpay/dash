@@ -336,7 +336,7 @@ bool NetQuorum::ProcessContribQDATA(const CNode& pfrom, DataStream& vRecv,
     std::vector<CBLSSecretKey> vecSecretKeys;
     vecSecretKeys.resize(vecEncrypted.size());
     for (const auto i : util::irange(vecEncrypted.size())) {
-        if (!m_nodeman->Decrypt(vecEncrypted[i], memberIdx, vecSecretKeys[i], PROTOCOL_VERSION) ||
+        if (!m_nodeman->Decrypt(vecEncrypted[i], memberIdx, vecSecretKeys[i]) ||
             !vecSecretKeys[i].IsValid()) {
             // Reject an undecryptable or structurally-invalid (e.g. all-zero) share before
             // it reaches AggregateSecretKeys()/AggregateInsecure(), which asserts validity.

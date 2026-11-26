@@ -234,7 +234,7 @@ std::optional<CInv> CDKGSession::ReceiveMessage(const CDKGContribution& qc)
 
     bool complain = false;
     CBLSSecretKey skContribution;
-    if (!MaybeDecrypt(*qc.contributions, *myIdx, skContribution, PROTOCOL_VERSION)) {
+    if (!MaybeDecrypt(*qc.contributions, *myIdx, skContribution)) {
         logger.Batch("contribution from %s could not be decrypted", member->dmn->proTxHash.ToString());
         complain = true;
     } else if (!skContribution.IsValid()) {

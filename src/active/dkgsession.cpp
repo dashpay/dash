@@ -116,7 +116,7 @@ std::optional<CDKGContribution> ActiveDKGSession::SendContributions()
             skContrib = CBLSSecretKey{};
         }
 
-        if (!qc.contributions->Encrypt(i, m->dmn->pdmnState->pubKeyOperator.Get(), skContrib, PROTOCOL_VERSION)) {
+        if (!qc.contributions->Encrypt(i, m->dmn->pdmnState->pubKeyOperator.Get(), skContrib)) {
             logger.Batch("failed to encrypt contribution for %s", m->dmn->proTxHash.ToString());
             return std::nullopt;
         }
@@ -794,8 +794,8 @@ CFinalCommitment ActiveDKGSession::FinalizeSingleCommitment()
 }
 
 bool ActiveDKGSession::MaybeDecrypt(const CBLSIESMultiRecipientObjects<CBLSSecretKey>& obj, size_t idx,
-                                    CBLSSecretKey& ret_obj, int version)
+                                    CBLSSecretKey& ret_obj)
 {
-    return m_mn_activeman.Decrypt(obj, idx, ret_obj, version);
+    return m_mn_activeman.Decrypt(obj, idx, ret_obj);
 }
 } // namespace llmq

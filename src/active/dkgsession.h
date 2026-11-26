@@ -59,8 +59,7 @@ public:
 
 private:
     //! CDKGSession
-    bool MaybeDecrypt(const CBLSIESMultiRecipientObjects<CBLSSecretKey>& obj, size_t idx, CBLSSecretKey& ret_obj,
-                      int version) override;
+    bool MaybeDecrypt(const CBLSIESMultiRecipientObjects<CBLSSecretKey>& obj, size_t idx, CBLSSecretKey& ret_obj) override;
 };
 } // namespace llmq
 

@@ -277,16 +277,15 @@ bool CActiveMasternodeManager::IsValidNetAddr(const CService& addrIn)
 }
 
 template <template <typename> class EncryptedObj, typename Obj>
-[[nodiscard]] bool CActiveMasternodeManager::Decrypt(const EncryptedObj<Obj>& obj, size_t idx, Obj& ret_obj,
-                                                     int version) const
+[[nodiscard]] bool CActiveMasternodeManager::Decrypt(const EncryptedObj<Obj>& obj, size_t idx, Obj& ret_obj) const
 {
     AssertLockNotHeld(cs);
-    return WITH_READ_LOCK(cs, return obj.Decrypt(idx, m_operator_sk, ret_obj, version));
+    return WITH_READ_LOCK(cs, return obj.Decrypt(idx, m_operator_sk, ret_obj));
 }
 template bool CActiveMasternodeManager::Decrypt(const CBLSIESEncryptedObject<CBLSSecretKey>& obj, size_t idx,
-                                                CBLSSecretKey& ret_obj, int version) const;
+                                                CBLSSecretKey& ret_obj) const;
 template bool CActiveMasternodeManager::Decrypt(const CBLSIESMultiRecipientObjects<CBLSSecretKey>& obj, size_t idx,
-                                                CBLSSecretKey& ret_obj, int version) const;
+                                                CBLSSecretKey& ret_obj) const;
 
 [[nodiscard]] CBLSSignature CActiveMasternodeManager::Sign(const uint256& hash) const
 {
