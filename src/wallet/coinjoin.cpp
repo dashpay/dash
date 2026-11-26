@@ -413,7 +413,7 @@ bool CWallet::IsFullyMixed(const COutPoint& outpoint) const
     // Otherwise, we should mix again 50% of the time, this results in an exponential decay
     // N rounds 50% N+1 25% N+2 12.5%... until we reach N + GetRandomRounds() rounds where we stop.
     if (nRounds < CCoinJoinClientOptions::GetRounds() + CCoinJoinClientOptions::GetRandomRounds()) {
-        CDataStream ss(SER_GETHASH, PROTOCOL_VERSION);
+        DataStream ss{};
         ss << outpoint << nCoinJoinSalt;
         uint256 nHash;
         CSHA256().Write(reinterpret_cast<const uint8_t*>(ss.data()), ss.size()).Finalize(nHash.begin());

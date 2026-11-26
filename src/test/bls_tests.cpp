@@ -982,7 +982,7 @@ void CheckLazy(const Object& point, const Object& other)
     const std::vector<uint8_t> garbage(Object::SerSize, 0xff);
 
     auto hash_of = [](const std::vector<uint8_t>& bytes) {
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        HashWriter ss{};
         ss.write(MakeByteSpan(bytes));
         return ss.GetHash();
     };

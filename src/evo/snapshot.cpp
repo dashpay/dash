@@ -148,7 +148,7 @@ std::vector<QuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
 
 uint256 CanonicalMNListHash(const CDeterministicMNList& list)
 {
-    CHashWriter writer{SER_DISK, CLIENT_VERSION};
+    HashWriter writer{};
     SerializeCanonicalMNList(writer, list);
     return writer.GetHash();
 }
