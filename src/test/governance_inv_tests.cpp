@@ -117,7 +117,7 @@ size_t CountQueuedInventory(const CNode& peer, const CInv& expected_inv, const s
         if (msg.m_type != msg_type) {
             continue;
         }
-        CDataStream stream{msg.data, SER_NETWORK, PROTOCOL_VERSION};
+        DataStream stream{msg.data};
         std::vector<CInv> invs;
         stream >> invs;
         for (const auto& inv : invs) {
@@ -172,7 +172,7 @@ CGovernanceObject MakeGovernanceObject(int64_t creation_time, const uint256& col
 
 void ProcessGovernanceObject(NetGovernance& net_gov, CNode& peer, const CGovernanceObject& govobj)
 {
-    CDataStream object_stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream object_stream{};
     object_stream << GOVERNANCE_NETWORK(govobj);
     net_gov.ProcessMessage(peer, NetMsgType::MNGOVERNANCEOBJECT, object_stream);
 }
@@ -187,7 +187,7 @@ CGovernanceVote MakeGovernanceVote(const uint256& parent_hash)
 
 void ProcessGovernanceVote(NetGovernance& net_gov, CNode& peer, const CGovernanceVote& vote)
 {
-    CDataStream vote_stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream vote_stream{};
     vote_stream << vote;
     net_gov.ProcessMessage(peer, NetMsgType::MNGOVERNANCEOBJECTVOTE, vote_stream);
 }
@@ -208,7 +208,7 @@ BOOST_AUTO_TEST_CASE(per_object_vote_sync_is_fulfilled_request_limited)
     m_node.peerman->InitializeNode(*peer, NODE_NETWORK);
 
     auto make_request_stream = [](const uint256& object_hash, const CBloomFilter& filter) {
-        CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream stream{};
         stream << object_hash << filter;
         return stream;
     };

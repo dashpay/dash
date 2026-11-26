@@ -95,7 +95,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataSt
 
         auto sendQDATA = [&](CQuorumDataRequest::Errors nError,
                              bool request_limit_exceeded,
-                             const CDataStream& body = CDataStream(SER_NETWORK, PROTOCOL_VERSION)) -> bool {
+                             const DataStream& body = DataStream{}) -> bool {
             bool misbehave = false;
             switch (nError) {
                 case (CQuorumDataRequest::Errors::NONE):
@@ -112,7 +112,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataSt
                     break;
             }
             request.SetError(nError);
-            CDataStream ssResponse{SER_NETWORK, pfrom.GetCommonVersion()};
+            DataStream ssResponse{};
             ssResponse << request << Span{body};
             m_connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetCommonVersion()).Make(NetMsgType::QDATA, Span{ssResponse}));
             return misbehave;
@@ -169,7 +169,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataSt
             return;
         }
 
-        CDataStream ssResponseData(SER_NETWORK, pfrom.GetCommonVersion());
+        DataStream ssResponseData{};
 
         // Check if request wants QUORUM_VERIFICATION_VECTOR data
         if (request.GetDataMask() & CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR) {

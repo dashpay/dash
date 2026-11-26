@@ -238,8 +238,7 @@ BOOST_AUTO_TEST_CASE(quorum_snapshot_truncated_wire_is_rejected)
     full << snapshot;
     const std::string data = full.str();
     for (size_t truncateAt = 1; truncateAt < data.size(); ++truncateAt) {
-        CDataStream truncated(std::vector<unsigned char>(data.begin(), data.begin() + truncateAt), SER_NETWORK,
-                              PROTOCOL_VERSION);
+        DataStream truncated{std::vector<unsigned char>(data.begin(), data.begin() + truncateAt)};
         CQuorumSnapshot deserialized;
         BOOST_CHECK_THROW(truncated >> deserialized, std::ios_base::failure);
     }

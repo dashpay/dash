@@ -48,7 +48,7 @@ void FuncSign(const BLSScheme scheme)
 void FuncSerialize(const BLSScheme scheme)
 {
     CBLSSecretKey sk;
-    CDataStream ds2(SER_DISK, CLIENT_VERSION), ds3(SER_DISK, CLIENT_VERSION);
+    DataStream ds2{}, ds3{};
     uint256 msgHash = uint256::ONE;
 
     sk.MakeNewKey();

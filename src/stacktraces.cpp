@@ -404,7 +404,7 @@ static std::string GetCrashInfoStrNoDebugInfo(crash_info ci)
 {
     static uint64_t basePtr = GetBaseAddress();
 
-    CDataStream ds(SER_DISK, 0);
+    DataStream ds{};
 
     crash_info_header hdr;
     hdr.magic = "DashCrashInfo";
@@ -433,7 +433,7 @@ std::string GetCrashInfoStrFromSerializedStr(const std::string& ciStr)
         return "Error while deserializing crash info";
     }
 
-    CDataStream ds(*opt_buf, SER_DISK, 0);
+    DataStream ds{*opt_buf};
 
     crash_info_header hdr;
     try {

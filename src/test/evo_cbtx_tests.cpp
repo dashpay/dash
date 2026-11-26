@@ -88,11 +88,11 @@ BOOST_FIXTURE_TEST_CASE(check_cbtx_best_chainlock_rejects_excessive_height_diff,
     TxValidationState tx_state;
     BOOST_CHECK(CheckCbTx(cbTx, /*pindexPrev=*/nullptr, /*is_v24_active=*/false, tx_state));
     std::vector<uint8_t> sig_bytes(CBLSSignature::SerSize, 0xff);
-    CDataStream(sig_bytes, SER_NETWORK, PROTOCOL_VERSION) >> cbTx.bestCLSignature;
+    DataStream{sig_bytes} >> cbTx.bestCLSignature;
     BOOST_CHECK(!CheckCbTx(cbTx, /*pindexPrev=*/nullptr, /*is_v24_active=*/false, tx_state));
     BOOST_CHECK_EQUAL(tx_state.GetRejectReason(), "bad-cbtx-payload");
     std::fill(sig_bytes.begin(), sig_bytes.end(), 0);
-    CDataStream(sig_bytes, SER_NETWORK, PROTOCOL_VERSION) >> cbTx.bestCLSignature;
+    DataStream{sig_bytes} >> cbTx.bestCLSignature;
     TxValidationState null_state;
     BOOST_CHECK(CheckCbTx(cbTx, /*pindexPrev=*/nullptr, /*is_v24_active=*/false, null_state));
 }
