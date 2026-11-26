@@ -470,7 +470,7 @@ bool CZMQPublishRawGovernanceObjectNotifier::NotifyGovernanceObject(const std::s
 bool CZMQPublishRawInstantSendDoubleSpendNotifier::NotifyInstantSendDoubleSpendAttempt(const CTransactionRef& currentTx, const CTransactionRef& previousTx)
 {
     LogPrint(BCLog::ZMQ, "Publish rawinstantsenddoublespend %s conflicts with %s to %s\n", currentTx->GetHash().ToString(), previousTx->GetHash().ToString(), this->address);
-    CDataStream ssCurrent(SER_NETWORK, PROTOCOL_VERSION), ssPrevious(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssCurrent{}, ssPrevious{};
     ssCurrent << *currentTx;
     ssPrevious << *previousTx;
     return SendZmqMessage(MSG_RAWISCON, &(*ssCurrent.begin()), ssCurrent.size())

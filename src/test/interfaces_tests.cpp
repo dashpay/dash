@@ -570,14 +570,14 @@ BOOST_AUTO_TEST_CASE(getInstantSendLock)
     BOOST_REQUIRE(m_node.sporkman->SetPrivKey(REGTEST_SPORK_PRIVKEY));
     BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_2_INSTANTSEND_ENABLED, 0).has_value());
 
-    CDataStream expected{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream expected{};
     expected << *islock;
     const auto ret{node->llmq().getInstantSendLock(islock->txid)};
     BOOST_REQUIRE(!ret.empty());
     BOOST_CHECK_EQUAL(HexStr(ret), HexStr(expected));
 
     // The exported bytes deserialize back into the same lock.
-    CDataStream ds{Span<const uint8_t>{ret}, SER_NETWORK, PROTOCOL_VERSION};
+    DataStream ds{Span<const uint8_t>{ret}};
     instantsend::InstantSendLock roundtrip;
     ds >> roundtrip;
     BOOST_CHECK_EQUAL(roundtrip.txid, islock->txid);

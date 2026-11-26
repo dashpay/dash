@@ -247,7 +247,7 @@ std::unique_ptr<CNode> MakeTestPeer(NodeId id);
 
 /** Hand one message to PeerManager as if it had arrived from `peer`, taking the real dispatch path
  *  rather than calling a subsystem handler directly. */
-void SendMessage(PeerManager& peerman, CNode& peer, const std::string& msg_type, CDataStream&& payload)
+void SendMessage(PeerManager& peerman, CNode& peer, const std::string& msg_type, DataStream&& payload)
     EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex);
 
 /** Announce a single inv from `peer`. Note that this only creates a request candidate: the GETDATA

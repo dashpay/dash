@@ -27,7 +27,7 @@ static void InventoryBatch(benchmark::Bench& bench, uint32_t count)
     for (uint32_t i = 1; i <= count; ++i) {
         invs.emplace_back(MSG_SPORK, ArithToUint256(arith_uint256{i}));
     }
-    CDataStream inventory{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream inventory{};
     inventory << invs;
     const std::atomic<bool> interrupt{false};
     SetMockTime(1'700'000'000s);

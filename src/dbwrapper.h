@@ -366,7 +366,7 @@ public:
     template<typename K>
     void CompactRange(const K& key_begin, const K& key_end) const
     {
-        CDataStream ssKey1(SER_DISK, CLIENT_VERSION), ssKey2(SER_DISK, CLIENT_VERSION);
+        DataStream ssKey1{}, ssKey2{};
         ssKey1.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
         ssKey2.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
         ssKey1 << key_begin;

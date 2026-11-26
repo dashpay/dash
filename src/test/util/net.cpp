@@ -163,7 +163,7 @@ std::unique_ptr<CNode> MakeTestPeer(NodeId id)
     return peer;
 }
 
-void SendMessage(PeerManager& peerman, CNode& peer, const std::string& msg_type, CDataStream&& payload)
+void SendMessage(PeerManager& peerman, CNode& peer, const std::string& msg_type, DataStream&& payload)
 {
     std::atomic<bool> interrupt_dummy{false};
     peerman.ProcessMessage(peer, msg_type, payload, GetTime<std::chrono::microseconds>(), interrupt_dummy);
@@ -171,7 +171,7 @@ void SendMessage(PeerManager& peerman, CNode& peer, const std::string& msg_type,
 
 void AnnounceInv(PeerManager& peerman, CNode& peer, const CInv& inv)
 {
-    CDataStream inv_stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream inv_stream{};
     inv_stream << std::vector<CInv>{inv};
     SendMessage(peerman, peer, NetMsgType::INV, std::move(inv_stream));
 }

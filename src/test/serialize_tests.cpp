@@ -317,7 +317,7 @@ struct new_version
 
 BOOST_AUTO_TEST_CASE(check_backward_compatibility)
 {
-    CDataStream ss(SER_DISK, 0);
+    DataStream ss{};
     old_version old_src({5});
     ss << old_src;
     new_version new_dest({6, 7});

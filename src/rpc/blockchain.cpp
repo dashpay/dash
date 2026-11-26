@@ -839,7 +839,7 @@ static RPCHelpMan getmerkleblocks()
 
     CBloomFilter filter;
     std::string strFilter = request.params[0].get_str();
-    CDataStream ssBloomFilter(ParseHex(strFilter), SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssBloomFilter{ParseHex(strFilter)};
     // CBloomFilter deserialization is now bounded, so an oversized vData count throws a generic
     // length-limit error instead of the historical response. Preserve the old behavior by
     // prechecking the leading vData count without consuming the stream: a fully present oversized

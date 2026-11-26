@@ -5148,9 +5148,9 @@ BOOST_AUTO_TEST_CASE(legacy_diff_operator_key_keeps_its_bytes)
         std::vector<std::pair<uint64_t, CDeterministicMNStateDiffLegacy>> updated;
         std::vector<uint64_t> removed;
 
-        // Local classes cannot have member templates. CDBBatch writes through
-        // DataStream, and CDataStream derives from it, so one DataStream&
-        // method serves both. The bytes are the legacy on-disk diff either way.
+        // Local classes cannot have member templates; CDBBatch and the test
+        // streams both write through DataStream. The bytes are the legacy
+        // on-disk diff either way.
         void Serialize(DataStream& s) const
         {
             WriteCompactSize(s, added.size());
