@@ -1672,7 +1672,7 @@ bool CCoinJoinClientSession::ProcessPendingDsaRequest(CConnman& connman)
         WalletCJLogPrint(m_wallet, "-- processing dsa queue for addr=%s\n", pnode->addr.ToStringAddrPort());
         nTimeLastSuccessfulStep = GetTime();
         CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-        connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSACCEPT, pendingDsaRequest.GetDSA()));
+        connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSACCEPT, ProtocolSerParams::Network(pnode->GetCommonVersion())(pendingDsaRequest.GetDSA())));
         return true;
     });
 

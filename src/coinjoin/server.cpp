@@ -79,7 +79,7 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
     }
 
     CCoinJoinAccept dsa;
-    vRecv >> dsa;
+    vRecv >> ProtocolSerParams::Network(peer.GetCommonVersion())(dsa);
 
     LogPrint(BCLog::COINJOIN, "DSACCEPT -- nDenom %d (%s)  txCollateral %s", dsa.nDenom, CoinJoin::DenominationToString(dsa.nDenom), dsa.txCollateral.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
 

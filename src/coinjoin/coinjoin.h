@@ -13,6 +13,7 @@
 #include <netaddress.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <protocol_ser_params.h>
 #include <serialize.h>
 #include <sync.h>
 #include <util/helpers.h>
@@ -164,7 +165,8 @@ public:
     SERIALIZE_METHODS(CCoinJoinAccept, obj)
     {
         READWRITE(obj.nDenom, obj.txCollateral);
-        if (s.GetVersion() >= COINJOIN_REBALANCE_VERSION) {
+        const ProtocolSerParams& params = s.GetParams();
+        if (params.nVersion >= COINJOIN_REBALANCE_VERSION) {
             READWRITE(obj.nFlags);
         }
     }

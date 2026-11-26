@@ -18,6 +18,7 @@
 #include <node/connection_types.h>
 #include <policy/policy.h>
 #include <protocol.h>
+#include <protocol_ser_params.h>
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <script/sign.h>
@@ -1368,27 +1369,30 @@ BOOST_AUTO_TEST_CASE(dsa_rebalance_flag_version_gated_serialization)
                                   CCoinJoinAccept::FLAG_PROMOTION | CCoinJoinAccept::FLAG_DEMOTION);
     BOOST_CHECK(!dsaBoth.HasValidFlags());
 
+    const auto old_peer{ProtocolSerParams::Network(COINJOIN_REBALANCE_VERSION - 1)};
+    const auto new_peer{ProtocolSerParams::Network(COINJOIN_REBALANCE_VERSION)};
+
     // Old-version stream: the flags are silently dropped and the encoding matches a
     // flag-less dsa byte for byte
     {
-        CDataStream ssPlain(SER_NETWORK, COINJOIN_REBALANCE_VERSION - 1);
-        ssPlain << dsaPlain;
-        CDataStream ssRebalance(SER_NETWORK, COINJOIN_REBALANCE_VERSION - 1);
-        ssRebalance << dsaPromotion;
+        DataStream ssPlain;
+        ssPlain << old_peer(dsaPlain);
+        DataStream ssRebalance;
+        ssRebalance << old_peer(dsaPromotion);
         BOOST_CHECK(std::equal(ssPlain.begin(), ssPlain.end(), ssRebalance.begin(), ssRebalance.end()));
 
         CCoinJoinAccept dsaDecoded;
-        ssRebalance >> dsaDecoded;
+        ssRebalance >> old_peer(dsaDecoded);
         BOOST_CHECK_EQUAL(dsaDecoded.nDenom, dsaPromotion.nDenom);
         BOOST_CHECK(!dsaDecoded.IsRebalance());
     }
 
     // New-version stream: each direction round-trips distinctly
     for (const auto& dsa : {dsaPromotion, dsaDemotion}) {
-        CDataStream ss(SER_NETWORK, COINJOIN_REBALANCE_VERSION);
-        ss << dsa;
+        DataStream ss;
+        ss << new_peer(dsa);
         CCoinJoinAccept dsaDecoded;
-        ss >> dsaDecoded;
+        ss >> new_peer(dsaDecoded);
         BOOST_CHECK_EQUAL(dsaDecoded.nDenom, dsa.nDenom);
         BOOST_CHECK_EQUAL(dsaDecoded.IsPromotion(), dsa.IsPromotion());
         BOOST_CHECK_EQUAL(dsaDecoded.IsDemotion(), dsa.IsDemotion());
@@ -1396,10 +1400,10 @@ BOOST_AUTO_TEST_CASE(dsa_rebalance_flag_version_gated_serialization)
 
     // New-version encoding is exactly one byte longer than the legacy encoding
     {
-        CDataStream ssOld(SER_NETWORK, COINJOIN_REBALANCE_VERSION - 1);
-        ssOld << dsaPlain;
-        CDataStream ssNew(SER_NETWORK, COINJOIN_REBALANCE_VERSION);
-        ssNew << dsaPlain;
+        DataStream ssOld;
+        ssOld << old_peer(dsaPlain);
+        DataStream ssNew;
+        ssNew << new_peer(dsaPlain);
         BOOST_CHECK_EQUAL(ssNew.size(), ssOld.size() + 1);
     }
 }
