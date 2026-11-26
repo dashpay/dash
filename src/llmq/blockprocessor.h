@@ -30,7 +30,7 @@ class CBLSSignature;
 class CChain;
 class Chainstate;
 class ChainstateManager;
-class CDataStream;
+class DataStream;
 class CDeterministicMNManager;
 class CEvoDB;
 class CNode;
@@ -108,7 +108,7 @@ public:
     using ConsumeRequestFn = std::function<bool(const CInv&)>;
 
     [[nodiscard]] MessageProcessingResult ProcessMessage(const CNode& peer, std::string_view msg_type,
-                                                         CDataStream& vRecv,
+                                                         DataStream& vRecv,
                                                          const ConsumeRequestFn& consume_request)
         EXCLUSIVE_LOCKS_REQUIRED(!minableCommitmentsCs);
 

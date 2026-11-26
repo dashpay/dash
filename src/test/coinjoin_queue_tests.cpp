@@ -340,7 +340,7 @@ BOOST_FIXTURE_TEST_CASE(client_rejects_invalid_queues, RegisteredMasternodeSetup
     auto& cj_walletman = *Assert(m_node.cj_walletman);
     const auto peer{MakePeer(/*id=*/0)};
     auto process = [&](const CCoinJoinQueue& dsq) {
-        CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream stream{};
         stream << dsq;
         return cj_walletman.processMessage(*peer, m_node.chainman->ActiveChainstate(), *m_node.connman,
                                            *m_node.mempool, NetMsgType::DSQUEUE, stream);

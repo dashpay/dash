@@ -197,7 +197,7 @@ void CQuorum::WriteContributions(CDBWrapper& db) const
 
     LOCK(cs_vvec_shShare);
     if (HasVerificationVectorInternal()) {
-        CDataStream s(SER_DISK, CLIENT_VERSION);
+        DataStream s{};
         WriteCompactSize(s, quorumVvec->size());
         for (const auto& pubkey : *quorumVvec) {
             s << pubkey;

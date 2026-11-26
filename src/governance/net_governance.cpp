@@ -27,7 +27,7 @@ bool IsEmptyBloomFilter(const CBloomFilter& filter)
 {
     // CBloomFilter does not expose its backing bytes. Governance uses an empty
     // filter as an object-fetch signal, so inspect the serialized vector field.
-    CDataStream serialized_filter{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream serialized_filter{};
     serialized_filter << filter;
 
     std::vector<unsigned char> filter_data;
@@ -77,7 +77,7 @@ void NetGovernance::Schedule(CScheduler& scheduler)
         Params().IsMockableChain() ? std::chrono::seconds{1} : std::chrono::seconds{5});
 }
 
-void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDataStream& vRecv)
+void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, DataStream& vRecv)
 {
     if (!m_gov_manager.IsValid()) return;
     // Until proposal collateral can be looked up, valid proposals would look invalid and their senders get punished

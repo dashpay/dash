@@ -24,7 +24,7 @@
 
 class CBloomFilter;
 class CBlockIndex;
-class CDataStream;
+class DataStream;
 class CDeterministicMNList;
 class CDeterministicMNManager;
 class ChainstateManager;
@@ -350,9 +350,9 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool HaveVoteForHash(const uint256& nHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    bool SerializeObjectForHash(const uint256& nHash, CDataStream& ss) const
+    bool SerializeObjectForHash(const uint256& nHash, DataStream& ss) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    bool SerializeVoteForHash(const uint256& nHash, CDataStream& ss) const
+    bool SerializeVoteForHash(const uint256& nHash, DataStream& ss) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     std::shared_ptr<CGovernanceObject> FindGovernanceObject(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     int GetVoteCount() const

@@ -322,7 +322,7 @@ void SyncManager::ProcessTick()
     }
 }
 
-void SyncManager::ProcessMessage(CNode& peer, const std::string& msg_type, CDataStream& vRecv)
+void SyncManager::ProcessMessage(CNode& peer, const std::string& msg_type, DataStream& vRecv)
 {
     //Sync status count
     if (msg_type != NetMsgType::SYNCSTATUSCOUNT) return;

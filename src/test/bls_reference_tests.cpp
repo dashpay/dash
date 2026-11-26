@@ -112,7 +112,7 @@ std::ostream& operator<<(std::ostream& os, Decoded decoded)
 template <typename T>
 Decoded Unserialize(Span<const uint8_t> bytes, typename T::SchemeArg scheme = {})
 {
-    CDataStream stream{bytes, SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{bytes};
     T obj;
     try {
         obj.Unserialize(stream, scheme);
@@ -716,7 +716,7 @@ BOOST_AUTO_TEST_CASE(stream_round_trip)
     const CBLSSecretKey sk{RefKey(5)};
     const CBLSPublicKey pk{sk.GetPublicKey()};
     const auto round_trip = [](const auto& obj, auto written_as, auto read_as) {
-        CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream stream{};
         obj.Serialize(stream, written_as);
         BOOST_CHECK_EQUAL(stream.size(), obj.SerSize);
         std::decay_t<decltype(obj)> read;
@@ -750,7 +750,7 @@ BOOST_AUTO_TEST_CASE(ies_key_is_the_shared_point)
     blob.data.resize(plaintext.size());
     AES256CBCEncrypt{key.data(), blob.ivSeed.begin(), /*padIn=*/false}.Encrypt(plaintext.data(), plaintext.size(), blob.data.data());
 
-    CDataStream decrypted{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream decrypted{};
     BOOST_REQUIRE(blob.Decrypt(0, recipient, decrypted));
     BOOST_CHECK(std::equal(plaintext.begin(), plaintext.end(), UCharCast(decrypted.data()), UCharCast(decrypted.data() + decrypted.size())));
 

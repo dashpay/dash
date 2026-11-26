@@ -97,10 +97,10 @@ template <typename T>
 inline bool TestSerializationRoundtrip(const T& obj)
 {
     // Datastreams we will compare at the end
-    CDataStream ss_obj(SER_NETWORK, PROTOCOL_VERSION);
-    CDataStream ss_obj_rt(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss_obj{};
+    DataStream ss_obj_rt{};
     // A temporary datastream to perform serialization round-trip
-    CDataStream ss_tmp(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss_tmp{};
     T obj_rt;
     const auto params{ProtocolSerParams::Network(PROTOCOL_VERSION)};
 

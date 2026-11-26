@@ -218,7 +218,7 @@ bool CGovernanceManager::HaveSyncableObjectForHash(const uint256& nHash) const
     return IsSyncableObject(it->second);
 }
 
-bool CGovernanceManager::SerializeObjectForHash(const uint256& nHash, CDataStream& ss) const
+bool CGovernanceManager::SerializeObjectForHash(const uint256& nHash, DataStream& ss) const
 {
     LOCK(cs_store);
     auto it = mapObjects.find(nHash);
@@ -245,7 +245,7 @@ int CGovernanceManager::GetVoteCount() const
     return static_cast<int>(cmapVoteToObject.GetSize());
 }
 
-bool CGovernanceManager::SerializeVoteForHash(const uint256& nHash, CDataStream& ss) const
+bool CGovernanceManager::SerializeVoteForHash(const uint256& nHash, DataStream& ss) const
 {
     LOCK(cs_store);
 

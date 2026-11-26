@@ -21,7 +21,7 @@
 #include <variant>
 
 class Chainstate;
-class CDataStream;
+class DataStream;
 class CDBBatch;
 class CDBWrapper;
 class CInv;

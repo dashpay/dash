@@ -25,7 +25,7 @@ public:
     }
     void Schedule(CScheduler& scheduler) override;
 
-    void ProcessMessage(CNode& peer, const std::string& msg_type, CDataStream& vRecv) override;
+    void ProcessMessage(CNode& peer, const std::string& msg_type, DataStream& vRecv) override;
 
     bool AlreadyHave(const CInv& inv) override;
     bool DeferAnnouncement(const CInv& inv) override;

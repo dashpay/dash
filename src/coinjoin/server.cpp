@@ -52,7 +52,7 @@ CCoinJoinServer::CCoinJoinServer(PeerManagerInternal* peer_manager, ChainstateMa
 
 CCoinJoinServer::~CCoinJoinServer() = default;
 
-void CCoinJoinServer::ProcessMessage(CNode& peer, const std::string& msg_type, CDataStream& vRecv)
+void CCoinJoinServer::ProcessMessage(CNode& peer, const std::string& msg_type, DataStream& vRecv)
 {
     if (!m_mn_sync.IsBlockchainSynced()) return;
 
@@ -67,7 +67,7 @@ void CCoinJoinServer::ProcessMessage(CNode& peer, const std::string& msg_type, C
     }
 }
 
-void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
+void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, DataStream& vRecv)
 {
     assert(m_mn_metaman.IsValid());
 
@@ -129,7 +129,7 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode& peer, CDataStream& vRecv)
     }
 }
 
-void CCoinJoinServer::ProcessDSQUEUE(NodeId from, CDataStream& vRecv)
+void CCoinJoinServer::ProcessDSQUEUE(NodeId from, DataStream& vRecv)
 {
     assert(m_mn_metaman.IsValid());
 
@@ -169,7 +169,7 @@ void CCoinJoinServer::ProcessDSQUEUE(NodeId from, CDataStream& vRecv)
     }
 }
 
-void CCoinJoinServer::ProcessDSVIN(CNode& peer, CDataStream& vRecv)
+void CCoinJoinServer::ProcessDSVIN(CNode& peer, DataStream& vRecv)
 {
     //do we have enough users in the current session?
     if (!WITH_LOCK(cs_coinjoin, return IsSessionReady())) {
@@ -199,7 +199,7 @@ void CCoinJoinServer::ProcessDSVIN(CNode& peer, CDataStream& vRecv)
     }
 }
 
-void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv)
+void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode& peer, DataStream& vRecv)
 {
     // Only accept signatures while we are actually collecting them, and only
     // from peers that are active participants in this session. Otherwise a

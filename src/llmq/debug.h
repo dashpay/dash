@@ -13,7 +13,7 @@
 #include <functional>
 #include <unordered_set>
 
-class CDataStream;
+class DataStream;
 class CDeterministicMNManager;
 class ChainstateManager;
 class CInv;

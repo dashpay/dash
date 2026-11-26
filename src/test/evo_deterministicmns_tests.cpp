@@ -64,7 +64,7 @@ static SpecialTxRules TipRules(const ChainstateManager& chainman) EXCLUSIVE_LOCK
 static void CheckOperatorKeyEncoding(const CDeterministicMNState& state, const CBLSPublicKey& expected)
 {
     const BLSScheme scheme{state.OperatorKeyScheme()};
-    CDataStream stored{SER_DISK, CLIENT_VERSION};
+    DataStream stored{};
     state.pubKeyOperator.Serialize(stored, scheme);
     const auto encoded{expected.ToBytes(scheme)};
     const std::string encoded_bytes{reinterpret_cast<const char*>(encoded.data()), encoded.size()};
@@ -863,7 +863,7 @@ static std::shared_ptr<NetInfoInterface> DeserializeCoreP2PExtNetInfo(const std:
 {
     // Hand-roll ExtNetInfo's serialization (version byte followed by a map of purpose to entries)
     // to construct states that AddEntry() would refuse to produce
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    DataStream ds{};
     ds << uint8_t{1};                      // m_version (ExtNetInfo::CURRENT_VERSION)
     WriteCompactSize(ds, 1);               // m_data map size (one purpose)
     ds << NetInfoPurpose::CORE_P2P;        // map key (purpose)
@@ -2534,8 +2534,8 @@ BOOST_AUTO_TEST_CASE(deterministic_mn_list_diff_serialization_is_canonical)
     reverse.updatedMNs.emplace(2, CDeterministicMNStateDiff{});
     reverse.updatedMNs.emplace(1, CDeterministicMNStateDiff{});
 
-    CDataStream forward_stream{SER_DISK, CLIENT_VERSION};
-    CDataStream reverse_stream{SER_DISK, CLIENT_VERSION};
+    DataStream forward_stream{};
+    DataStream reverse_stream{};
     forward_stream << forward;
     reverse_stream << reverse;
 
@@ -2667,7 +2667,7 @@ static void CheckListRoundTrips(CDeterministicMNManager& dmnman, const std::stri
                                 what << ": operator key missing from its scheme slot for " << dmn.proTxHash.ToString());
         }
     });
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    DataStream ds{};
     ds << live;
     CDeterministicMNList reloaded;
     ds >> reloaded;
@@ -2811,7 +2811,7 @@ void FuncProUpServTxMigratesLegacy(TestChainV24SignalBeforeV19Setup& setup)
     CheckListRoundTrips(dmnman, "after legacy->basic migration ProUpServTx");
     {
         const auto live = dmnman.GetListAtChainTip();
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         ds << live;
         CDeterministicMNList reloaded;
         ds >> reloaded;
@@ -3374,7 +3374,7 @@ void FuncSameMnSameBlockVersionCrossingKeyRotation(TestChainV24SignalBeforeV19Se
         const auto dmn = mn_list_ret.GetMN(proTxHash);
         BOOST_REQUIRE(dmn);
         CheckOperatorKeyEncoding(*dmn->pdmnState, key2.GetPublicKey());
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         ds << mn_list_ret;
         CDeterministicMNList reloaded;
         ds >> reloaded;
@@ -3470,7 +3470,7 @@ void FuncSameMnSameBlockMigrationConsistent(TestChainV24SignalBeforeV19Setup& se
     CheckOperatorKeyEncoding(*dmn->pdmnState, operator_key_new.GetPublicKey());
     // Online and reloaded decode the same operator key -- no reconstruction-history divergence.
     BOOST_CHECK(dmn->pdmnState->pubKeyOperator.Get() == operator_key_new.GetPublicKey());
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    DataStream ds{};
     ds << mn_list_ret;
     CDeterministicMNList reloaded;
     ds >> reloaded;
@@ -4339,7 +4339,7 @@ void FuncProUpRegTxMigratesLegacySameKey(TestChainV24SignalBeforeV19Setup& setup
         BOOST_CHECK(dmn->pdmnState->pubKeyOperator.Get() == operator_key.GetPublicKey());
         CheckListRoundTrips(dmnman, "after same-key legacy->basic migration");
         const auto live = dmnman.GetListAtChainTip();
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         ds << live;
         CDeterministicMNList reloaded;
         ds >> reloaded;
@@ -4452,7 +4452,7 @@ BOOST_AUTO_TEST_CASE(statediff_captures_operator_key_reencoding)
             b.pubKeyOperator.Set(c.basic_key);
 
             CDeterministicMNStateDiff diff{a, b};
-            CDataStream ds(SER_DISK, CLIENT_VERSION);
+            DataStream ds{};
             ds << diff;
             CDeterministicMNStateDiff diff2;
             ds >> diff2;
@@ -5041,7 +5041,7 @@ BOOST_AUTO_TEST_CASE(migration_logic_validation)
 
 
     // Test legacy class conversion (this would normally be done by CDeterministicMNListDiff)
-    CDataStream ss(SER_DISK, CLIENT_VERSION);
+    DataStream ss{};
     ss << legacyDiff;
 
     CDeterministicMNStateDiffLegacy legacyDeserializer(deserialize, ss);
@@ -5084,7 +5084,7 @@ BOOST_AUTO_TEST_CASE(operator_key_stored_encoding_follows_version)
         state.nVersion = version;
         state.pubKeyOperator.Set(pk);
         state.netInfo = NetInfoInterface::MakeNetInfo(version);
-        CDataStream state_bytes{SER_DISK, CLIENT_VERSION};
+        DataStream state_bytes{};
         state_bytes << state;
         ExpectEncoding(state_bytes.str(), present, absent);
 
@@ -5092,7 +5092,7 @@ BOOST_AUTO_TEST_CASE(operator_key_stored_encoding_follows_version)
         previous.nVersion = version;
         previous.netInfo = NetInfoInterface::MakeNetInfo(version);
         const CDeterministicMNStateDiff diff{previous, state};
-        CDataStream diff_bytes{SER_DISK, CLIENT_VERSION};
+        DataStream diff_bytes{};
         diff_bytes << diff;
         ExpectEncoding(diff_bytes.str(), present, absent);
     };
@@ -5266,7 +5266,7 @@ BOOST_AUTO_TEST_CASE(legacy_diff_operator_key_keeps_its_bytes)
         const auto encoded{diff.state.pubKeyOperator.Get().ToBytes(diff.state.OperatorKeyScheme())};
         const auto raw{ParseHex(row.raw_hex)};
         BOOST_CHECK_EQUAL_COLLECTIONS(encoded.begin(), encoded.end(), raw.begin(), raw.end());
-        CDataStream bytes{SER_DISK, CLIENT_VERSION};
+        DataStream bytes{};
         bytes << diff;
         ExpectEncoding(bytes.str(), row.raw_hex, row.absent_hex);
     }

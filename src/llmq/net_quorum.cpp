@@ -74,7 +74,7 @@ void NetQuorum::Schedule(CScheduler& scheduler)
     scheduler.scheduleEvery([this] { m_qman.CleanupExpiredDataRequests(); }, std::chrono::minutes{1});
 }
 
-void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
+void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv)
 {
     if (msg_type == NetMsgType::QGETDATA) {
         if (!m_role || !m_role->IsMasternode() || (pfrom.GetVerifiedProRegTxHash().IsNull() && !pfrom.qwatch)) {
@@ -270,7 +270,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
     }
 }
 
-bool NetQuorum::ProcessContribQGETDATA(CDataStream& ssResponseData, const CQuorum& quorum,
+bool NetQuorum::ProcessContribQGETDATA(DataStream& ssResponseData, const CQuorum& quorum,
                                        CQuorumDataRequest& request,
                                        gsl::not_null<const CBlockIndex*> block_index) const
 {
@@ -300,7 +300,7 @@ bool NetQuorum::ProcessContribQGETDATA(CDataStream& ssResponseData, const CQuoru
     return false;
 }
 
-bool NetQuorum::ProcessContribQDATA(const CNode& pfrom, CDataStream& vRecv,
+bool NetQuorum::ProcessContribQDATA(const CNode& pfrom, DataStream& vRecv,
                                     CQuorum& quorum, const CQuorumDataRequest& request)
 {
     if (!(request.GetDataMask() & CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS)) {

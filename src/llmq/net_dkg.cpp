@@ -85,7 +85,7 @@ constexpr size_t DKG_MSG_PREFIX_SIZE = 1 + 32 + 32; // llmqType + quorumHash + p
 // Reads a DYNBITSET bounded by @p max_size and returns its bit count. Reuses
 // ReadFixedBitSet -- the exact deserializer the typed path uses -- so
 // truncation and padding-bit handling cannot diverge.
-uint64_t ReadBoundedDynBitset(CDataStream& ds, size_t max_size)
+uint64_t ReadBoundedDynBitset(DataStream& ds, size_t max_size)
 {
     const uint64_t bit_count = ReadCompactSize(ds);
     if (bit_count > max_size) {
@@ -96,7 +96,7 @@ uint64_t ReadBoundedDynBitset(CDataStream& ds, size_t max_size)
     return bit_count;
 }
 
-bool CheckContributionWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
+bool CheckContributionWireStructure(DataStream& ds, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
     const size_t min_size = params.minSize > 0 ? static_cast<size_t>(params.minSize) : 0;
@@ -119,7 +119,7 @@ bool CheckContributionWireStructure(CDataStream& ds, const Consensus::LLMQParams
     return ds.empty();
 }
 
-bool CheckComplaintWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
+bool CheckComplaintWireStructure(DataStream& ds, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
 
@@ -133,7 +133,7 @@ bool CheckComplaintWireStructure(CDataStream& ds, const Consensus::LLMQParams& p
     return ds.empty();
 }
 
-bool CheckJustificationWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
+bool CheckJustificationWireStructure(DataStream& ds, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
 
@@ -147,7 +147,7 @@ bool CheckJustificationWireStructure(CDataStream& ds, const Consensus::LLMQParam
     return ds.empty();
 }
 
-bool CheckPrematureCommitmentWireStructure(CDataStream& ds, const Consensus::LLMQParams& params)
+bool CheckPrematureCommitmentWireStructure(DataStream& ds, const Consensus::LLMQParams& params)
 {
     const size_t size = params.size > 0 ? static_cast<size_t>(params.size) : 0;
 
@@ -160,14 +160,14 @@ bool CheckPrematureCommitmentWireStructure(CDataStream& ds, const Consensus::LLM
 
 } // namespace
 
-bool CheckDKGMessageWireStructure(std::string_view msg_type, const CDataStream& payload,
+bool CheckDKGMessageWireStructure(std::string_view msg_type, const DataStream& payload,
                                   const Consensus::LLMQParams& params)
 {
     // Walk a copy so the caller's read position (and the bytes backing its
     // inventory hash) survive. The copy is a memcpy bounded by the size cap
     // applied just before this call -- negligible next to the BLS point
     // decompression that deserializing the payload here would have cost.
-    CDataStream ds{payload};
+    DataStream ds{payload};
     try {
         if (msg_type == NetMsgType::QCONTRIB) {
             return CheckContributionWireStructure(ds, params);
@@ -368,9 +368,9 @@ void RelayInvToParticipants(const CDKGSession& session, const CConnman& connman,
 template <typename Message>
 void EnqueueOwn(CDKGPendingMessages& pending, const uint256& own_protx, const Message& msg)
 {
-    CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ds{};
     ds << msg;
-    auto pm = std::make_shared<CDataStream>(std::move(ds));
+    auto pm = std::make_shared<DataStream>(std::move(ds));
     HashWriter hw{};
     hw.write(AsWritableBytes(Span{*pm}));
     pending.PushPendingMessage(/*from=*/-1, own_protx, std::move(pm), hw.GetHash());
@@ -379,7 +379,7 @@ void EnqueueOwn(CDKGPendingMessages& pending, const uint256& own_protx, const Me
 // The single typed deserialization pass over a queued payload, followed by the
 // param-derived structural bounds. Returns nullptr on failure; caller scores.
 template <typename Message>
-std::shared_ptr<Message> DeserializeCheckedDKGMessage(CDataStream& ds, const Consensus::LLMQParams& params,
+std::shared_ptr<Message> DeserializeCheckedDKGMessage(DataStream& ds, const Consensus::LLMQParams& params,
                                                       NodeId nodeId)
 {
     auto msg = std::make_shared<Message>();
@@ -501,7 +501,7 @@ NetDKG::~NetDKG()
     m_qman.DisconnectManagers();
 }
 
-void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
+void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv)
 {
     if (!IsQuorumDKGEnabled(m_sporkman)) return;
 
@@ -625,7 +625,7 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
         inv_type = MSG_QUORUM_PREMATURE_COMMITMENT;
     Assume(inv_type != 0); // guarded by the early-return above
 
-    auto pm = std::make_shared<CDataStream>(std::move(vRecv));
+    auto pm = std::make_shared<DataStream>(std::move(vRecv));
     HashWriter hw{};
     hw.write(AsWritableBytes(Span{*pm}));
     const uint256 hash = hw.GetHash();
@@ -947,7 +947,7 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
     active.dkgdbgman.MarkPhaseAdvanced(handler.params.type, handler.QuorumIndex(), QuorumPhase::Finalize);
 }
 
-void NetDKGStub::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
+void NetDKGStub::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv)
 {
     if (msg_type == NetMsgType::QCONTRIB || msg_type == NetMsgType::QCOMPLAINT || msg_type == NetMsgType::QJUSTIFICATION ||
         msg_type == NetMsgType::QPCOMMITMENT || msg_type == NetMsgType::QWATCH) {

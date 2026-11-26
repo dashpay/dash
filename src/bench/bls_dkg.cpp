@@ -104,7 +104,7 @@ public:
     {
         ReceiveVvecs();
         ReceiveShares(0);
-        CDataStream db(SER_DISK, CLIENT_VERSION);
+        DataStream db{};
         for (const auto& vvec : receivedVvecs) {
             db << *vvec;
         }
@@ -112,7 +112,7 @@ public:
         bench.epochs(3).run([&] {
             auto vvecs = receivedVvecs;
             if (cold) {
-                CDataStream s{db};
+                DataStream s{db};
                 for (auto& vvec : vvecs) {
                     vvec = std::make_shared<std::vector<CBLSPublicKey>>();
                     s >> *vvec;

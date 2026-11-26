@@ -43,7 +43,7 @@ private:
         const auto start{SteadyClock::now()};
 
         // serialize, checksum data up to that point, then append checksum
-        CDataStream ssObj(SER_DISK, CLIENT_VERSION);
+        DataStream ssObj{};
         ssObj << strMagicMessage; // specific magic message for this type of object
         ssObj << Params().MessageStart(); // network specific magic number
         ssObj << objToSave;
@@ -108,7 +108,7 @@ private:
         }
         filein.fclose();
 
-        CDataStream ssObj(vchData, SER_DISK, CLIENT_VERSION);
+        DataStream ssObj{vchData};
 
         // verify stored checksum matches input data
         uint256 hashTmp = Hash(ssObj);

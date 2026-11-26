@@ -154,7 +154,7 @@ BOOST_AUTO_TEST_CASE(copy_assigned_vote_file_indexes_its_own_votes)
 
     BOOST_CHECK_EQUAL(copy.GetVoteCount(), 1);
     BOOST_CHECK(copy.HasVote(vote.GetHash()));
-    CDataStream ss{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream ss{};
     BOOST_REQUIRE(copy.SerializeVoteToStream(vote.GetHash(), ss));
     CGovernanceVote roundtrip;
     ss >> GOVERNANCE_NETWORK(roundtrip);

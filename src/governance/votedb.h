@@ -14,7 +14,7 @@
 #include <set>
 #include <vector>
 
-class CDataStream;
+class DataStream;
 class CDeterministicMNList;
 
 /**
@@ -59,7 +59,7 @@ public:
     /**
      * Retrieve a vote cached in memory
      */
-    bool SerializeVoteToStream(const uint256& nHash, CDataStream& ss) const;
+    bool SerializeVoteToStream(const uint256& nHash, DataStream& ss) const;
 
     int GetVoteCount() const
     {

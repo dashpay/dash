@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(deserialize_instantlock_from_realdata2)
     // This InstantSend lock's signature is basic. An un-annotated decode reads it as basic.
     // Convert hex string to a byte vector and deserialize.
     std::vector<unsigned char> islockData = ParseHex(islockHex);
-    CDataStream ss(islockData, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss{islockData};
     instantsend::InstantSendLock islock;
     ss >> islock;
 

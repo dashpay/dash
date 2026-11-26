@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(llmq_dkgerror)
 }
 
 namespace {
-std::shared_ptr<CDataStream> MakeDKGMessage()
+std::shared_ptr<DataStream> MakeDKGMessage()
 {
     return std::make_shared<CDataStream>(SER_NETWORK, PROTOCOL_VERSION);
 }

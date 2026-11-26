@@ -158,7 +158,7 @@ public:
                                     CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
                                     const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman);
 
-    void ProcessMessage(CNode& peer, Chainstate& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv);
+    void ProcessMessage(CNode& peer, Chainstate& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, DataStream& vRecv);
 
     void UnlockCoins();
 
@@ -246,7 +246,7 @@ public:
                                     const llmq::CInstantSendManager& isman, CoinJoinQueueManager* queueman);
     ~CCoinJoinClientManager() override;
 
-    void ProcessMessage(CNode& peer, Chainstate& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
+    void ProcessMessage(CNode& peer, Chainstate& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, DataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
     bool GetMixingMasternodesInfo(std::vector<CDeterministicMNCPtr>& vecDmnsRet) const EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 

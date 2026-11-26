@@ -19,7 +19,7 @@ class Chainstate;
 class CCoinJoinClientManager;
 class CCoinJoinQueue;
 class CConnman;
-class CDataStream;
+class DataStream;
 class CDeterministicMNManager;
 class ChainstateManager;
 class CMasternodeMetaMan;
@@ -52,7 +52,7 @@ public:
     //! Returns true if the client was found and func was called, false otherwise.
     virtual bool doForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func) = 0;
     virtual MessageProcessingResult processMessage(CNode& peer, Chainstate& chainstate, CConnman& connman,
-                                                   CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) = 0;
+                                                   CTxMemPool& mempool, std::string_view msg_type, DataStream& vRecv) = 0;
     virtual std::optional<CCoinJoinQueue> getQueueFromHash(const uint256& hash) const = 0;
     virtual std::optional<int> getQueueSize() const = 0;
     virtual std::vector<CDeterministicMNCPtr> getMixingMasternodes() = 0;

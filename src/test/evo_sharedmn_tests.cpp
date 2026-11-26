@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE(shared_proregtx_serialization)
         proTx.nEarlyPeriodBlocks = 1000;
         proTx.nEarlyPenalty = 50 * COIN;
 
-        CDataStream ss(SER_NETWORK, CLIENT_VERSION);
+        DataStream ss{};
         ss << proTx;
         CProRegTx proTx2;
         ss >> proTx2;
@@ -297,9 +297,9 @@ BOOST_AUTO_TEST_CASE(shared_proregtx_serialization)
         BOOST_CHECK_EQUAL(proTx2.nEarlyPenalty, proTx.nEarlyPenalty);
 
         // Serialization must be deterministic and round-trip byte-identically
-        CDataStream ss2(SER_NETWORK, CLIENT_VERSION);
+        DataStream ss2{};
         ss2 << proTx2;
-        CDataStream ss3(SER_NETWORK, CLIENT_VERSION);
+        DataStream ss3{};
         ss3 << proTx;
         BOOST_CHECK(ss2.str() == ss3.str());
     }
@@ -313,7 +313,7 @@ BOOST_AUTO_TEST_CASE(shared_proregtx_serialization)
         mismatched.shares.push_back(NewShare(600 * COIN, refund_keys[0], owner_keys[0]));
         mismatched.shares.push_back(NewShare(400 * COIN, refund_keys[1], owner_keys[1]));
         mismatched.vchJoinSigs = DummyJoinSigs(1);
-        CDataStream ss_mismatch(SER_NETWORK, CLIENT_VERSION);
+        DataStream ss_mismatch{};
         BOOST_CHECK_THROW(ss_mismatch << mismatched, std::ios_base::failure);
     }
 
@@ -321,7 +321,7 @@ BOOST_AUTO_TEST_CASE(shared_proregtx_serialization)
     CProRegTx nonShared;
     nonShared.nVersion = ProTxVersion::ExtAddr;
     nonShared.netInfo = NetInfoInterface::MakeNetInfo(nonShared.nVersion);
-    CDataStream ss(SER_NETWORK, CLIENT_VERSION);
+    DataStream ss{};
     ss << nonShared;
     CProRegTx nonShared2;
     ss >> nonShared2;
@@ -562,7 +562,7 @@ BOOST_AUTO_TEST_CASE(dmn_state_shares_roundtrip)
     BOOST_CHECK_EQUAL(state.nEarlyPeriodBlocks, proTx.nEarlyPeriodBlocks);
     BOOST_CHECK_EQUAL(state.nEarlyPenalty, proTx.nEarlyPenalty);
 
-    CDataStream ss(SER_DISK, CLIENT_VERSION);
+    DataStream ss{};
     ss << state;
     CDeterministicMNState state2;
     ss >> state2;
@@ -587,7 +587,7 @@ BOOST_AUTO_TEST_CASE(dmn_state_shares_roundtrip)
     BOOST_CHECK(diff.fields & CDeterministicMNStateDiff::Field_shares);
     BOOST_CHECK(!(diff.fields & CDeterministicMNStateDiff::Field_nEarlyPeriodBlocks));
 
-    CDataStream ss_diff(SER_DISK, CLIENT_VERSION);
+    DataStream ss_diff{};
     ss_diff << diff;
     CDeterministicMNStateDiff diff2;
     ss_diff >> diff2;

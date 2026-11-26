@@ -359,7 +359,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
         // Descending output order requires verification against the canonical BIP69 transaction.
         CCoinJoinEntry original{{CTxDSIn{CTxIn{input}, previous_script, 0}},
                                {CTxOut{amount, P2PKHScript(participants - i)}}, CTransaction{collateral}};
-        CDataStream wire{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream wire{};
         wire << original;
         CCoinJoinEntry entry;
         wire >> entry;
@@ -392,7 +392,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
         LOCK(peer.cs_vSend);
         for (const auto& msg : peer.vSendMsg) {
             if (msg.m_type != NetMsgType::DSSTATUSUPDATE) continue;
-            CDataStream wire{msg.data, SER_NETWORK, PROTOCOL_VERSION};
+            DataStream wire{msg.data};
             CCoinJoinStatusUpdate status;
             wire >> status;
             if (status.nStatusUpdate == STATUS_REJECTED) return true;
@@ -404,7 +404,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
             LOCK(peer->cs_vSend);
             peer->vSendMsg.clear();
         }
-        CDataStream wire{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream wire{};
         wire << std::vector<CTxIn>{input};
         server.ProcessMessage(*peers[participant == participants - 1 ? 0 : participant], NetMsgType::DSSIGNFINALTX, wire);
     };
@@ -478,7 +478,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_nonparticipant_cannot_abort_session)
     BOOST_REQUIRE(!(nonparticipant->addr == participant->addr));
 
     const size_t max_txins{CoinJoin::GetMaxPoolInputOutputCount()};
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     WriteCompactSize(stream, max_txins + 1);
 
     BOOST_CHECK_NO_THROW(server.ProcessMessage(*nonparticipant, NetMsgType::DSSIGNFINALTX, stream));
@@ -511,7 +511,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_participant_oversized_count_is_rejected_
     server.EnterSigningState();
 
     const size_t max_txins{CoinJoin::GetMaxPoolInputOutputCount()};
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     WriteCompactSize(stream, max_txins + 1);
 
     BOOST_CHECK_NO_THROW(server.ProcessMessage(*participant, NetMsgType::DSSIGNFINALTX, stream));
@@ -523,7 +523,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_participant_oversized_count_is_rejected_
     // CoinJoin-level violation: it throws the standard deserialization error out
     // to net processing. No txin is materialized and the session is left intact,
     // so honest participants are unaffected.
-    CDataStream huge_stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream huge_stream{};
     WriteCompactSize(huge_stream, uint64_t{MAX_SIZE} + 1);
 
     BOOST_CHECK_THROW(server.ProcessMessage(*participant, NetMsgType::DSSIGNFINALTX, huge_stream),
@@ -752,7 +752,7 @@ BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
             entry.vecTxDSIn.resize(count);
             entry.vecTxOut.resize(count);
 
-            CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+            DataStream stream{};
             stream << entry;
 
             CCoinJoinEntry roundtripped;
@@ -766,7 +766,7 @@ BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
 BOOST_AUTO_TEST_CASE(entry_rejects_inputs_above_wire_cap_before_materializing)
 {
     const size_t wire_cap{CoinJoin::GetMaxPoolInputOutputCount()};
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     WriteCompactSize(stream, wire_cap + 1);
 
     CCoinJoinEntry entry;
@@ -777,7 +777,7 @@ BOOST_AUTO_TEST_CASE(entry_rejects_inputs_above_wire_cap_before_materializing)
 BOOST_AUTO_TEST_CASE(entry_rejects_outputs_above_wire_cap_before_materializing)
 {
     const size_t wire_cap{CoinJoin::GetMaxPoolInputOutputCount()};
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     WriteCompactSize(stream, 0);
     stream << MakeTransactionRef(CMutableTransaction{});
     WriteCompactSize(stream, wire_cap + 1);

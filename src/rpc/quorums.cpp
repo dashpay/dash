@@ -1576,7 +1576,7 @@ static RPCHelpMan getquorumproofchain()
                     for (size_t i = 0; i < commitments.size(); ++i) {
                         const auto& commitment = commitments[i];
                         if (commitment.quorumHash != hash || static_cast<int>(commitment.llmqType) != type) continue;
-                        CDataStream raw(SER_NETWORK, PROTOCOL_VERSION);
+                        DataStream raw{};
                         raw << commitment;
                         records.push_back({0, {UCharCast(raw.data()), UCharCast(raw.data()) + raw.size()}, llmq::ProofMerklePath::Build(leaves, i)});
                         found = true;

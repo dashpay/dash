@@ -62,7 +62,7 @@ void ExtractSpecialTxFilterElements(const CTransaction& tx, const std::function<
     case TRANSACTION_PROVIDER_REGISTER: {
         if (const auto opt_proTx = GetTxPayload<CProRegTx>(tx)) {
             // Add collateral outpoint
-            CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+            DataStream stream{};
             stream << opt_proTx->collateralOutpoint;
             addElement(MakeUCharSpan(stream));
 

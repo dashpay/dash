@@ -145,7 +145,7 @@ public:
     virtual void Interrupt() {}
     virtual void Schedule(CScheduler& scheduler) {}
 
-    virtual void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) {}
+    virtual void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv) {}
 
     // It returns true, if NetHandler has a responsibility about having this type of inventory and has corresponding data.
     virtual bool AlreadyHave(const CInv& inv) { return false; }

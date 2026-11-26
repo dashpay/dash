@@ -34,7 +34,7 @@ class CSigningManager;
 //! per-vector limits. A wire count above the cap (outer batch count or running
 //! inner total) throws std::ios_base::failure once detected, leaving the caller
 //! to log, ban, and rethrow uniformly.
-std::vector<CBatchedSigShares> UnserializeBatchedSigShares(CDataStream& vRecv);
+std::vector<CBatchedSigShares> UnserializeBatchedSigShares(DataStream& vRecv);
 
 class NetSigning final : public NetHandler, public CValidationInterface
 {
@@ -48,7 +48,7 @@ public:
     {
         workInterrupt.reset();
     }
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv) override;
 
     [[nodiscard]] bool ProcessPendingRecoveredSigs();
     void ProcessRecoveredSig(std::shared_ptr<const CRecoveredSig> recoveredSig, bool consider_proactive_relay);

@@ -193,7 +193,7 @@ BOOST_AUTO_TEST_CASE(commitment_serialization_test)
     CFinalCommitment commitment = CreateValidCommitment(TEST_PARAMS, GetTestQuorumHash(1));
 
     // Test serialization preserves all fields
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss{};
     ss << commitment;
 
     CFinalCommitment deserialized;
@@ -366,7 +366,7 @@ CFinalCommitment RoundTripWithVersion(const CFinalCommitment& commitment, uint16
     BOOST_REQUIRE_EQUAL(buf[1], 0);
     buf[0] = static_cast<unsigned char>(wire_version);
     buf[1] = static_cast<unsigned char>(wire_version >> 8);
-    CDataStream in(buf, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream in{buf};
     CFinalCommitment out;
     BOOST_CHECK_NO_THROW(in >> out);
     BOOST_CHECK(in.empty());
