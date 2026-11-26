@@ -5,6 +5,9 @@
 #include <util/feefrac.h>
 #include <random.h>
 
+#include <compare>
+#include <vector>
+
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(feefrac_tests)
@@ -82,43 +85,79 @@ BOOST_AUTO_TEST_CASE(feefrac_operators)
 
 }
 
-BOOST_AUTO_TEST_CASE(build_diagram_test)
+BOOST_AUTO_TEST_CASE(feerate_chunks_utilities)
 {
-    FeeFrac p1{1000, 100};
-    FeeFrac empty{0, 0};
-    FeeFrac zero_fee{0, 1};
-    FeeFrac oversized_1{4611686000000, 4000000};
-    FeeFrac oversized_2{184467440000000, 100000};
+    // Sanity check the correctness of the feerate chunks comparison.
 
-    // Diagram-building will reorder chunks
-    std::vector<FeeFrac> chunks;
-    chunks.push_back(p1);
-    chunks.push_back(zero_fee);
-    chunks.push_back(empty);
-    chunks.push_back(oversized_1);
-    chunks.push_back(oversized_2);
+    // A strictly better case.
+    std::vector<FeeFrac> old_chunks{{{950, 300}, {100, 100}}};
+    std::vector<FeeFrac> new_chunks{{{1000, 300}, {50, 100}}};
 
-    // Caller in charge of sorting chunks in case chunk size limit
-    // differs from cluster size limit
-    std::sort(chunks.begin(), chunks.end(), [](const FeeFrac& a, const FeeFrac& b) { return a > b; });
+    BOOST_CHECK(std::is_lt(CompareChunks(old_chunks, new_chunks)));
+    BOOST_CHECK(std::is_gt(CompareChunks(new_chunks, old_chunks)));
 
-    // Chunks are now sorted in reverse order (largest first)
-    BOOST_CHECK(chunks[0] == empty); // empty is considered "highest" fee
-    BOOST_CHECK(chunks[1] == oversized_2);
-    BOOST_CHECK(chunks[2] == oversized_1);
-    BOOST_CHECK(chunks[3] == p1);
-    BOOST_CHECK(chunks[4] == zero_fee);
+    // Incomparable diagrams
+    old_chunks = {{950, 300}, {100, 100}};
+    new_chunks = {{1000, 300}, {0, 100}};
 
-    std::vector<FeeFrac> generated_diagram{BuildDiagramFromChunks(chunks)};
-    BOOST_CHECK(generated_diagram.size() == 1 + chunks.size());
+    BOOST_CHECK(CompareChunks(old_chunks, new_chunks) == std::partial_ordering::unordered);
+    BOOST_CHECK(CompareChunks(new_chunks, old_chunks) == std::partial_ordering::unordered);
 
-    // Prepended with an empty, then the chunks summed in order as above
-    BOOST_CHECK(generated_diagram[0] == empty);
-    BOOST_CHECK(generated_diagram[1] == empty);
-    BOOST_CHECK(generated_diagram[2] == oversized_2);
-    BOOST_CHECK(generated_diagram[3] == oversized_2 + oversized_1);
-    BOOST_CHECK(generated_diagram[4] == oversized_2 + oversized_1 + p1);
-    BOOST_CHECK(generated_diagram[5] == oversized_2 + oversized_1 + p1 + zero_fee);
+    // Strictly better but smaller size.
+    old_chunks = {{950, 300}, {100, 100}};
+    new_chunks = {{1100, 300}};
+
+    BOOST_CHECK(std::is_lt(CompareChunks(old_chunks, new_chunks)));
+    BOOST_CHECK(std::is_gt(CompareChunks(new_chunks, old_chunks)));
+
+    // New diagram is strictly better due to the first chunk, even though
+    // second chunk contributes no fees
+    old_chunks = {{950, 300}, {100, 100}};
+    new_chunks = {{1100, 100}, {0, 100}};
+
+    BOOST_CHECK(std::is_lt(CompareChunks(old_chunks, new_chunks)));
+    BOOST_CHECK(std::is_gt(CompareChunks(new_chunks, old_chunks)));
+
+    // Feerate of first new chunk is better with, but second chunk is worse
+    old_chunks = {{950, 300}, {100, 100}};
+    new_chunks = {{750, 100}, {249, 250}, {151, 650}};
+
+    BOOST_CHECK(CompareChunks(old_chunks, new_chunks) == std::partial_ordering::unordered);
+    BOOST_CHECK(CompareChunks(new_chunks, old_chunks) == std::partial_ordering::unordered);
+
+    // If we make the second chunk slightly better, the new diagram now wins.
+    old_chunks = {{950, 300}, {100, 100}};
+    new_chunks = {{750, 100}, {250, 250}, {150, 150}};
+
+    BOOST_CHECK(std::is_lt(CompareChunks(old_chunks, new_chunks)));
+    BOOST_CHECK(std::is_gt(CompareChunks(new_chunks, old_chunks)));
+
+    // Identical diagrams, cannot be strictly better
+    old_chunks = {{950, 300}, {100, 100}};
+    new_chunks = {{950, 300}, {100, 100}};
+
+    BOOST_CHECK(std::is_eq(CompareChunks(old_chunks, new_chunks)));
+    BOOST_CHECK(std::is_eq(CompareChunks(new_chunks, old_chunks)));
+
+    // Same aggregate fee, but different total size (trigger single tail fee check step)
+    old_chunks = {{950, 300}, {100, 99}};
+    new_chunks = {{950, 300}, {100, 100}};
+
+    // No change in evaluation when tail check needed.
+    BOOST_CHECK(std::is_gt(CompareChunks(old_chunks, new_chunks)));
+    BOOST_CHECK(std::is_lt(CompareChunks(new_chunks, old_chunks)));
+
+    // Trigger multiple tail fee check steps
+    old_chunks = {{950, 300}, {100, 99}};
+    new_chunks = {{950, 300}, {100, 100}, {0, 1}, {0, 1}};
+
+    BOOST_CHECK(std::is_gt(CompareChunks(old_chunks, new_chunks)));
+    BOOST_CHECK(std::is_lt(CompareChunks(new_chunks, old_chunks)));
+
+    // Multiple tail fee check steps, unordered result
+    new_chunks = {{950, 300}, {100, 100}, {0, 1}, {0, 1}, {1, 1}};
+    BOOST_CHECK(CompareChunks(old_chunks, new_chunks) == std::partial_ordering::unordered);
+    BOOST_CHECK(CompareChunks(new_chunks, old_chunks) == std::partial_ordering::unordered);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
