@@ -460,8 +460,7 @@ BOOST_AUTO_TEST_CASE(bls_check_runs_under_the_scheme_it_was_given)
 {
     // ConnectBlock builds commitment checks with the block's scheme, and
     // CCheckQueue runs them on other threads.
-    CCheckQueue<utils::BlsCheck> queue{/*nBatchSizeIn=*/1};
-    queue.StartWorkerThreads(/*threads_num=*/2);
+    CCheckQueue<utils::BlsCheck> queue{/*batch_size=*/1, /*worker_threads_num=*/2};
     const uint256 msg_hash{GetRandHash()};
     std::vector<CBLSSecretKey> sks(3);
     std::vector<CBLSPublicKey> pks;
@@ -494,7 +493,6 @@ BOOST_AUTO_TEST_CASE(bls_check_runs_under_the_scheme_it_was_given)
             BOOST_CHECK(!run({check}));
         }
     }
-    queue.StopWorkerThreads();
 }
 
 BOOST_AUTO_TEST_CASE(batched_sig_shares_rejects_oversized_inner_vector)

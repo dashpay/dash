@@ -20,7 +20,7 @@
 #include <interfaces/coinjoin.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
-#include <validation.h> // for DEFAULT_SCRIPTCHECK_THREADS and MAX_SCRIPTCHECK_THREADS
+#include <node/chainstatemanager_args.h>
 #include <netbase.h>
 #include <txdb.h> // for -dbcache defaults
 #include <util/strencodings.h>

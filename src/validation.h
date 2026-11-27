@@ -10,6 +10,7 @@
 #include <arith_uint256.h>
 #include <attributes.h>
 #include <chain.h>
+#include <checkqueue.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
 #include <evo/types.h>
@@ -77,10 +78,6 @@ namespace util {
 class SignalInterrupt;
 } // namespace util
 
-/** Maximum number of dedicated script-checking threads allowed */
-static const int MAX_SCRIPTCHECK_THREADS = 15;
-/** -par default (number of script-checking threads, 0 = auto) */
-static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
 /** Number of headers sent in one getheaders result. We rely on the assumption that if a peer sends
  *  less than this number, we reached its tip. Changing this value is a protocol upgrade. */
 static const unsigned int MAX_HEADERS_UNCOMPRESSED_RESULT = 2000;
@@ -115,11 +112,6 @@ extern uint256 g_best_block;
 
 /** Documentation for argument 'checklevel'. */
 extern const std::vector<std::string> CHECKLEVEL_DOC;
-
-/** Run instances of script checking worker threads */
-void StartScriptCheckWorkerThreads(int threads_num);
-/** Stop all of the script checking worker threads */
-void StopScriptCheckWorkerThreads();
 
 double ConvertBitsToDouble(unsigned int nBits);
 /**
@@ -981,6 +973,9 @@ private:
     SteadyClock::duration GUARDED_BY(::cs_main) time_chainstate{};
     SteadyClock::duration GUARDED_BY(::cs_main) time_post_connect{};
 
+    //! A queue for script verifications that have to be performed by worker threads.
+    CCheckQueue<CScriptCheck> m_script_check_queue;
+
 public:
     using Options = kernel::ChainstateManagerOpts;
 
@@ -1297,6 +1292,8 @@ public:
     //!
     //! @sa node/chainstate:LoadChainstate()
     bool ValidatedSnapshotCleanup() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    CCheckQueue<CScriptCheck>& GetCheckQueue() { return m_script_check_queue; }
 
     ~ChainstateManager();
 };

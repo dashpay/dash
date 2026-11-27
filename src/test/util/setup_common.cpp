@@ -336,6 +336,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .superblock_status = [&sbman = *m_node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
         .mn_sync = m_node.mn_sync.get(),
         .notifications = *m_node.notifications,
+        .worker_threads_num = 2,
     };
     const BlockManager::Options blockman_opts{
         .chainparams = chainparams,
@@ -349,15 +350,11 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .memory_only = true});
 
     m_node.clhandler = std::make_unique<chainlock::ChainlockHandler>(*m_node.chainlocks, *m_node.chainman, *m_node.mempool, *m_node.mn_sync);
-
-    constexpr int script_check_threads = 2;
-    StartScriptCheckWorkerThreads(script_check_threads);
 }
 
 ChainTestingSetup::~ChainTestingSetup()
 {
     m_node.scheduler->stop();
-    StopScriptCheckWorkerThreads();
     GetMainSignals().FlushBackgroundCallbacks();
     GetMainSignals().UnregisterBackgroundSignalScheduler();
     m_node.mn_sync.reset();
