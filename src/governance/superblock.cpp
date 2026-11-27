@@ -20,6 +20,10 @@
 
 #include <univalue.h>
 
+#include <algorithm>
+#include <limits>
+#include <ranges>
+
 CAmount ParsePaymentAmount(const std::string& strAmount)
 {
     CAmount nAmount = 0;
@@ -329,6 +333,19 @@ ProposalWindow EstimateProposalWindow(int first_superblock, int payments, int su
         .start_epoch = EstimateBlockTime(first_superblock - superblock_cycle / 2, ref_height, ref_time),
         .end_epoch = EstimateBlockTime(last_superblock + superblock_cycle / 2, ref_height, ref_time),
     };
+}
+
+int CountRemainingPayments(const ProposalWindow& window, int next_superblock, int superblock_cycle, int ref_height,
+                           int64_t ref_time)
+{
+    if (superblock_cycle <= 0 || next_superblock < 0) return 0;
+    const auto estimate = [&](int n) {
+        return EstimateBlockTime(next_superblock + n * superblock_cycle, ref_height, ref_time);
+    };
+    const auto superblocks{std::views::iota(0, (std::numeric_limits<int>::max() - next_superblock) / superblock_cycle)};
+    const auto first{std::ranges::partition_point(superblocks, [&](int n) { return estimate(n) < window.start_epoch; })};
+    const auto last{std::ranges::partition_point(superblocks, [&](int n) { return estimate(n) <= window.end_epoch; })};
+    return static_cast<int>(std::max<std::ptrdiff_t>(0, last - first));
 }
 
 bool SuperblockManager::AddTrigger(std::shared_ptr<CGovernanceObject> obj, int cachedHeight)

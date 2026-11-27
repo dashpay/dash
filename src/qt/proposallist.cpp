@@ -759,6 +759,7 @@ void ProposalList::refreshColumnWidths()
     header->setSectionResizeMode(ProposalModel::Column::PAYMENT_AMOUNT, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::START_DATE, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::END_DATE, QHeaderView::ResizeToContents);
+    header->setSectionResizeMode(ProposalModel::Column::PAYMENTS_REMAINING, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::VOTING_STATUS, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::MY_VOTES, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::HASH, QHeaderView::ResizeToContents);

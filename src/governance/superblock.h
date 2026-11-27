@@ -130,6 +130,10 @@ struct ProposalWindow {
 ProposalWindow EstimateProposalWindow(int first_superblock, int payments, int superblock_cycle, int ref_height,
                                       int64_t ref_time);
 
+/** Payments left in a proposal's window: the superblocks from `next_superblock` onwards estimated to lie inside it. */
+int CountRemainingPayments(const ProposalWindow& window, int next_superblock, int superblock_cycle, int ref_height,
+                           int64_t ref_time);
+
 /**
  * Owns the set of active superblock triggers. Trigger lifecycle is fully
  * owned here; CGovernanceManager pushes new TRIGGER objects in via
