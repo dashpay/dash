@@ -52,7 +52,7 @@ void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CActiveMasternode
 
 MessageProcessingResult CMNAuth::ProcessMessage(CNode& peer, ServiceFlags node_services, CConnman& connman, CMasternodeMetaMan& mn_metaman,
                                                 const CActiveMasternodeManager* const mn_activeman, const CMasternodeSync& mn_sync,
-                                                const CDeterministicMNList& tip_mn_list, std::string_view msg_type, CDataStream& vRecv)
+                                                const CDeterministicMNList& tip_mn_list, std::string_view msg_type, DataStream& vRecv)
 {
     assert(mn_metaman.IsValid());
 

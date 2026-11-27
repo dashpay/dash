@@ -29,6 +29,7 @@
 #include <policy/settings.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <protocol_ser_params.h>
 #include <random.h>
 #include <saltedhasher.h>
 #include <scheduler.h>
@@ -5692,7 +5693,7 @@ void PeerManagerImpl::ProcessMessage(
         if (BuildSimplifiedMNListDiff(m_dmnman, m_chainman, *m_llmq_ctx.quorum_block_processor, *m_llmq_ctx.qman,
                                       cmd.baseBlockHash, cmd.blockHash, mnListDiff, strError))
         {
-            m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNLISTDIFF, mnListDiff));
+            m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNLISTDIFF, ProtocolSerParams::Network(pfrom.GetCommonVersion())(mnListDiff)));
         } else {
             strError = strprintf("getmnlistdiff failed for baseBlockHash=%s, blockHash=%s. error=%s", cmd.baseBlockHash.ToString(), cmd.blockHash.ToString(), strError);
             if (IsBlockDataUnavailableError(strError)) {
@@ -5764,7 +5765,7 @@ void PeerManagerImpl::ProcessMessage(
             peer->m_mnlist_request_token_bucket -= diffs_built - 1;
         }
         if (built) {
-            m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QUORUMROTATIONINFO, quorumRotationInfoRet));
+            m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::QUORUMROTATIONINFO, ProtocolSerParams::Network(pfrom.GetCommonVersion())(quorumRotationInfoRet)));
         } else {
             strError = strprintf("getquorumrotationinfo failed for size(baseBlockHashes)=%d, blockRequestHash=%s. error=%s", cmd.baseBlockHashes.size(), cmd.blockRequestHash.ToString(), strError);
             if (IsBlockDataUnavailableError(strError)) {

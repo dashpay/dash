@@ -252,7 +252,7 @@ public:
 
 protected:
     virtual bool MaybeDecrypt(const CBLSIESMultiRecipientObjects<CBLSSecretKey>& obj, size_t idx,
-                              CBLSSecretKey& ret_obj, int version)
+                              CBLSSecretKey& ret_obj)
     {
         return false;
     }

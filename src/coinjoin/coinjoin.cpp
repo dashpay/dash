@@ -45,7 +45,7 @@ uint256 CCoinJoinQueue::GetSignatureHash() const
 {
     return SerializeSigHash(*this);
 }
-uint256 CCoinJoinQueue::GetHash() const { return SerializeHash(*this, SER_NETWORK, PROTOCOL_VERSION); }
+uint256 CCoinJoinQueue::GetHash() const { return SerializeHash(*this); }
 
 bool CCoinJoinQueue::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {

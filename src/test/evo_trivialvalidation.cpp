@@ -75,7 +75,7 @@ void trivialvalidation_runner(ChainstateManager& chainman, std::string_view json
                                                                          : chainman.ActiveChain()[98]};
             assert(pindexPrev);
             // Raw transaction
-            CDataStream stream(ParseHex(test[3].get_str()), SER_NETWORK, PROTOCOL_VERSION);
+            DataStream stream{ParseHex(test[3].get_str())};
             stream >> tx;
             expected_err = (test.size() > 4) ? std::make_optional(test[4].get_str()) : std::nullopt;
             // Sanity check

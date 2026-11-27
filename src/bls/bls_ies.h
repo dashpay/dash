@@ -27,7 +27,7 @@ public:
         READWRITE(obj.ephemeralPubKey, obj.ivSeed, obj.data);
     }
 
-    bool Decrypt(size_t idx, const CBLSSecretKey& secretKey, CDataStream& decryptedDataRet) const;
+    bool Decrypt(size_t idx, const CBLSSecretKey& secretKey, DataStream& decryptedDataRet) const;
     bool IsValid() const;
 };
 
@@ -44,9 +44,9 @@ public:
         data = dataIn;
     }
 
-    bool Decrypt(size_t idx, const CBLSSecretKey& secretKey, Object& objRet, int nVersion) const
+    bool Decrypt(size_t idx, const CBLSSecretKey& secretKey, Object& objRet) const
     {
-        CDataStream ds(SER_NETWORK, nVersion);
+        DataStream ds{};
         if (!CBLSIESEncryptedBlob::Decrypt(idx, secretKey, ds)) {
             return false;
         }
@@ -87,15 +87,15 @@ template <typename Object>
 class CBLSIESMultiRecipientObjects : public CBLSIESMultiRecipientBlobs
 {
 public:
-    bool Encrypt(size_t idx, const CBLSPublicKey& recipient, const Object& obj, int nVersion)
+    bool Encrypt(size_t idx, const CBLSPublicKey& recipient, const Object& obj)
     {
-        CDataStream ds(SER_NETWORK, nVersion);
+        DataStream ds{};
         ds << obj;
         Blob blob(UCharCast(ds.data()), UCharCast(ds.data() + ds.size()));
         return CBLSIESMultiRecipientBlobs::Encrypt(idx, recipient, blob);
     }
 
-    bool Decrypt(size_t idx, const CBLSSecretKey& sk, Object& objectRet, int nVersion) const
+    bool Decrypt(size_t idx, const CBLSSecretKey& sk, Object& objectRet) const
     {
         Blob blob;
         if (!CBLSIESMultiRecipientBlobs::Decrypt(idx, sk, blob)) {
@@ -103,7 +103,7 @@ public:
         }
 
         try {
-            CDataStream ds(blob, SER_NETWORK, nVersion);
+            DataStream ds{blob};
             ds >> objectRet;
             return true;
         } catch (const std::exception&) {

@@ -31,7 +31,7 @@ const std::array<std::string_view, 4> DKG_MSG_TYPES = {
 template <typename Message>
 bool TypedDeserializeSucceeds(Span<const uint8_t> payload, const Consensus::LLMQParams& params)
 {
-    CDataStream ds{payload, SER_NETWORK, PROTOCOL_VERSION};
+    DataStream ds{payload};
     Message msg;
     try {
         ds >> msg;
@@ -65,7 +65,7 @@ template <typename Message>
 void CheckSerializedMessageIsAccepted(std::string_view msg_type, const Message& msg,
                                       const Consensus::LLMQParams& params)
 {
-    CDataStream ds{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream ds{};
     ds << msg;
     assert(llmq::CheckDKGMessageStructure(msg, params));
     assert(llmq::CheckDKGMessageWireStructure(msg_type, ds, params));
@@ -141,7 +141,7 @@ FUZZ_TARGET(dkg_message_framing)
 
     const std::vector<uint8_t> payload = fuzzed_data_provider.ConsumeRemainingBytes<uint8_t>();
 
-    const CDataStream payload_stream{payload, SER_NETWORK, PROTOCOL_VERSION};
+    const DataStream payload_stream{payload};
     const bool framing_ok = llmq::CheckDKGMessageWireStructure(msg_type, payload_stream, params);
     const bool typed_ok = TypedDeserializeSucceeds(msg_type, payload, params);
 

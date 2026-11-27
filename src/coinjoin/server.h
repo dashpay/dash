@@ -18,7 +18,7 @@
 
 class CActiveMasternodeManager;
 class CConnman;
-class CDataStream;
+class DataStream;
 class CDeterministicMNManager;
 class CDSTXManager;
 class ChainstateManager;
@@ -224,10 +224,10 @@ private:
     /// Addresses of the participants that submitted an entry to the current session
     std::vector<CService> GetParticipantAddrs() const EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
-    void ProcessDSACCEPT(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
-    void ProcessDSQUEUE(NodeId from, CDataStream& vRecv);
-    void ProcessDSVIN(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
-    void ProcessDSSIGNFINALTX(CNode& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
+    void ProcessDSACCEPT(CNode& peer, DataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin);
+    void ProcessDSQUEUE(NodeId from, DataStream& vRecv);
+    void ProcessDSVIN(CNode& peer, DataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
+    void ProcessDSSIGNFINALTX(CNode& peer, DataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
 
     void SetNull() override EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
@@ -241,7 +241,7 @@ public:
                              const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman);
     ~CCoinJoinServer() override;
 
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
     bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) override;
     bool AlreadyHave(const CInv& inv) override;

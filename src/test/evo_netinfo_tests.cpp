@@ -13,7 +13,6 @@
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
-#include <clientversion.h>
 #include <netbase.h>
 #include <streams.h>
 #include <util/strencodings.h>
@@ -337,7 +336,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_ports_mainnet_only, TestNetSetup)
     };
 
     // Outside mainnet, these port rules don't apply
-    std::vector<CDataStream> serialized;
+    std::vector<DataStream> serialized;
     for (const auto& [type, entries, _] : vals) {
         ExtNetInfo net_info;
         for (const auto& [purpose, entry] : entries) {
@@ -346,7 +345,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_ports_mainnet_only, TestNetSetup)
         BOOST_CHECK_EQUAL(net_info.Validate(), NetInfoStatus::Success);
         TxValidationState state;
         BOOST_CHECK(check_fields(std::make_shared<ExtNetInfo>(net_info), type, state));
-        serialized.emplace_back(SER_DISK, CLIENT_VERSION) << net_info;
+        serialized.emplace_back() << net_info;
     }
 
     // A serialized ProTx carries its entries as-is, so consensus on mainnet must apply the rules to the
@@ -414,14 +413,14 @@ BOOST_FIXTURE_TEST_CASE(ipv4_primaries_follow_activation, TestNetSetup)
         BOOST_CHECK_EQUAL(state.GetRejectReason(), val.reject_reason);
     };
 
-    std::vector<CDataStream> serialized;
+    std::vector<DataStream> serialized;
     for (const auto& val : vals) {
         auto net_info{std::make_shared<ExtNetInfo>()};
         for (const auto& [purpose, entry] : val.entries) {
             BOOST_CHECK_EQUAL(net_info->AddEntry(purpose, entry), NetInfoStatus::Success);
         }
         check(net_info, val);
-        serialized.emplace_back(SER_DISK, CLIENT_VERSION) << *net_info;
+        serialized.emplace_back() << *net_info;
     }
 
     // The rule depends on the activation, not the network. Validate(), which also checks stored masternode states
@@ -556,7 +555,7 @@ BOOST_AUTO_TEST_CASE(netinfo_ser)
 {
     {
         // An empty object should only store one byte to denote it is invalid
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         NetInfoEntry entry{};
         ds << entry;
         BOOST_CHECK_EQUAL(ds.size(), sizeof(uint8_t));
@@ -564,7 +563,7 @@ BOOST_AUTO_TEST_CASE(netinfo_ser)
 
     {
         // Reading a nonsense byte should return an empty object
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         NetInfoEntry entry{};
         ds << 0xfe;
         ds >> entry;
@@ -573,7 +572,7 @@ BOOST_AUTO_TEST_CASE(netinfo_ser)
 
     {
         // Reading an invalid CService should fail trivial validation and return an empty object
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         NetInfoEntry entry{};
         ds << NetInfoEntry::NetInfoType::Service << CNetAddr::V1(CService{});
         ds >> entry;
@@ -582,7 +581,7 @@ BOOST_AUTO_TEST_CASE(netinfo_ser)
 
     {
         // Reading an unrecognized type should fail trivial validation and return an empty object
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         NetInfoEntry entry{};
         ds << NetInfoEntry::NetInfoType::Service << uint256{};
         ds >> entry;
@@ -591,7 +590,7 @@ BOOST_AUTO_TEST_CASE(netinfo_ser)
 
     {
         // A valid CService should be constructable, readable and pass validation
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         CService service{LookupNumeric("1.1.1.1", Params().GetDefaultPort())};
         BOOST_CHECK(service.IsValid());
         NetInfoEntry entry{service}, entry2{};
@@ -608,7 +607,7 @@ BOOST_AUTO_TEST_CASE(netinfo_ser)
         service.SetSpecial("pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion");
         BOOST_CHECK(service.IsValid() && service.IsTor());
 
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         ds << NetInfoEntry::NetInfoType::Service << CNetAddr::V2(service);
 
         NetInfoEntry entry{};
@@ -629,7 +628,7 @@ BOOST_AUTO_TEST_CASE(netinfo_ser)
         BOOST_CHECK_EQUAL(netInfo.AddEntry(NetInfoPurpose::PLATFORM_HTTPS, "1.1.1.1:443"), NetInfoStatus::Success);
         BOOST_CHECK_EQUAL(netInfo.AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:9999"), NetInfoStatus::Success);
 
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         ds << netInfo;
         ExtNetInfo netInfo2;
         ds >> netInfo2;
@@ -814,9 +813,9 @@ BOOST_AUTO_TEST_CASE(domainport_rules)
 // That combination allowed a tiny ProTx ExtNetInfo payload to force repeated
 // allocate-and-zero of multi-megabyte strings. These tests pin the serialization
 // layer to reject oversized domain claims without performing the large allocation.
-static CDataStream MakeOversizedDomainPortStream(const size_t claimed_len)
+static DataStream MakeOversizedDomainPortStream(const size_t claimed_len)
 {
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    DataStream ds{};
     WriteCompactSize(ds, claimed_len);
     // Provide a full body so pre-fix code can complete the string read; the
     // bound must reject based on the CompactSize alone, not on a short read.
@@ -834,7 +833,7 @@ BOOST_AUTO_TEST_CASE(domainport_deser_rejects_oversized_string)
     // deserialization time (LIMITED_STRING), not accepted then failed later in
     // ValidateDomain.
     constexpr size_t kOversized{1000};
-    CDataStream ds{MakeOversizedDomainPortStream(kOversized)};
+    DataStream ds{MakeOversizedDomainPortStream(kOversized)};
 
     DomainPort domain;
     BOOST_CHECK_THROW(ds >> domain, std::ios_base::failure);
@@ -845,10 +844,10 @@ BOOST_AUTO_TEST_CASE(netinfoentry_domain_deser_rejects_oversized_string)
     // NetInfoEntry must not swallow the length-limit failure: rethrow so the
     // enclosing ProTx payload deserialization aborts and the peer is penalised.
     constexpr size_t kOversized{1000};
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    DataStream ds{};
     ds << uint8_t{NetInfoEntry::NetInfoType::Domain};
     {
-        CDataStream body{MakeOversizedDomainPortStream(kOversized)};
+        DataStream body{MakeOversizedDomainPortStream(kOversized)};
         ds.write(MakeByteSpan(body));
     }
 
@@ -867,7 +866,7 @@ BOOST_AUTO_TEST_CASE(extnetinfo_domain_amplification_rejected)
     constexpr size_t kClaimed{1 << 16}; // 64 KiB — large enough to prove, small enough to not OOM pre-fix
     constexpr size_t kEntries{8};
 
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    DataStream ds{};
     ds << uint8_t{1}; // ExtNetInfo version
     WriteCompactSize(ds, 1); // one purpose
     ds << NetInfoPurpose::PLATFORM_HTTPS;
@@ -889,14 +888,14 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_validate_deser, RegTestingSetup)
     // checks run on deserialization, so Validate() must catch them itself.
     const uint16_t port{9998};
 
-    auto write_header = [](CDataStream& ds, size_t n_purposes) {
+    auto write_header = [](DataStream& ds, size_t n_purposes) {
         ds << uint8_t{1}; // current version
         WriteCompactSize(ds, n_purposes);
     };
 
     {
         // Two identical entries under the same purpose
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         write_header(ds, 1);
         ds << NetInfoPurpose::CORE_P2P;
         WriteCompactSize(ds, 2);
@@ -911,7 +910,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_validate_deser, RegTestingSetup)
 
     {
         // List exceeds MAX_ENTRIES_EXTNETINFO per purpose
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         write_header(ds, 1);
         ds << NetInfoPurpose::CORE_P2P;
         WriteCompactSize(ds, MAX_ENTRIES_EXTNETINFO + 1);
@@ -933,7 +932,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_validate_deser, RegTestingSetup)
         const NetInfoEntry entry{domain};
         BOOST_CHECK(entry.IsTriviallyValid());
 
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         write_header(ds, 1);
         ds << NetInfoPurpose::CORE_P2P;
         WriteCompactSize(ds, 1);
@@ -947,7 +946,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_validate_deser, RegTestingSetup)
     {
         // A repeated purpose is rejected at deserialization, even if its entries would
         // otherwise be silently cleared instead of failing
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         write_header(ds, 2);
         ds << NetInfoPurpose::CORE_P2P;
         WriteCompactSize(ds, 1);
@@ -965,7 +964,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_validate_deser, RegTestingSetup)
              {NetInfoPurpose::PLATFORM_HTTPS, NetInfoPurpose::CORE_P2P},
              {static_cast<NetInfoPurpose>(3)},
          }) {
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         write_header(ds, purposes.size());
         for (const auto purpose : purposes) {
             ds << purpose;
@@ -979,7 +978,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_validate_deser, RegTestingSetup)
 
     // A cleared entry under a known purpose decodes but must not validate
     const auto with_entry = [&](auto&& write_entry) {
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         write_header(ds, 1);
         ds << NetInfoPurpose::CORE_P2P;
         WriteCompactSize(ds, 1);
@@ -987,10 +986,10 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_validate_deser, RegTestingSetup)
         return ds;
     };
     for (auto ds : {
-             with_entry([](CDataStream& s) { s << uint8_t{0x03}; }),                                                  // unknown type
-             with_entry([](CDataStream& s) { s << NetInfoEntry::NetInfoType::Invalid; }),                             // explicit invalid marker
-             with_entry([](CDataStream& s) { s << NetInfoEntry::NetInfoType::Service << CNetAddr::V2(CService{}); }), // unspecified address
-             with_entry([](CDataStream& s) { s << NetInfoEntry::NetInfoType::Service << uint8_t{2} << uint8_t{16}; }), // truncated service
+             with_entry([](DataStream& s) { s << uint8_t{0x03}; }),                                                  // unknown type
+             with_entry([](DataStream& s) { s << NetInfoEntry::NetInfoType::Invalid; }),                             // explicit invalid marker
+             with_entry([](DataStream& s) { s << NetInfoEntry::NetInfoType::Service << CNetAddr::V2(CService{}); }), // unspecified address
+             with_entry([](DataStream& s) { s << NetInfoEntry::NetInfoType::Service << uint8_t{2} << uint8_t{16}; }), // truncated service
          }) {
         ExtNetInfo netInfo;
         ds >> netInfo;
@@ -1003,7 +1002,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_validate_deser, RegTestingSetup)
              {NetInfoPurpose::PLATFORM_P2P, NetInfoStatus::BadPort},
              {NetInfoPurpose::CORE_P2P, NetInfoStatus::BadPort},
          }) {
-        CDataStream ds(SER_DISK, CLIENT_VERSION);
+        DataStream ds{};
         write_header(ds, 1);
         ds << purpose;
         WriteCompactSize(ds, 1);
@@ -1020,13 +1019,13 @@ BOOST_AUTO_TEST_CASE(domain_port_wire_compatibility)
     DomainPort domain;
     BOOST_REQUIRE_EQUAL(domain.Set("example.com", 443), DomainPort::Status::Success);
 
-    CDataStream encoded{SER_NETWORK, CLIENT_VERSION};
+    DataStream encoded{};
     encoded << domain;
-    CDataStream expected{SER_NETWORK, CLIENT_VERSION};
+    DataStream expected{};
     expected << std::string{"example.com"} << Using<BigEndianFormatter<2>>(uint16_t{443});
     BOOST_CHECK_EQUAL_COLLECTIONS(encoded.begin(), encoded.end(), expected.begin(), expected.end());
 
-    CDataStream oversized{SER_NETWORK, CLIENT_VERSION};
+    DataStream oversized{};
     oversized << NetInfoEntry::NetInfoType::Domain;
     constexpr size_t MAX_DOMAIN_LENGTH{253};
     WriteCompactSize(oversized, MAX_DOMAIN_LENGTH + 1);

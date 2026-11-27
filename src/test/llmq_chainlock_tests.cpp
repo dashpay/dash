@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(chainlock_serialization_test)
     ChainLockSig clsig = CreateChainLock(67890, GetTestBlockHash(42));
 
     // Test serialization preserves all fields
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss{};
     ss << clsig;
 
     ChainLockSig deserialized;
@@ -208,13 +208,13 @@ BOOST_AUTO_TEST_CASE(chainlock_edge_cases_test)
     BOOST_CHECK_EQUAL(clsig2.getHeight(), std::numeric_limits<int32_t>::max());
 
     // Test serialization with extreme values
-    CDataStream ss1(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss1{};
     ss1 << clsig1;
     ChainLockSig clsig1_deserialized;
     ss1 >> clsig1_deserialized;
     BOOST_CHECK_EQUAL(clsig1.getHeight(), clsig1_deserialized.getHeight());
 
-    CDataStream ss2(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss2{};
     ss2 << clsig2;
     ChainLockSig clsig2_deserialized;
     ss2 >> clsig2_deserialized;

@@ -41,7 +41,7 @@ public:
     bool hasQueue(const uint256& hash) const override;
     bool doForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func) override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
     MessageProcessingResult processMessage(CNode& peer, Chainstate& chainstate, CConnman& connman, CTxMemPool& mempool,
-                                           std::string_view msg_type, CDataStream& vRecv) override EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue, !cs_wallet_manager_map);
+                                           std::string_view msg_type, DataStream& vRecv) override EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue, !cs_wallet_manager_map);
     std::optional<CCoinJoinQueue> getQueueFromHash(const uint256& hash) const override;
     std::optional<int> getQueueSize() const override;
     std::vector<CDeterministicMNCPtr> getMixingMasternodes() override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
@@ -76,7 +76,7 @@ private:
     void CheckPendingObservations() EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
 
     [[nodiscard]] MessageProcessingResult ProcessDSQueue(NodeId from, CConnman& connman, std::string_view msg_type,
-                                                         CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue, !cs_wallet_manager_map);
+                                                         DataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue, !cs_wallet_manager_map);
 
     template <typename Callable>
     void ForEachCJClientMan(Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map)
@@ -229,7 +229,7 @@ void CJWalletManagerImpl::CheckPendingObservations()
 
 MessageProcessingResult CJWalletManagerImpl::processMessage(CNode& pfrom, Chainstate& chainstate, CConnman& connman,
                                                             CTxMemPool& mempool, std::string_view msg_type,
-                                                            CDataStream& vRecv)
+                                                            DataStream& vRecv)
 {
     ForEachCJClientMan([&](CCoinJoinClientManager& clientman) {
         clientman.ProcessMessage(pfrom, chainstate, connman, mempool, msg_type, vRecv);
@@ -241,7 +241,7 @@ MessageProcessingResult CJWalletManagerImpl::processMessage(CNode& pfrom, Chains
 }
 
 MessageProcessingResult CJWalletManagerImpl::ProcessDSQueue(NodeId from, CConnman& connman, std::string_view msg_type,
-                                                            CDataStream& vRecv)
+                                                            DataStream& vRecv)
 {
     assert(m_queueman);
 

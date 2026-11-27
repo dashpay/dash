@@ -17,7 +17,7 @@
 template <typename T>
 std::optional<T> GetTxPayload(const std::vector<unsigned char>& payload)
 {
-    CDataStream ds(payload, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ds{payload};
     try {
         T obj;
         ds >> obj;
@@ -37,7 +37,7 @@ std::optional<T> GetTxPayload(const TxType& tx, bool assert_type = true)
 template <typename T>
 void SetTxPayload(CMutableTransaction& tx, const T& payload)
 {
-    CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ds{};
     ds << payload;
     tx.vExtraPayload.assign(UCharCast(ds.data()), UCharCast(ds.data() + ds.size()));
 }

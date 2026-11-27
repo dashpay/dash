@@ -48,7 +48,7 @@ void FuncSign(const BLSScheme scheme)
 void FuncSerialize(const BLSScheme scheme)
 {
     CBLSSecretKey sk;
-    CDataStream ds2(SER_DISK, CLIENT_VERSION), ds3(SER_DISK, CLIENT_VERSION);
+    DataStream ds2{}, ds3{};
     uint256 msgHash = uint256::ONE;
 
     sk.MakeNewKey();
@@ -859,7 +859,7 @@ BOOST_AUTO_TEST_CASE(test_serialization_unserialization)
     lazy1.Set(obj);
 
     // Serialize the lazy object into a data stream.
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    DataStream ds{};
     lazy1.SerializeAs(ds, BLSScheme::Legacy);
 
     // Create a new instance and unserialize the data into it.
@@ -917,7 +917,7 @@ void CheckDecode(const DecodeRow& row)
     const auto bytes = ParseHex(row.hex);
     BOOST_REQUIRE_EQUAL(bytes.size(), T::SerSize);
     T obj;
-    CDataStream ds(bytes, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ds{bytes};
     bool threw = false;
     std::string what;
     try {
@@ -982,7 +982,7 @@ void CheckLazy(const Object& point, const Object& other)
     const std::vector<uint8_t> garbage(Object::SerSize, 0xff);
 
     auto hash_of = [](const std::vector<uint8_t>& bytes) {
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        HashWriter ss{};
         ss.write(MakeByteSpan(bytes));
         return ss.GetHash();
     };
@@ -990,7 +990,7 @@ void CheckLazy(const Object& point, const Object& other)
     if constexpr (is_pubkey) {
         for (const BLSScheme scheme : {BLSScheme::Legacy, BLSScheme::Basic}) {
             Lazy lazy;
-            CDataStream in(garbage, SER_DISK, CLIENT_VERSION);
+            DataStream in{garbage};
             lazy.Unserialize(in, scheme);
             std::vector<unsigned char> out;
             CVectorWriter writer(SER_DISK, CLIENT_VERSION, out, 0);
@@ -998,7 +998,7 @@ void CheckLazy(const Object& point, const Object& other)
             BOOST_CHECK(out == garbage);
 
             Lazy invalid;
-            CDataStream invalid_in(garbage, SER_DISK, CLIENT_VERSION);
+            DataStream invalid_in{garbage};
             invalid.Unserialize(invalid_in, scheme);
             const Object* decoded = nullptr;
             BOOST_CHECK_NO_THROW(decoded = &invalid.Get());
@@ -1007,15 +1007,15 @@ void CheckLazy(const Object& point, const Object& other)
         }
 
         Lazy legacy_wrapped;
-        CDataStream legacy_in(legacy_bytes, SER_DISK, CLIENT_VERSION);
+        DataStream legacy_in{legacy_bytes};
         legacy_wrapped.Unserialize(legacy_in, BLSScheme::Legacy);
         Lazy basic_wrapped;
-        CDataStream basic_in(basic_bytes, SER_DISK, CLIENT_VERSION);
+        DataStream basic_in{basic_bytes};
         basic_wrapped.Unserialize(basic_in, BLSScheme::Basic);
         BOOST_CHECK(legacy_wrapped == basic_wrapped);
 
         Lazy other_wrapped;
-        CDataStream other_in(other_bytes, SER_DISK, CLIENT_VERSION);
+        DataStream other_in{other_bytes};
         other_wrapped.Unserialize(other_in, BLSScheme::Legacy);
         BOOST_CHECK(legacy_wrapped != other_wrapped);
 
@@ -1030,7 +1030,7 @@ void CheckLazy(const Object& point, const Object& other)
             Lazy raw;
             const auto& bytes = from_scheme == BLSScheme::Legacy ? legacy_bytes : basic_bytes;
             const BLSScheme other_scheme{from_scheme == BLSScheme::Legacy ? BLSScheme::Basic : BLSScheme::Legacy};
-            CDataStream raw_in(bytes, SER_DISK, CLIENT_VERSION);
+            DataStream raw_in{bytes};
             raw.Unserialize(raw_in, from_scheme);
             std::vector<unsigned char> raw_out;
             CVectorWriter raw_writer(SER_DISK, CLIENT_VERSION, raw_out, 0);
@@ -1049,7 +1049,7 @@ void CheckLazy(const Object& point, const Object& other)
         }
 
         Lazy undecodable;
-        CDataStream garbage_in(garbage, SER_DISK, CLIENT_VERSION);
+        DataStream garbage_in{garbage};
         undecodable.Unserialize(garbage_in, BLSScheme::Legacy);
         std::vector<unsigned char> zeros_out;
         CVectorWriter zeros_writer(SER_DISK, CLIENT_VERSION, zeros_out, 0);
@@ -1058,7 +1058,7 @@ void CheckLazy(const Object& point, const Object& other)
         BOOST_CHECK(zeros_out == zeros);
     } else {
         Lazy lazy;
-        CDataStream in(garbage, SER_DISK, CLIENT_VERSION);
+        DataStream in{garbage};
         lazy.Unserialize(in);
         std::vector<unsigned char> out;
         CVectorWriter writer(SER_DISK, CLIENT_VERSION, out, 0);
@@ -1066,7 +1066,7 @@ void CheckLazy(const Object& point, const Object& other)
         BOOST_CHECK(out == garbage);
 
         Lazy invalid;
-        CDataStream invalid_in(garbage, SER_DISK, CLIENT_VERSION);
+        DataStream invalid_in{garbage};
         invalid.Unserialize(invalid_in);
         const Object* decoded = nullptr;
         BOOST_CHECK_NO_THROW(decoded = &invalid.Get());
@@ -1074,10 +1074,10 @@ void CheckLazy(const Object& point, const Object& other)
         BOOST_CHECK(!decoded->IsValid());
 
         Lazy basic_wrapped;
-        CDataStream basic_in(basic_bytes, SER_DISK, CLIENT_VERSION);
+        DataStream basic_in{basic_bytes};
         basic_wrapped.Unserialize(basic_in);
         Lazy other_wrapped;
-        CDataStream other_in(other_bytes, SER_DISK, CLIENT_VERSION);
+        DataStream other_in{other_bytes};
         other_wrapped.Unserialize(other_in);
         BOOST_CHECK(basic_wrapped != other_wrapped);
         BOOST_CHECK(basic_wrapped.Get() == point);

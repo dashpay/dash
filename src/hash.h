@@ -234,11 +234,9 @@ uint256 SerializeHash(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL
 }
 
 /** A writer that computes the hash a signed object's signature commits to: the object's serializer leaves the signature out. */
-class SigHashWriter : public CHashWriter
+class SigHashWriter : public HashWriter
 {
 public:
-    SigHashWriter() : CHashWriter{SER_GETHASH, PROTOCOL_VERSION} {}
-
     template <typename T>
     SigHashWriter& operator<<(const T& obj)
     {

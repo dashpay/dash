@@ -27,7 +27,7 @@ CDKGSessionHandler::CDKGSessionHandler(const Consensus::LLMQParams& _params) :
 CDKGSessionHandler::~CDKGSessionHandler() = default;
 
 void CDKGPendingMessages::PushPendingMessage(NodeId from, const uint256& sender_protx,
-                                             std::shared_ptr<CDataStream> pm, const uint256& hash)
+                                             std::shared_ptr<DataStream> pm, const uint256& hash)
 {
     LOCK(cs_messages);
 

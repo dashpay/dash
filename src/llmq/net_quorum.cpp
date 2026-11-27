@@ -74,7 +74,7 @@ void NetQuorum::Schedule(CScheduler& scheduler)
     scheduler.scheduleEvery([this] { m_qman.CleanupExpiredDataRequests(); }, std::chrono::minutes{1});
 }
 
-void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
+void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv)
 {
     if (msg_type == NetMsgType::QGETDATA) {
         if (!m_role || !m_role->IsMasternode() || (pfrom.GetVerifiedProRegTxHash().IsNull() && !pfrom.qwatch)) {
@@ -87,7 +87,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
         // response-only (QDATA). A smuggled value used to select the *_MISSING branches
         // that skip the rate-limit ban, so reject any longer payload by length — this
         // also catches an explicitly serialized UNDEFINED byte and trailing garbage.
-        if (vRecv.size() > GetSerializeSize(request, vRecv.GetVersion())) {
+        if (vRecv.size() > GetSerializeSize(request, PROTOCOL_VERSION)) {
             m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100, "oversized qgetdata");
             return;
         }
@@ -95,7 +95,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
 
         auto sendQDATA = [&](CQuorumDataRequest::Errors nError,
                              bool request_limit_exceeded,
-                             const CDataStream& body = CDataStream(SER_NETWORK, PROTOCOL_VERSION)) -> bool {
+                             const DataStream& body = DataStream{}) -> bool {
             bool misbehave = false;
             switch (nError) {
                 case (CQuorumDataRequest::Errors::NONE):
@@ -112,7 +112,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
                     break;
             }
             request.SetError(nError);
-            CDataStream ssResponse{SER_NETWORK, pfrom.GetCommonVersion()};
+            DataStream ssResponse{};
             ssResponse << request << Span{body};
             m_connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetCommonVersion()).Make(NetMsgType::QDATA, Span{ssResponse}));
             return misbehave;
@@ -169,7 +169,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
             return;
         }
 
-        CDataStream ssResponseData(SER_NETWORK, pfrom.GetCommonVersion());
+        DataStream ssResponseData{};
 
         // Check if request wants QUORUM_VERIFICATION_VECTOR data
         if (request.GetDataMask() & CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR) {
@@ -270,7 +270,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataS
     }
 }
 
-bool NetQuorum::ProcessContribQGETDATA(CDataStream& ssResponseData, const CQuorum& quorum,
+bool NetQuorum::ProcessContribQGETDATA(DataStream& ssResponseData, const CQuorum& quorum,
                                        CQuorumDataRequest& request,
                                        gsl::not_null<const CBlockIndex*> block_index) const
 {
@@ -300,7 +300,7 @@ bool NetQuorum::ProcessContribQGETDATA(CDataStream& ssResponseData, const CQuoru
     return false;
 }
 
-bool NetQuorum::ProcessContribQDATA(const CNode& pfrom, CDataStream& vRecv,
+bool NetQuorum::ProcessContribQDATA(const CNode& pfrom, DataStream& vRecv,
                                     CQuorum& quorum, const CQuorumDataRequest& request)
 {
     if (!(request.GetDataMask() & CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS)) {
@@ -336,7 +336,7 @@ bool NetQuorum::ProcessContribQDATA(const CNode& pfrom, CDataStream& vRecv,
     std::vector<CBLSSecretKey> vecSecretKeys;
     vecSecretKeys.resize(vecEncrypted.size());
     for (const auto i : util::irange(vecEncrypted.size())) {
-        if (!m_nodeman->Decrypt(vecEncrypted[i], memberIdx, vecSecretKeys[i], PROTOCOL_VERSION) ||
+        if (!m_nodeman->Decrypt(vecEncrypted[i], memberIdx, vecSecretKeys[i]) ||
             !vecSecretKeys[i].IsValid()) {
             // Reject an undecryptable or structurally-invalid (e.g. all-zero) share before
             // it reaches AggregateSecretKeys()/AggregateInsecure(), which asserts validity.

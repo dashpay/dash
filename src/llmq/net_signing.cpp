@@ -25,7 +25,7 @@
 #include <unordered_map>
 
 namespace llmq {
-std::vector<CBatchedSigShares> UnserializeBatchedSigShares(CDataStream& vRecv)
+std::vector<CBatchedSigShares> UnserializeBatchedSigShares(DataStream& vRecv)
 {
     std::vector<CBatchedSigShares> msgs;
     const uint64_t msgs_size{ReadCompactSize(vRecv, /*range_check=*/false)};
@@ -45,7 +45,7 @@ std::vector<CBatchedSigShares> UnserializeBatchedSigShares(CDataStream& vRecv)
     return msgs;
 }
 
-void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
+void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv)
 {
     if (msg_type == NetMsgType::QSIGREC) {
         auto recoveredSig = std::make_shared<CRecoveredSig>();

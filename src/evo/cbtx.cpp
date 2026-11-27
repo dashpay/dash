@@ -55,7 +55,7 @@ bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, bool is_v24_act
     // in the opposite scheme; bytes that decode in neither scheme made it throw, so they
     // are rejected here.
     if (cbTx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE) {
-        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        DataStream ss{};
         ss << cbTx.bestCLSignature;
         if (!cbTx.bestCLSignature.Get().IsValid()) {
             try {

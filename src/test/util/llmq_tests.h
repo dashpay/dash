@@ -14,6 +14,7 @@
 #include <consensus/params.h>
 #include <evo/evodb.h>
 #include <primitives/transaction.h>
+#include <protocol_ser_params.h>
 #include <random.h>
 #include <serialize.h>
 #include <streams.h>
@@ -96,16 +97,17 @@ template <typename T>
 inline bool TestSerializationRoundtrip(const T& obj)
 {
     // Datastreams we will compare at the end
-    CDataStream ss_obj(SER_NETWORK, PROTOCOL_VERSION);
-    CDataStream ss_obj_rt(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss_obj{};
+    DataStream ss_obj_rt{};
     // A temporary datastream to perform serialization round-trip
-    CDataStream ss_tmp(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss_tmp{};
     T obj_rt;
+    const auto params{ProtocolSerParams::Network(PROTOCOL_VERSION)};
 
-    ss_obj << obj;
-    ss_tmp << obj;
-    ss_tmp >> obj_rt;
-    ss_obj_rt << obj_rt;
+    ss_obj << params(obj);
+    ss_tmp << params(obj);
+    ss_tmp >> params(obj_rt);
+    ss_obj_rt << params(obj_rt);
 
     return ss_obj.str() == ss_obj_rt.str();
 }

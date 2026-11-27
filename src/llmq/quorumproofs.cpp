@@ -65,14 +65,14 @@ static void Require(bool condition, const char* message)
     if (!condition) throw std::runtime_error(message);
 }
 
-static void WriteBlob(CDataStream& out, const std::vector<unsigned char>& bytes)
+static void WriteBlob(DataStream& out, const std::vector<unsigned char>& bytes)
 {
     Require(bytes.size() <= MAX_PROOF_BYTES, "proof blob limit");
     out << static_cast<uint32_t>(bytes.size());
     out.write(AsBytes(Span{bytes}));
 }
 
-static std::vector<unsigned char> ReadBlob(CDataStream& in, size_t limit)
+static std::vector<unsigned char> ReadBlob(DataStream& in, size_t limit)
 {
     uint32_t size;
     in >> size;
@@ -82,14 +82,14 @@ static std::vector<unsigned char> ReadBlob(CDataStream& in, size_t limit)
     return bytes;
 }
 
-static void WritePath(CDataStream& out, const ProofMerklePath& path)
+static void WritePath(DataStream& out, const ProofMerklePath& path)
 {
     Require(path.siblings.size() <= 17, "proof path limit");
     out << path.index << path.count << static_cast<uint8_t>(path.siblings.size());
     for (const auto& hash : path.siblings) out << hash;
 }
 
-static ProofMerklePath ReadPath(CDataStream& in)
+static ProofMerklePath ReadPath(DataStream& in)
 {
     ProofMerklePath path;
     uint8_t size;
@@ -100,14 +100,14 @@ static ProofMerklePath ReadPath(CDataStream& in)
     return path;
 }
 
-static void WriteTransaction(CDataStream& out, const ProofTransaction& tx)
+static void WriteTransaction(DataStream& out, const ProofTransaction& tx)
 {
     Require(tx.transaction.size() <= 100000, "proof transaction limit");
     WriteBlob(out, tx.transaction);
     WritePath(out, tx.path);
 }
 
-static ProofTransaction ReadTransaction(CDataStream& in)
+static ProofTransaction ReadTransaction(DataStream& in)
 {
     ProofTransaction tx;
     tx.transaction = ReadBlob(in, 100000);
@@ -115,13 +115,13 @@ static ProofTransaction ReadTransaction(CDataStream& in)
     return tx;
 }
 
-static void WriteCertificate(CDataStream& out, const ProofCertificate& cert)
+static void WriteCertificate(DataStream& out, const ProofCertificate& cert)
 {
     out << cert.height << cert.header;
     cert.signature.Serialize(out);
 }
 
-static ProofCertificate ReadCertificate(CDataStream& in)
+static ProofCertificate ReadCertificate(DataStream& in)
 {
     ProofCertificate cert;
     in >> cert.height >> cert.header;
@@ -131,7 +131,7 @@ static ProofCertificate ReadCertificate(CDataStream& in)
 
 template <typename T> static std::vector<unsigned char> ConsensusBytes(const T& value)
 {
-    CDataStream out(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream out{};
     out << value;
     return {UCharCast(out.data()), UCharCast(out.data()) + out.size()};
 }
@@ -143,7 +143,7 @@ static CFinalCommitment ParseCommitment(const std::vector<unsigned char>& bytes,
     const auto key = Hash(bytes);
     CFinalCommitment commitment;
     if (!cache.Get(key, commitment)) {
-        CDataStream in(bytes, SER_NETWORK, PROTOCOL_VERSION);
+        DataStream in{bytes};
         in >> commitment;
         Require(in.empty() && (commitment.nVersion == 3 || commitment.nVersion == 4) &&
                 !commitment.IsNull() && commitment.quorumPublicKey.IsValid() &&
@@ -166,7 +166,7 @@ static CFinalCommitment ParseCommitment(const std::vector<unsigned char>& bytes,
 static CTransactionRef ParseTransaction(const std::vector<unsigned char>& bytes)
 {
     Require(bytes.size() != 64 && bytes.size() <= 100000, "transaction size");
-    CDataStream in(bytes, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream in{bytes};
     CMutableTransaction tx;
     in >> tx;
     Require(in.empty(), "trailing transaction data");
@@ -325,7 +325,7 @@ bool ProofCertificate::Verify(const CFinalCommitment& signer, uint32_t minimum, 
 std::vector<unsigned char> QuorumProofChain::Encode() const
 {
     Require(links.size() < MAX_PROOF_CERTIFICATES, "certificate limit");
-    CDataStream out(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream out{};
     out.write(AsBytes(Span{PROOF_MAGIC}));
     out << anchor;
     WriteBlob(out, seed);
@@ -350,7 +350,7 @@ std::vector<unsigned char> QuorumProofChain::Encode() const
 QuorumProofChain QuorumProofChain::Decode(const std::vector<unsigned char>& bytes)
 {
     Require(bytes.size() <= MAX_PROOF_BYTES, "proof size limit");
-    CDataStream in(bytes, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream in{bytes};
     std::array<char, 8> magic;
     in.read(AsWritableBytes(Span{magic}));
     Require(magic == PROOF_MAGIC, "proof version");
@@ -433,7 +433,7 @@ std::vector<unsigned char> EncodeBootstrap(const QuorumProofChain& proof, const 
                 state.blockHash == proof.target.header.GetHash() && state.masternodeRoot == cb.merkle_root_mn_list &&
                 state.quorumRoot == cb.merkle_root_quorums,
             "state does not match proof target");
-    CDataStream out(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream out{};
     WriteBlob(out, proof.Encode());
     out << static_cast<uint8_t>(records.size());
     for (const auto& record : records) {

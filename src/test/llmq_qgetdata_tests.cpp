@@ -92,10 +92,10 @@ std::unique_ptr<CNode> MakePeer(NodeId id)
     return peer;
 }
 
-CDataStream MakeQGetDataStream(Consensus::LLMQType llmq_type, const uint256& quorum_hash, uint16_t data_mask,
+DataStream MakeQGetDataStream(Consensus::LLMQType llmq_type, const uint256& quorum_hash, uint16_t data_mask,
                                const uint256& protx_hash)
 {
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     stream << static_cast<uint8_t>(llmq_type);
     stream << quorum_hash;
     stream << data_mask;

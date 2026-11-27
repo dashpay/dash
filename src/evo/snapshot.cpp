@@ -93,7 +93,7 @@ void ValidateMNEncoding(const T& obj)
 {
     // Use the decoder's actual accounting, including version-dependent fields,
     // rather than maintaining a second size formula.
-    CDataStream encoded{SER_DISK, CLIENT_VERSION};
+    DataStream encoded{};
     encoded << obj;
     SnapshotBoundedInput bounded{encoded, EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS};
     const T decoded{deserialize, bounded};
@@ -148,7 +148,7 @@ std::vector<QuorumReconstructionHeight> EvoSnapshotReconstructionHeights(
 
 uint256 CanonicalMNListHash(const CDeterministicMNList& list)
 {
-    CHashWriter writer{SER_DISK, CLIENT_VERSION};
+    HashWriter writer{};
     SerializeCanonicalMNList(writer, list);
     return writer.GetHash();
 }
@@ -338,7 +338,7 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
 uint256 GetEvoSnapshotHash(const EvoSnapshot& snapshot)
 {
     snapshot.Validate();
-    CDataStream stream{SER_DISK, CLIENT_VERSION};
+    DataStream stream{};
     stream << snapshot;
     uint256 hash;
     CSHA256().Write(UCharCast(stream.data()), stream.size()).Finalize(hash.begin());

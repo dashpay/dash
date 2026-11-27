@@ -167,16 +167,13 @@ template <typename Stream>
 class SnapshotBoundedInput
 {
 private:
-    Stream& m_source;
     HashVerifier<Stream> m_stream;
     uint64_t m_compact_budget;
 
 public:
     SnapshotBoundedInput(Stream& stream, uint64_t compact_budget) :
-        m_source{stream}, m_stream{stream}, m_compact_budget{compact_budget} {}
+        m_stream{stream}, m_compact_budget{compact_budget} {}
 
-    int GetType() const { return m_source.GetType(); }
-    int GetVersion() const { return m_source.GetVersion(); }
     void read(Span<std::byte> dst) { m_stream.read(dst); }
     void ignore(size_t size) { m_stream.ignore(size); }
 
@@ -194,7 +191,7 @@ public:
     void CheckCanonicalEncoding(const T& obj)
     {
         MaterializeLazyBLSFields(obj);
-        CHashWriter canonical{GetType(), GetVersion()};
+        HashWriter canonical{};
         canonical << obj;
         if (m_stream.GetHash() != canonical.GetHash()) {
             throw std::ios_base::failure("noncanonical MN object encoding");
@@ -426,7 +423,7 @@ MinedQuorumCommitment ReadMinedQuorumCommitment(Stream& s)
     s >> entry.mined_block_hash;
     // BLS decoding may normalize an opposite-scheme encoding to an invalid
     // object. Snapshot input must match the requested scheme's canonical bytes.
-    CHashWriter canonical{s.GetType(), s.GetVersion()};
+    HashWriter canonical{};
     canonical << BLSEncoded(commitment.quorumPublicKey, scheme) << commitment.quorumVvecHash
               << BLSEncoded(commitment.quorumSig, scheme) << BLSEncoded(commitment.membersSig, scheme);
     if (bls_input.GetHash() != canonical.GetHash()) {

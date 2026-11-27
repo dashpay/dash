@@ -37,7 +37,7 @@ uint256 CBLSIESEncryptedBlob::GetIV(size_t idx) const
     return iv;
 }
 
-bool CBLSIESEncryptedBlob::Decrypt(size_t idx, const CBLSSecretKey& secretKey, CDataStream& decryptedDataRet) const
+bool CBLSIESEncryptedBlob::Decrypt(size_t idx, const CBLSSecretKey& secretKey, DataStream& decryptedDataRet) const
 {
     CBLSPublicKey pk;
     if (!pk.DHKeyExchange(secretKey, ephemeralPubKey)) {

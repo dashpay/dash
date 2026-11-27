@@ -58,7 +58,7 @@ public:
     {
         workInterrupt.reset();
     }
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv) override;
 
     void Start() override;
     void Stop() override;

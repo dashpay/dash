@@ -57,7 +57,7 @@ public:
               int16_t worker_count, const QvvecSyncModeMap& sync_map, bool quorums_recovery);
 
     // NetHandler
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv) override;
     void Start() override;
     void Stop() override;
     void Interrupt() override { quorumThreadInterrupt(); }
@@ -92,10 +92,10 @@ private:
                                         gsl::not_null<const CBlockIndex*> pIndex) const;
     void StartCleanupOldQuorumDataThread(gsl::not_null<const CBlockIndex*> pIndex) const;
 
-    bool ProcessContribQGETDATA(CDataStream& ssResponseData, const CQuorum& quorum,
+    bool ProcessContribQGETDATA(DataStream& ssResponseData, const CQuorum& quorum,
                                 CQuorumDataRequest& request,
                                 gsl::not_null<const CBlockIndex*> block_index) const;
-    bool ProcessContribQDATA(const CNode& pfrom, CDataStream& vRecv,
+    bool ProcessContribQDATA(const CNode& pfrom, DataStream& vRecv,
                              CQuorum& quorum, const CQuorumDataRequest& request);
 
 private:

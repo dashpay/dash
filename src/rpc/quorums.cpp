@@ -17,7 +17,6 @@
 #include <llmq/observer.h>
 #include <llmq/quorumproofs.h>
 #include <evo/simplifiedmns.h>
-#include <clientversion.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
@@ -34,6 +33,7 @@
 #include <net_processing.h>
 #include <netmessagemaker.h>
 #include <node/context.h>
+#include <protocol_ser_params.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
 #include <rpc/util.h>
@@ -1576,7 +1576,7 @@ static RPCHelpMan getquorumproofchain()
                     for (size_t i = 0; i < commitments.size(); ++i) {
                         const auto& commitment = commitments[i];
                         if (commitment.quorumHash != hash || static_cast<int>(commitment.llmqType) != type) continue;
-                        CDataStream raw(SER_NETWORK, PROTOCOL_VERSION);
+                        DataStream raw{};
                         raw << commitment;
                         records.push_back({0, {UCharCast(raw.data()), UCharCast(raw.data()) + raw.size()}, llmq::ProofMerklePath::Build(leaves, i)});
                         found = true;
@@ -1591,8 +1591,8 @@ static RPCHelpMan getquorumproofchain()
                         const auto& entry = *sml->mnList[i];
                         if (!entry.isValid || entry.confirmedHash.IsNull() || entry.nType != MnType::Evo) continue;
                         // Exactly CalcHash's serialization, without the network-only version prefix.
-                        CDataStream raw(SER_GETHASH, CLIENT_VERSION);
-                        raw << entry;
+                        DataStream raw;
+                        raw << PROTOCOL_DISK(entry);
                         records.push_back({1, {UCharCast(raw.data()), UCharCast(raw.data()) + raw.size()}, llmq::ProofMerklePath::Build(leaves, i)});
                         ++included;
                     }

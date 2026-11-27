@@ -70,8 +70,8 @@ bool EraseMinedCommitmentIfUnreferenced(CEvoDB& evo_db, const Chainstate& chains
 template <typename T>
 static bool SerializedEqual(const T& lhs, const T& rhs)
 {
-    CDataStream lhs_stream{SER_DISK, CLIENT_VERSION};
-    CDataStream rhs_stream{SER_DISK, CLIENT_VERSION};
+    DataStream lhs_stream{};
+    DataStream rhs_stream{};
     lhs_stream << lhs;
     rhs_stream << rhs;
     return lhs_stream.size() == rhs_stream.size() &&
@@ -96,7 +96,7 @@ CQuorumBlockProcessor::~CQuorumBlockProcessor()
 }
 
 MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer, std::string_view msg_type,
-                                                              CDataStream& vRecv,
+                                                              DataStream& vRecv,
                                                               const ConsumeRequestFn& consume_request)
 {
     if (msg_type != NetMsgType::QFCOMMITMENT) {

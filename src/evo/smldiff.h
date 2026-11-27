@@ -13,6 +13,7 @@
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <merkleblock.h>
 #include <netaddress.h>
+#include <protocol_ser_params.h>
 #include <pubkey.h>
 #include <sync.h>
 #include <threadsafety.h>
@@ -66,17 +67,18 @@ public:
 
     SERIALIZE_METHODS(CSimplifiedMNListDiff, obj)
     {
-        if ((s.GetType() & SER_NETWORK) && s.GetVersion() >= MNLISTDIFF_VERSION_ORDER) {
+        const ProtocolSerParams& params = s.GetParams();
+        const bool network{params.fmt == ProtocolSerParams::Format::Network};
+        if (network && params.nVersion >= MNLISTDIFF_VERSION_ORDER) {
             READWRITE(obj.nVersion);
         }
         READWRITE(obj.baseBlockHash, obj.blockHash, obj.cbTxMerkleTree, obj.cbTx);
-        if ((s.GetType() & SER_NETWORK) && s.GetVersion() >= BLS_SCHEME_PROTO_VERSION &&
-            s.GetVersion() < MNLISTDIFF_VERSION_ORDER) {
+        if (network && params.nVersion >= BLS_SCHEME_PROTO_VERSION && params.nVersion < MNLISTDIFF_VERSION_ORDER) {
             READWRITE(obj.nVersion);
         }
         READWRITE(obj.deletedMNs, obj.mnList);
         READWRITE(obj.deletedQuorums, obj.newQuorums);
-        if ((s.GetType() & SER_NETWORK) && s.GetVersion() >= MNLISTDIFF_CHAINLOCKS_PROTO_VERSION) {
+        if (network && params.nVersion >= MNLISTDIFF_CHAINLOCKS_PROTO_VERSION) {
             READWRITE(obj.quorumsCLSigs);
         }
     }

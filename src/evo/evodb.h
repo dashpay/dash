@@ -174,8 +174,8 @@ public:
         V existing;
         bool write{true};
         if (transaction.Read(key, existing)) {
-            CDataStream existing_stream{SER_DISK, CLIENT_VERSION};
-            CDataStream value_stream{SER_DISK, CLIENT_VERSION};
+            DataStream existing_stream{};
+            DataStream value_stream{};
             existing_stream << existing;
             value_stream << value;
             const bool matches = existing_stream.size() == value_stream.size() &&
@@ -197,8 +197,8 @@ public:
             V pending;
             if (!context->root_transaction.ReadPending(key, pending)) continue;
 
-            CDataStream pending_stream{SER_DISK, CLIENT_VERSION};
-            CDataStream value_stream{SER_DISK, CLIENT_VERSION};
+            DataStream pending_stream{};
+            DataStream value_stream{};
             pending_stream << pending;
             value_stream << value;
             const bool matches = pending_stream.size() == value_stream.size() &&

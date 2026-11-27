@@ -82,7 +82,7 @@ namespace {
 template <typename TxType>
 uint256 ComputeStableUnlockHash(const TxType& tx)
 {
-    CDataStream ss(SER_GETHASH, PROTOCOL_VERSION);
+    DataStream ss{};
     ss << tx;
     std::fill(ss.end() - ASSET_UNLOCK_QUORUM_INFO_SIZE, ss.end(), std::byte{0});
     return Hash(ss);

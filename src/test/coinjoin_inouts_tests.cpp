@@ -18,6 +18,7 @@
 #include <node/connection_types.h>
 #include <policy/policy.h>
 #include <protocol.h>
+#include <protocol_ser_params.h>
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <script/sign.h>
@@ -358,7 +359,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
         // Descending output order requires verification against the canonical BIP69 transaction.
         CCoinJoinEntry original{{CTxDSIn{CTxIn{input}, previous_script, 0}},
                                {CTxOut{amount, P2PKHScript(participants - i)}}, CTransaction{collateral}};
-        CDataStream wire{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream wire{};
         wire << original;
         CCoinJoinEntry entry;
         wire >> entry;
@@ -391,7 +392,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
         LOCK(peer.cs_vSend);
         for (const auto& msg : peer.vSendMsg) {
             if (msg.m_type != NetMsgType::DSSTATUSUPDATE) continue;
-            CDataStream wire{msg.data, SER_NETWORK, PROTOCOL_VERSION};
+            DataStream wire{msg.data};
             CCoinJoinStatusUpdate status;
             wire >> status;
             if (status.nStatusUpdate == STATUS_REJECTED) return true;
@@ -403,7 +404,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_completes_with_legacy_and_full_signature
             LOCK(peer->cs_vSend);
             peer->vSendMsg.clear();
         }
-        CDataStream wire{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream wire{};
         wire << std::vector<CTxIn>{input};
         server.ProcessMessage(*peers[participant == participants - 1 ? 0 : participant], NetMsgType::DSSIGNFINALTX, wire);
     };
@@ -477,7 +478,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_nonparticipant_cannot_abort_session)
     BOOST_REQUIRE(!(nonparticipant->addr == participant->addr));
 
     const size_t max_txins{CoinJoin::GetMaxPoolInputOutputCount()};
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     WriteCompactSize(stream, max_txins + 1);
 
     BOOST_CHECK_NO_THROW(server.ProcessMessage(*nonparticipant, NetMsgType::DSSIGNFINALTX, stream));
@@ -510,7 +511,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_participant_oversized_count_is_rejected_
     server.EnterSigningState();
 
     const size_t max_txins{CoinJoin::GetMaxPoolInputOutputCount()};
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     WriteCompactSize(stream, max_txins + 1);
 
     BOOST_CHECK_NO_THROW(server.ProcessMessage(*participant, NetMsgType::DSSIGNFINALTX, stream));
@@ -522,7 +523,7 @@ BOOST_AUTO_TEST_CASE(server_signfinaltx_participant_oversized_count_is_rejected_
     // CoinJoin-level violation: it throws the standard deserialization error out
     // to net processing. No txin is materialized and the session is left intact,
     // so honest participants are unaffected.
-    CDataStream huge_stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream huge_stream{};
     WriteCompactSize(huge_stream, uint64_t{MAX_SIZE} + 1);
 
     BOOST_CHECK_THROW(server.ProcessMessage(*participant, NetMsgType::DSSIGNFINALTX, huge_stream),
@@ -751,7 +752,7 @@ BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
             entry.vecTxDSIn.resize(count);
             entry.vecTxOut.resize(count);
 
-            CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+            DataStream stream{};
             stream << entry;
 
             CCoinJoinEntry roundtripped;
@@ -765,7 +766,7 @@ BOOST_AUTO_TEST_CASE(entry_deserializes_vectors_through_wire_cap)
 BOOST_AUTO_TEST_CASE(entry_rejects_inputs_above_wire_cap_before_materializing)
 {
     const size_t wire_cap{CoinJoin::GetMaxPoolInputOutputCount()};
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     WriteCompactSize(stream, wire_cap + 1);
 
     CCoinJoinEntry entry;
@@ -776,7 +777,7 @@ BOOST_AUTO_TEST_CASE(entry_rejects_inputs_above_wire_cap_before_materializing)
 BOOST_AUTO_TEST_CASE(entry_rejects_outputs_above_wire_cap_before_materializing)
 {
     const size_t wire_cap{CoinJoin::GetMaxPoolInputOutputCount()};
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     WriteCompactSize(stream, 0);
     stream << MakeTransactionRef(CMutableTransaction{});
     WriteCompactSize(stream, wire_cap + 1);
@@ -1368,27 +1369,30 @@ BOOST_AUTO_TEST_CASE(dsa_rebalance_flag_version_gated_serialization)
                                   CCoinJoinAccept::FLAG_PROMOTION | CCoinJoinAccept::FLAG_DEMOTION);
     BOOST_CHECK(!dsaBoth.HasValidFlags());
 
+    const auto old_peer{ProtocolSerParams::Network(COINJOIN_REBALANCE_VERSION - 1)};
+    const auto new_peer{ProtocolSerParams::Network(COINJOIN_REBALANCE_VERSION)};
+
     // Old-version stream: the flags are silently dropped and the encoding matches a
     // flag-less dsa byte for byte
     {
-        CDataStream ssPlain(SER_NETWORK, COINJOIN_REBALANCE_VERSION - 1);
-        ssPlain << dsaPlain;
-        CDataStream ssRebalance(SER_NETWORK, COINJOIN_REBALANCE_VERSION - 1);
-        ssRebalance << dsaPromotion;
+        DataStream ssPlain;
+        ssPlain << old_peer(dsaPlain);
+        DataStream ssRebalance;
+        ssRebalance << old_peer(dsaPromotion);
         BOOST_CHECK(std::equal(ssPlain.begin(), ssPlain.end(), ssRebalance.begin(), ssRebalance.end()));
 
         CCoinJoinAccept dsaDecoded;
-        ssRebalance >> dsaDecoded;
+        ssRebalance >> old_peer(dsaDecoded);
         BOOST_CHECK_EQUAL(dsaDecoded.nDenom, dsaPromotion.nDenom);
         BOOST_CHECK(!dsaDecoded.IsRebalance());
     }
 
     // New-version stream: each direction round-trips distinctly
     for (const auto& dsa : {dsaPromotion, dsaDemotion}) {
-        CDataStream ss(SER_NETWORK, COINJOIN_REBALANCE_VERSION);
-        ss << dsa;
+        DataStream ss;
+        ss << new_peer(dsa);
         CCoinJoinAccept dsaDecoded;
-        ss >> dsaDecoded;
+        ss >> new_peer(dsaDecoded);
         BOOST_CHECK_EQUAL(dsaDecoded.nDenom, dsa.nDenom);
         BOOST_CHECK_EQUAL(dsaDecoded.IsPromotion(), dsa.IsPromotion());
         BOOST_CHECK_EQUAL(dsaDecoded.IsDemotion(), dsa.IsDemotion());
@@ -1396,10 +1400,10 @@ BOOST_AUTO_TEST_CASE(dsa_rebalance_flag_version_gated_serialization)
 
     // New-version encoding is exactly one byte longer than the legacy encoding
     {
-        CDataStream ssOld(SER_NETWORK, COINJOIN_REBALANCE_VERSION - 1);
-        ssOld << dsaPlain;
-        CDataStream ssNew(SER_NETWORK, COINJOIN_REBALANCE_VERSION);
-        ssNew << dsaPlain;
+        DataStream ssOld;
+        ssOld << old_peer(dsaPlain);
+        DataStream ssNew;
+        ssNew << new_peer(dsaPlain);
         BOOST_CHECK_EQUAL(ssNew.size(), ssOld.size() + 1);
     }
 }

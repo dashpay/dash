@@ -4,7 +4,6 @@
 
 #include <evo/dmnstate.h>
 
-#include <clientversion.h>
 #include <script/standard.h>
 #include <streams.h>
 
@@ -41,7 +40,7 @@ void CDeterministicMNStateDiffLegacy::MaterializeOperatorKeyFromBytes()
     // is known. A present version selects the scheme those bytes are decoded with.
     // NOLINTNEXTLINE(bls-legacy-scheme)
     const BLSScheme scheme{(fields & LegacyField_nVersion) ? state.OperatorKeyScheme() : BLSScheme::Legacy};
-    CDataStream stream{Span<const uint8_t>{pubKeyOperatorBytes}, SER_DISK, CLIENT_VERSION};
+    DataStream stream{Span<const uint8_t>{pubKeyOperatorBytes}};
     state.pubKeyOperator.Unserialize(stream, scheme);
 }
 

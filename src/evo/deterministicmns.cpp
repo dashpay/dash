@@ -1048,7 +1048,7 @@ static void ReinterpretOperatorKey(CBLSLazyPublicKey& key, const BLSScheme from,
     if (from == to || key == CBLSLazyPublicKey()) {
         return;
     }
-    CDataStream ss{SER_DISK, CLIENT_VERSION};
+    DataStream ss{};
     key.Serialize(ss, from);
     key.Unserialize(ss, to);
 }

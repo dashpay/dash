@@ -14,7 +14,7 @@
 #include <string_view>
 #include <vector>
 
-class CDataStream;
+class DataStream;
 class CBlockIndex;
 class uint256;
 
@@ -51,7 +51,7 @@ enum class QuorumPhase {
 class CDKGPendingMessages
 {
 public:
-    using BinaryMessage = std::pair<NodeId, std::shared_ptr<CDataStream>>;
+    using BinaryMessage = std::pair<NodeId, std::shared_ptr<DataStream>>;
 
 private:
     const size_t maxMessagesPerProTx;
@@ -78,7 +78,7 @@ public:
      * for hashing the payload and (for real peers) routing the erase-request
      * to PeerManager.
      */
-    void PushPendingMessage(NodeId from, const uint256& sender_protx, std::shared_ptr<CDataStream> pm,
+    void PushPendingMessage(NodeId from, const uint256& sender_protx, std::shared_ptr<DataStream> pm,
                             const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);
 
     std::list<BinaryMessage> PopPendingMessages(size_t maxCount) EXCLUSIVE_LOCKS_REQUIRED(!cs_messages);

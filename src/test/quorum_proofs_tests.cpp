@@ -473,7 +473,7 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     BOOST_REQUIRE(proof);
     BOOST_REQUIRE_EQUAL(proof->links.size(), 1U);
 
-    CDataStream stream(proof->links[0].mining.transaction, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream stream{proof->links[0].mining.transaction};
     CMutableTransaction mining;
     stream >> mining;
     // Two decoy commitments were mined ahead of it in the same block.
@@ -508,7 +508,7 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     leaves.reserve(target_set.size());
     for (const auto& commitment : target_set)
         leaves.push_back(::SerializeHash(commitment));
-    CDataStream raw(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream raw{};
     raw << target_set.front();
     const llmq::ProofProjection record{0,
                                        {UCharCast(raw.data()), UCharCast(raw.data()) + raw.size()},
@@ -566,7 +566,7 @@ BOOST_AUTO_TEST_CASE(tampering_cannot_authenticate_state) {
 BOOST_AUTO_TEST_CASE(warm_certificate_cache_binds_all_verification_inputs)
 {
     const auto proof = llmq::QuorumProofChain::Decode(ParseHex(TESTNET_PROOF));
-    CDataStream stream(proof.seed, SER_NETWORK, PROTOCOL_VERSION);
+    DataStream stream{proof.seed};
     llmq::CFinalCommitment signer;
     stream >> signer;
     const auto cert = proof.links.front().certificate;

@@ -16,7 +16,6 @@
 #include <netmessagemaker.h>
 #include <scheduler.h>
 #include <streams.h>
-#include <version.h>
 
 #include <vector>
 
@@ -27,7 +26,7 @@ bool IsEmptyBloomFilter(const CBloomFilter& filter)
 {
     // CBloomFilter does not expose its backing bytes. Governance uses an empty
     // filter as an object-fetch signal, so inspect the serialized vector field.
-    CDataStream serialized_filter{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream serialized_filter{};
     serialized_filter << filter;
 
     std::vector<unsigned char> filter_data;
@@ -77,7 +76,7 @@ void NetGovernance::Schedule(CScheduler& scheduler)
         Params().IsMockableChain() ? std::chrono::seconds{1} : std::chrono::seconds{5});
 }
 
-void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDataStream& vRecv)
+void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, DataStream& vRecv)
 {
     if (!m_gov_manager.IsValid()) return;
     // Until proposal collateral can be looked up, valid proposals would look invalid and their senders get punished
@@ -173,7 +172,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
     else if (msg_type == NetMsgType::MNGOVERNANCEOBJECT) {
         // MAKE SURE WE HAVE A VALID REFERENCE TO THE TIP BEFORE CONTINUING
         CGovernanceObject govobj;
-        vRecv >> govobj;
+        vRecv >> GOVERNANCE_NETWORK(govobj);
 
         uint256 nHash = govobj.GetHash();
 
@@ -207,7 +206,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, CDa
         // in CGovernanceVote scores the peer instead of falling through to
         // the outer log-only handler.
         try {
-            vRecv >> vote;
+            vRecv >> GOVERNANCE_NETWORK(vote);
         } catch (const std::ios_base::failure&) {
             m_peer_manager->PeerMisbehaving(peer.GetId(), 100, "malformed governance vote");
             return;
@@ -296,7 +295,7 @@ bool NetGovernance::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgM
 {
     if (inv.type == MSG_GOVERNANCE_OBJECT) {
         if (!m_gov_manager.HaveObjectForHash(inv.hash)) return false;
-        CDataStream ss(SER_NETWORK, pfrom.GetCommonVersion());
+        DataStream ss{};
         ss.reserve(1000);
         if (!m_gov_manager.SerializeObjectForHash(inv.hash, ss)) return false;
         m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECT, Span{ss}));
@@ -304,7 +303,7 @@ bool NetGovernance::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgM
     }
     if (inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
         if (!m_gov_manager.HaveVoteForHash(inv.hash)) return false;
-        CDataStream ss(SER_NETWORK, pfrom.GetCommonVersion());
+        DataStream ss{};
         ss.reserve(1000);
         if (!m_gov_manager.SerializeVoteForHash(inv.hash, ss)) return false;
         m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECTVOTE, Span{ss}));

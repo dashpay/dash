@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_CASE(quorum_snapshot_serialization_test)
     CQuorumSnapshot snapshot(activeMembers, skipMode, skipList);
     BOOST_CHECK(TestSerializationRoundtrip(snapshot));
 
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss{};
     ss << snapshot;
     CQuorumSnapshot deserialized;
     ss >> deserialized;
@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(quorum_snapshot_serialization_test)
     for (const auto mode : {SnapshotSkipMode::MODE_NO_SKIPPING, SnapshotSkipMode::MODE_SKIPPING_ENTRIES,
                             SnapshotSkipMode::MODE_NO_SKIPPING_ENTRIES, SnapshotSkipMode::MODE_ALL_SKIPPED}) {
         CQuorumSnapshot mode_snapshot({true, false, true}, mode, {1, 2, 3});
-        CDataStream mode_stream(SER_NETWORK, PROTOCOL_VERSION);
+        DataStream mode_stream{};
         mode_stream << mode_snapshot;
         CQuorumSnapshot mode_out;
         mode_stream >> mode_out;
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(quorum_snapshot_serialization_test)
         large_skip.push_back(i * 4);
     }
     const CQuorumSnapshot large(large_members, SnapshotSkipMode::MODE_SKIPPING_ENTRIES, large_skip);
-    CDataStream large_stream(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream large_stream{};
     large_stream << large;
     CQuorumSnapshot large_out;
     large_stream >> large_out;
@@ -150,14 +150,14 @@ BOOST_AUTO_TEST_CASE(get_quorum_rotation_info_base_block_hashes_limit_test)
         CGetQuorumRotationInfo info;
         info.blockRequestHash = GetTestBlockHash(100);
         info.baseBlockHashes.assign(count, GetTestBlockHash(1));
-        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        DataStream ss{};
         ss << info;
         return ss;
     }};
 
     // A request at the limit still round-trips.
     {
-        CDataStream ss{serialize_with_count(MAX_BASE_BLOCK_HASHES)};
+        DataStream ss{serialize_with_count(MAX_BASE_BLOCK_HASHES)};
         CGetQuorumRotationInfo parsed;
         BOOST_CHECK_NO_THROW(ss >> parsed);
         BOOST_CHECK_EQUAL(parsed.baseBlockHashes.size(), MAX_BASE_BLOCK_HASHES);
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(get_quorum_rotation_info_base_block_hashes_limit_test)
     // One past it is rejected before any element is decoded, so an unauthenticated peer
     // cannot make the server hold a list sized by MAX_PROTOCOL_MESSAGE_LENGTH.
     {
-        CDataStream ss{serialize_with_count(MAX_BASE_BLOCK_HASHES + 1)};
+        DataStream ss{serialize_with_count(MAX_BASE_BLOCK_HASHES + 1)};
         const size_t payload_after_count{ss.size() - 3}; // CompactSize for 4097 is 3 bytes
         CGetQuorumRotationInfo parsed;
         BOOST_CHECK_THROW(ss >> parsed, std::ios_base::failure);
@@ -234,12 +234,11 @@ BOOST_AUTO_TEST_CASE(quorum_snapshot_truncated_wire_is_rejected)
     // partial object. One-byte steps, not a stride, so a prefix the stride skipped
     // cannot be accepted.
     const CQuorumSnapshot snapshot({true, false, true}, SnapshotSkipMode::MODE_SKIPPING_ENTRIES, {1, 2, 3});
-    CDataStream full(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream full{};
     full << snapshot;
     const std::string data = full.str();
     for (size_t truncateAt = 1; truncateAt < data.size(); ++truncateAt) {
-        CDataStream truncated(std::vector<unsigned char>(data.begin(), data.begin() + truncateAt), SER_NETWORK,
-                              PROTOCOL_VERSION);
+        DataStream truncated{std::vector<unsigned char>(data.begin(), data.begin() + truncateAt)};
         CQuorumSnapshot deserialized;
         BOOST_CHECK_THROW(truncated >> deserialized, std::ios_base::failure);
     }

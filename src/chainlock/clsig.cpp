@@ -92,7 +92,7 @@ public:
             LOCK(m_mutex);
             if (m_entries.get(key, sig)) return sig;
         }
-        CDataStream in(Span<const uint8_t>{bytes}, SER_NETWORK, PROTOCOL_VERSION);
+        DataStream in{Span<const uint8_t>{bytes}};
         sig.Unserialize(in);
         if (sig.IsValid()) {
             LOCK(m_mutex);
@@ -131,7 +131,7 @@ constexpr size_t CBTX_CLSIG_OFFSET{2 + 4 + 32 + 32};
  *  be a function of the block alone. */
 std::array<uint8_t, CBLSSignature::SerSize> RawChainLockSignature(const std::vector<unsigned char>& payload)
 {
-    CDataStream in(Span<const uint8_t>{payload}.subspan(CBTX_CLSIG_OFFSET), SER_NETWORK, PROTOCOL_VERSION);
+    DataStream in{Span<const uint8_t>{payload}.subspan(CBTX_CLSIG_OFFSET)};
     uint64_t height_diff;
     in >> COMPACTSIZE(height_diff);
     std::array<uint8_t, CBLSSignature::SerSize> signature;

@@ -255,7 +255,7 @@ Uint256HashSet GetIdsFromLockable(const std::vector<COutPoint>& outpoints)
 }
 } // anonymous namespace
 
-void NetInstantSend::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
+void NetInstantSend::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv)
 {
     if (msg_type != NetMsgType::ISDLOCK) {
         return;

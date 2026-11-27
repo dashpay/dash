@@ -452,7 +452,7 @@ UniValue CSimplifiedMNListDiff::ToJson(bool extended) const
     obj.pushKV("baseBlockHash", baseBlockHash.ToString());
     obj.pushKV("blockHash", blockHash.ToString());
 
-    CDataStream ssCbTxMerkleTree(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssCbTxMerkleTree{};
     ssCbTxMerkleTree << cbTxMerkleTree;
     obj.pushKV("cbTxMerkleTree", HexStr(ssCbTxMerkleTree));
 

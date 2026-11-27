@@ -212,9 +212,9 @@ evo::EvoSnapshot SyntheticSnapshot(bool reverse_representation = false)
     return snapshot;
 }
 
-CDataStream SerializeSnapshot(const evo::EvoSnapshot& snapshot)
+DataStream SerializeSnapshot(const evo::EvoSnapshot& snapshot)
 {
-    CDataStream stream{SER_DISK, CLIENT_VERSION};
+    DataStream stream{};
     stream << snapshot;
     return stream;
 }
@@ -240,7 +240,7 @@ BOOST_FIXTURE_TEST_CASE(populated_roundtrip_and_representation_independence, Bas
     BOOST_CHECK(evo::CanonicalMNListHash(forward.mn_list) == evo::CanonicalMNListHash(reverse.mn_list));
     BOOST_CHECK(GetEvoSnapshotHash(forward) == GetEvoSnapshotHash(reverse));
 
-    CDataStream input{forward_bytes};
+    DataStream input{forward_bytes};
     evo::EvoSnapshot decoded;
     input >> decoded;
     BOOST_CHECK(input.empty());
@@ -309,7 +309,7 @@ BOOST_AUTO_TEST_CASE(rotation_bitset_larger_than_quorum_roundtrips)
     entry.snapshot.activeQuorumMembers[params.size + 1] = true;
     entry.snapshot.mnSkipListMode = SnapshotSkipMode::MODE_NO_SKIPPING;
 
-    CDataStream stream{SER_DISK, CLIENT_VERSION};
+    DataStream stream{};
     evo::WriteRotationSnapshot(stream, entry);
     const auto decoded{evo::ReadRotationSnapshot(stream, params)};
     BOOST_CHECK(stream.empty());
@@ -328,7 +328,7 @@ BOOST_FIXTURE_TEST_CASE(canonical_mn_reader_rejects_order_and_counter, BasicTest
     BOOST_CHECK(evo::CanonicalMNListHash(CDeterministicMNList{}) ==
                 evo::CanonicalMNListHash(CDeterministicMNList{}));
     const auto write_raw = [](uint32_t total, std::vector<CDeterministicMNCPtr> mns) {
-        CDataStream stream{SER_DISK, CLIENT_VERSION};
+        DataStream stream{};
         stream << H(42) << 42 << total;
         WriteCompactSize(stream, mns.size());
         for (const auto& dmn : mns) stream << *dmn;
@@ -362,8 +362,8 @@ BOOST_FIXTURE_TEST_CASE(diff_chain_roundtrip_and_canonical_determinism, BasicTes
     permuted.updatedMNs.clear();
     for (auto& update : updates) permuted.updatedMNs.emplace(std::move(update));
 
-    CDataStream canonical{SER_DISK, CLIENT_VERSION};
-    CDataStream reordered{SER_DISK, CLIENT_VERSION};
+    DataStream canonical{};
+    DataStream reordered{};
     evo::SerializeCanonicalMNListDiff(canonical, diff);
     evo::SerializeCanonicalMNListDiff(reordered, permuted);
     BOOST_CHECK_EQUAL_COLLECTIONS(canonical.begin(), canonical.end(), reordered.begin(), reordered.end());
@@ -402,7 +402,7 @@ BOOST_FIXTURE_TEST_CASE(inactive_mn_roundtrip, BasicTestingSetup)
             CDeterministicMNList base{H(41), 501, 10};
             if (!addition) base.AddMN(MN(2, 3, MnType::Regular, version, 3), /*fBumpTotalCount=*/false);
             const auto diff{base.BuildDiff(snapshot.mn_list)};
-            CDataStream encoded{SER_DISK, CLIENT_VERSION};
+            DataStream encoded{};
             evo::SerializeCanonicalMNListDiff(encoded, diff);
             const auto decoded_diff{evo::UnserializeCanonicalMNListDiff(encoded)};
             evo::EvoSnapshot historical;
@@ -448,7 +448,7 @@ BOOST_FIXTURE_TEST_CASE(historical_diff_applies_exchanged_unique_properties, Bas
     const CDeterministicMNList* endpoints[]{&older, &newer};
     for (const auto* from : endpoints) {
         const auto& to{from == &older ? newer : older};
-        CDataStream encoded{SER_DISK, CLIENT_VERSION};
+        DataStream encoded{};
         evo::SerializeCanonicalMNListDiff(encoded, from->BuildDiff(to));
         const auto diff{evo::UnserializeCanonicalMNListDiff(encoded)};
         BOOST_REQUIRE_EQUAL(diff.updatedMNs.size(), 2U);
@@ -519,7 +519,7 @@ BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingS
         const BLSScheme scheme{ProTxVersion::GetBLSScheme(static_cast<uint16_t>(version))};
         auto mn{std::make_shared<CDeterministicMN>(*MN(2, 3, MnType::Regular, version, 3))};
         auto state{std::make_shared<CDeterministicMNState>(*mn->pdmnState)};
-        CDataStream key_bytes{SER_DISK, CLIENT_VERSION};
+        DataStream key_bytes{};
         key_bytes.write(undecodable);
         key_bytes >> BLSEncoded(state->pubKeyOperator, scheme);
         mn->pdmnState = state;
@@ -527,20 +527,20 @@ BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingS
         // The lazy wrapper re-emits undecodable bytes verbatim until the key is
         // first read, after which it emits the empty key: two encodings of one
         // object, so the decoder must reject the bytes outright.
-        CDataStream lazy{SER_DISK, CLIENT_VERSION};
+        DataStream lazy{};
         lazy << *mn;
         BOOST_CHECK(!mn->pdmnState->pubKeyOperator.Get().IsValid());
-        CDataStream materialized{SER_DISK, CLIENT_VERSION};
+        DataStream materialized{};
         materialized << *mn;
         BOOST_REQUIRE(lazy.str() != materialized.str());
 
-        CDataStream list{SER_DISK, CLIENT_VERSION};
+        DataStream list{};
         list << H(42) << 500 << uint32_t{10};
         WriteCompactSize(list, 1);
         list.write(Span{lazy});
         BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNList(list), std::ios_base::failure, noncanonical);
 
-        CDataStream addition{SER_DISK, CLIENT_VERSION};
+        DataStream addition{};
         WriteCompactSize(addition, 1);
         addition.write(Span{lazy});
         WriteCompactSize(addition, 0);
@@ -552,10 +552,10 @@ BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingS
         state_diff.state.nVersion = version;
         key_bytes.write(undecodable);
         key_bytes >> BLSEncoded(state_diff.state.pubKeyOperator, scheme);
-        CDataStream update{SER_DISK, CLIENT_VERSION};
+        DataStream update{};
         WriteCompactSize(update, 0);
         WriteCompactSize(update, 1);
-        WriteVarInt<CDataStream, VarIntMode::DEFAULT, uint64_t>(update, 2);
+        WriteVarInt<DataStream, VarIntMode::DEFAULT, uint64_t>(update, 2);
         update << state_diff;
         WriteCompactSize(update, 0);
         BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNListDiff(update), std::ios_base::failure, noncanonical);
@@ -595,20 +595,20 @@ BOOST_FIXTURE_TEST_CASE(malformed_lazy_operator_keys_are_rejected, BasicTestingS
 BOOST_FIXTURE_TEST_CASE(unset_mn_id_is_rejected, BasicTestingSetup)
 {
     const auto mn{MN(2, 3, MnType::Regular, ProTxVersion::LegacyBLS, 3)};
-    CDataStream malformed{SER_DISK, CLIENT_VERSION};
+    DataStream malformed{};
     malformed << mn->proTxHash;
-    WriteVarInt<CDataStream, VarIntMode::DEFAULT, uint64_t>(malformed, std::numeric_limits<uint64_t>::max());
+    WriteVarInt<DataStream, VarIntMode::DEFAULT, uint64_t>(malformed, std::numeric_limits<uint64_t>::max());
     malformed << mn->collateralOutpoint << mn->nOperatorReward << mn->pdmnState << mn->nType;
     const auto invalid_id = [](const auto& e) {
         return std::string{e.what()}.find("invalid canonical MN internalId") != std::string::npos;
     };
-    CDataStream base{SER_DISK, CLIENT_VERSION};
+    DataStream base{};
     base << H(42) << 500 << uint32_t{10};
     WriteCompactSize(base, 1);
     base.write(Span{malformed});
     BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNList(base), std::ios_base::failure, invalid_id);
 
-    CDataStream addition{SER_DISK, CLIENT_VERSION};
+    DataStream addition{};
     WriteCompactSize(addition, 1);
     addition.write(Span{malformed});
     WriteCompactSize(addition, 0);
@@ -632,7 +632,7 @@ BOOST_FIXTURE_TEST_CASE(commitment_bls_wire_encoding_is_canonical, BasicTestingS
             entry.commitment.membersSig = SignBLS(key, H(2), scheme);
             const auto encode = [&](int opposite_field) {
                 auto& qc{entry.commitment};
-                CDataStream bytes{SER_DISK, CLIENT_VERSION};
+                DataStream bytes{};
                 bytes << entry.quorum_base_block_hash << entry.work_block_hash << qc.nVersion << qc.llmqType
                       << qc.quorumHash;
                 if (indexed) bytes << qc.quorumIndex;
@@ -660,7 +660,7 @@ BOOST_FIXTURE_TEST_CASE(commitment_bls_wire_encoding_is_canonical, BasicTestingS
                 auto ordinary_input{bytes};
                 evo::MinedQuorumCommitment ordinary;
                 BOOST_REQUIRE_NO_THROW(ordinary_input >> ordinary);
-                CDataStream normalized{SER_DISK, CLIENT_VERSION};
+                DataStream normalized{};
                 normalized << ordinary;
                 BOOST_REQUIRE(bytes.str() != normalized.str());
                 BOOST_CHECK_EXCEPTION(evo::ReadMinedQuorumCommitment(bytes), std::ios_base::failure, [](const auto& e) {
@@ -675,8 +675,8 @@ BOOST_FIXTURE_TEST_CASE(historical_diff_decode_has_cumulative_operation_budget, 
 {
     CDeterministicMNListDiff one_removal;
     one_removal.removedMns.emplace(1);
-    CDataStream first{SER_DISK, CLIENT_VERSION};
-    CDataStream second{SER_DISK, CLIENT_VERSION};
+    DataStream first{};
+    DataStream second{};
     evo::SerializeCanonicalMNListDiff(first, one_removal);
     evo::SerializeCanonicalMNListDiff(second, one_removal);
 
@@ -811,28 +811,28 @@ BOOST_FIXTURE_TEST_CASE(context_free_validation_matrix, BasicTestingSetup)
 
 BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTestingSetup)
 {
-    CDataStream mn_stream{SER_DISK, CLIENT_VERSION};
+    DataStream mn_stream{};
     mn_stream << H(1) << 1 << uint32_t{0};
     WriteCompactSize(mn_stream, evo::EVO_SNAPSHOT_MAX_MNS + 1);
     BOOST_CHECK_THROW(evo::UnserializeCanonicalMNList(mn_stream), std::ios_base::failure);
     BOOST_CHECK(mn_stream.empty());
 
-    const auto decode_quorum = [](CDataStream stream) {
+    const auto decode_quorum = [](DataStream stream) {
         evo::QuorumSnapshotData data;
         stream >> data;
     };
     const auto& plain_params{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST)};
     const size_t commitment_limit{evo::SnapshotCommitmentCount(plain_params, false)};
-    CDataStream active{SER_DISK, CLIENT_VERSION};
+    DataStream active{};
     active << Consensus::LLMQType::LLMQ_TEST << false;
     WriteCompactSize(active, plain_params.signingActiveQuorumCount + 1);
     BOOST_CHECK_THROW(decode_quorum(active), std::ios_base::failure);
-    CDataStream safety{SER_DISK, CLIENT_VERSION};
+    DataStream safety{};
     safety << Consensus::LLMQType::LLMQ_TEST << false;
     WriteCompactSize(safety, 0);
     WriteCompactSize(safety, commitment_limit - plain_params.signingActiveQuorumCount + 1);
     BOOST_CHECK_THROW(decode_quorum(safety), std::ios_base::failure);
-    CDataStream rotations{SER_DISK, CLIENT_VERSION};
+    DataStream rotations{};
     rotations << Consensus::LLMQType::LLMQ_TEST_DIP0024 << true;
     WriteCompactSize(rotations, 0);
     WriteCompactSize(rotations, 0);
@@ -840,17 +840,17 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     BOOST_CHECK_THROW(decode_quorum(rotations), std::ios_base::failure);
 
     const auto& rotated_params{evo::SnapshotLLMQParams(Consensus::LLMQType::LLMQ_TEST_DIP0024)};
-    CDataStream bitset{SER_DISK, CLIENT_VERSION};
+    DataStream bitset{};
     bitset << H(1) << H(2) << SnapshotSkipMode::MODE_NO_SKIPPING;
     WriteCompactSize(bitset, evo::EVO_SNAPSHOT_MAX_MNS + 1);
     BOOST_CHECK_THROW(evo::ReadRotationSnapshot(bitset, rotated_params), std::ios_base::failure);
-    CDataStream skip_list{SER_DISK, CLIENT_VERSION};
+    DataStream skip_list{};
     skip_list << H(1) << H(2) << SnapshotSkipMode::MODE_NO_SKIPPING;
     WriteCompactSize(skip_list, 0);
     WriteCompactSize(skip_list, rotated_params.size + 1);
     BOOST_CHECK_THROW(evo::ReadRotationSnapshot(skip_list, rotated_params), std::ios_base::failure);
 
-    CDataStream commitment_bits{SER_DISK, CLIENT_VERSION};
+    DataStream commitment_bits{};
     auto oversized_commitment{Commitment(Consensus::LLMQType::LLMQ_TEST, 1, 2, false)};
     oversized_commitment.commitment.signers.resize(plain_params.size + 1);
     commitment_bits << Consensus::LLMQType::LLMQ_TEST << false;
@@ -864,17 +864,17 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     // remain unread: rejection occurs at the mismatched claimed size.
     BOOST_CHECK_GT(commitment_bits.size(), uint256::size());
 
-    const auto commitment_prefix = [](CDataStream& s) {
+    const auto commitment_prefix = [](DataStream& s) {
         s << Consensus::LLMQType::LLMQ_TEST << false;
         WriteCompactSize(s, 1);
         s << H(1) << H(2) << uint16_t{llmq::CFinalCommitment::BASIC_BLS_NON_INDEXED_QUORUM_VERSION}
           << Consensus::LLMQType::LLMQ_TEST << H(1);
     };
-    CDataStream over_ceiling{SER_DISK, CLIENT_VERSION};
+    DataStream over_ceiling{};
     commitment_prefix(over_ceiling);
     WriteCompactSize(over_ceiling, evo::EVO_SNAPSHOT_MAX_QUORUM_SIZE + 1);
     BOOST_CHECK_THROW(decode_quorum(over_ceiling), std::ios_base::failure);
-    CDataStream empty_bits{SER_DISK, CLIENT_VERSION};
+    DataStream empty_bits{};
     commitment_prefix(empty_bits);
     WriteCompactSize(empty_bits, 0);
     BOOST_CHECK_THROW(decode_quorum(empty_bits), std::ios_base::failure);
@@ -884,13 +884,13 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     auto payout_state{std::make_shared<CDeterministicMNState>(*oversized_payout_mn->pdmnState)};
     payout_state->payouts.resize(evo::EVO_SNAPSHOT_MAX_PAYOUT_SHARES + 1);
     oversized_payout_mn->pdmnState = std::move(payout_state);
-    CDataStream payouts{SER_DISK, CLIENT_VERSION};
+    DataStream payouts{};
     payouts << H(42) << 42 << uint32_t{10};
     WriteCompactSize(payouts, 1);
     payouts << *oversized_payout_mn;
     BOOST_CHECK_THROW(evo::UnserializeCanonicalMNList(payouts), std::ios_base::failure);
 
-    CDataStream wrapped_string{SER_DISK, CLIENT_VERSION};
+    DataStream wrapped_string{};
     WriteCompactSize(wrapped_string, evo::EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS + 1);
     wrapped_string << uint8_t{0x42};
     evo::SnapshotBoundedInput bounded_string{wrapped_string, evo::EVO_SNAPSHOT_MAX_MN_COMPACT_ITEMS};
@@ -901,23 +901,23 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     BOOST_REQUIRE_EQUAL(wrapped_string.size(), 1U);
     BOOST_CHECK_EQUAL(std::to_integer<uint8_t>(wrapped_string.data()[0]), 0x42);
 
-    const auto snapshot_prefix = [](CDataStream& stream) {
+    const auto snapshot_prefix = [](DataStream& stream) {
         stream << evo::EVO_SNAPSHOT_VERSION << H(42);
         evo::SerializeCanonicalMNList(stream, CDeterministicMNList{H(42), 1, 0});
     };
-    CDataStream quorum_types{SER_DISK, CLIENT_VERSION};
+    DataStream quorum_types{};
     snapshot_prefix(quorum_types);
     WriteCompactSize(quorum_types, Consensus::available_llmqs.size() + 1);
     evo::EvoSnapshot decoded;
     BOOST_CHECK_THROW(quorum_types >> decoded, std::ios_base::failure);
 
-    CDataStream history{SER_DISK, CLIENT_VERSION};
+    DataStream history{};
     snapshot_prefix(history);
     WriteCompactSize(history, 0);
     WriteCompactSize(history, evo::EvoSnapshotMaxHistoricalMNLists() + 1);
     BOOST_CHECK_THROW(history >> decoded, std::ios_base::failure);
 
-    CDataStream signals{SER_DISK, CLIENT_VERSION};
+    DataStream signals{};
     snapshot_prefix(signals);
     WriteCompactSize(signals, 0);
     WriteCompactSize(signals, 0);
@@ -926,7 +926,7 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     WriteCompactSize(signals, VERSIONBITS_NUM_BITS + 1);
     BOOST_CHECK_THROW(signals >> decoded, std::ios_base::failure);
 
-    CDataStream ranges{SER_DISK, CLIENT_VERSION};
+    DataStream ranges{};
     snapshot_prefix(ranges);
     WriteCompactSize(ranges, 0);
     WriteCompactSize(ranges, 0);
@@ -939,13 +939,13 @@ BOOST_FIXTURE_TEST_CASE(bounded_readers_reject_claimed_sizes_first, BasicTesting
     const auto snapshot_bytes{SerializeSnapshot(SyntheticSnapshot())};
     DomainPort domain;
     BOOST_REQUIRE_EQUAL(domain.Set("evo5.example.org", 443), DomainPort::Status::Success);
-    CDataStream encoded_domain{SER_DISK, CLIENT_VERSION};
+    DataStream encoded_domain{};
     encoded_domain << domain;
     const auto domain_pos{std::search(snapshot_bytes.begin(), snapshot_bytes.end(),
                                       encoded_domain.begin(), encoded_domain.end())};
     BOOST_REQUIRE(domain_pos != snapshot_bytes.end());
 
-    CDataStream oversized_domain{SER_DISK, CLIENT_VERSION};
+    DataStream oversized_domain{};
     const size_t domain_offset{static_cast<size_t>(std::distance(snapshot_bytes.begin(), domain_pos))};
     oversized_domain.write(Span{snapshot_bytes}.first(domain_offset));
     constexpr size_t MAX_DOMAIN_LENGTH{253};
@@ -971,7 +971,7 @@ BOOST_FIXTURE_TEST_CASE(commitment_sizes_are_format_bounded_not_param_exact, Bas
     }
     BOOST_CHECK_NO_THROW(snapshot.Validate(/*require_canonical_order=*/true));
     const auto bytes{SerializeSnapshot(snapshot)};
-    CDataStream input{bytes};
+    DataStream input{bytes};
     evo::EvoSnapshot decoded;
     BOOST_CHECK_NO_THROW(input >> decoded);
     BOOST_CHECK(input.empty());
@@ -995,7 +995,7 @@ BOOST_FIXTURE_TEST_CASE(canonical_sort_preserves_input, BasicTestingSetup)
 BOOST_FIXTURE_TEST_CASE(rotation_flag_wire_encoding_is_canonical, BasicTestingSetup)
 {
     for (const uint8_t flag : {0, 1, 2, 255}) {
-        CDataStream input{SER_DISK, CLIENT_VERSION};
+        DataStream input{};
         input << Consensus::LLMQType::LLMQ_TEST_DIP0024 << flag;
         for (int i{0}; i < 3; ++i) WriteCompactSize(input, 0);
         evo::QuorumSnapshotData decoded;
@@ -1014,7 +1014,7 @@ BOOST_FIXTURE_TEST_CASE(nested_mn_map_wire_order_is_canonical, BasicTestingSetup
 {
     const auto mn{MN(5, 1, MnType::Evo, ProTxVersion::ExtAddr, 5)};
     auto net_info{mn->pdmnState->netInfo};
-    CDataStream canonical_info{SER_DISK, CLIENT_VERSION};
+    DataStream canonical_info{};
     canonical_info << NetInfoSerWrapper(net_info, /*is_extended=*/true);
     auto info_input{canonical_info};
     uint8_t version;
@@ -1035,15 +1035,15 @@ BOOST_FIXTURE_TEST_CASE(nested_mn_map_wire_order_is_canonical, BasicTestingSetup
         } else {
             std::reverse(changed_entries.begin(), changed_entries.end());
         }
-        CDataStream changed_info{SER_DISK, CLIENT_VERSION};
+        DataStream changed_info{};
         changed_info << version << changed_entries;
         const auto replace_info = [&](const auto& obj) {
-            CDataStream encoded{SER_DISK, CLIENT_VERSION};
+            DataStream encoded{};
             encoded << obj;
             const auto pos{std::search(encoded.begin(), encoded.end(), canonical_info.begin(), canonical_info.end())};
             BOOST_REQUIRE(pos != encoded.end());
             const size_t offset{static_cast<size_t>(pos - encoded.begin())};
-            CDataStream changed{SER_DISK, CLIENT_VERSION};
+            DataStream changed{};
             changed.write(Span{encoded}.first(offset));
             changed.write(Span{changed_info});
             changed.write(Span{encoded}.subspan(offset + canonical_info.size()));
@@ -1053,13 +1053,13 @@ BOOST_FIXTURE_TEST_CASE(nested_mn_map_wire_order_is_canonical, BasicTestingSetup
         auto ordinary_input{changed_mn};
         BOOST_CHECK_THROW(CDeterministicMN(deserialize, ordinary_input), std::ios_base::failure);
 
-        CDataStream base{SER_DISK, CLIENT_VERSION};
+        DataStream base{};
         base << H(42) << 42 << uint32_t{10};
         WriteCompactSize(base, 1);
         base.write(Span{changed_mn});
         BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNList(base), std::ios_base::failure, is_noncanonical);
 
-        CDataStream addition{SER_DISK, CLIENT_VERSION};
+        DataStream addition{};
         WriteCompactSize(addition, 1);
         addition.write(Span{changed_mn});
         WriteCompactSize(addition, 0);
@@ -1069,10 +1069,10 @@ BOOST_FIXTURE_TEST_CASE(nested_mn_map_wire_order_is_canonical, BasicTestingSetup
         const auto old_mn{MN(5, 1, MnType::Evo, ProTxVersion::ExtAddr, 6)};
         const CDeterministicMNStateDiff state_diff{*old_mn->pdmnState, *mn->pdmnState};
         const auto changed_diff{replace_info(state_diff)};
-        CDataStream update{SER_DISK, CLIENT_VERSION};
+        DataStream update{};
         WriteCompactSize(update, 0);
         WriteCompactSize(update, 1);
-        WriteVarInt<CDataStream, VarIntMode::DEFAULT, uint64_t>(update, 5);
+        WriteVarInt<DataStream, VarIntMode::DEFAULT, uint64_t>(update, 5);
         update.write(Span{changed_diff});
         WriteCompactSize(update, 0);
         BOOST_CHECK_EXCEPTION(evo::UnserializeCanonicalMNListDiff(update), std::ios_base::failure, is_noncanonical);
@@ -1103,7 +1103,7 @@ BOOST_FIXTURE_TEST_CASE(validation_matches_height_and_range_decode_bounds, Basic
     });
     BOOST_CHECK_THROW(GetEvoSnapshotHash(snapshot), std::ios_base::failure);
 
-    CDataStream continuous{SER_DISK, CLIENT_VERSION};
+    DataStream continuous{};
     WriteCompactSize(continuous, 1);
     continuous << uint64_t{0} << uint64_t{evo::EVO_SNAPSHOT_MAX_RANGES + 1};
     continuous >> snapshot.credit_pool.indexes;
@@ -1176,13 +1176,13 @@ BOOST_FIXTURE_TEST_CASE(mnhf_signal_wire_order_is_canonical, BasicTestingSetup)
     // (bit, height) pairs. SyntheticSnapshot carries (2, 12) and (9, 30).
     const size_t tail_size{1 + 2 * (sizeof(uint8_t) + sizeof(int32_t))};
     const auto with_signals = [&](const std::vector<std::pair<uint8_t, int>>& signals) {
-        CDataStream stream{SER_DISK, CLIENT_VERSION};
+        DataStream stream{};
         stream.write(Span{bytes}.first(bytes.size() - tail_size));
         WriteCompactSize(stream, signals.size());
         for (const auto& signal : signals) stream << signal;
         return stream;
     };
-    const auto expect_noncanonical = [](CDataStream stream) {
+    const auto expect_noncanonical = [](DataStream stream) {
         evo::EvoSnapshot decoded;
         BOOST_CHECK_EXCEPTION(stream >> decoded, std::ios_base::failure, [](const auto& e) {
             return std::string{e.what()}.find("noncanonical MNHF signal order") != std::string::npos;
@@ -1211,7 +1211,7 @@ BOOST_FIXTURE_TEST_CASE(mnhf_signals_outnumbering_deployments_are_valid, BasicTe
     BOOST_CHECK_NO_THROW(snapshot.Validate());
     BOOST_CHECK_NO_THROW(GetEvoSnapshotHash(snapshot));
 
-    CDataStream stream{SerializeSnapshot(snapshot)};
+    DataStream stream{SerializeSnapshot(snapshot)};
     evo::EvoSnapshot decoded;
     BOOST_CHECK_NO_THROW(stream >> decoded);
     BOOST_CHECK(decoded.mnhf_signals == snapshot.mnhf_signals);
@@ -1226,10 +1226,10 @@ BOOST_FIXTURE_TEST_CASE(unserialize_replaces_previous_contents, BasicTestingSetu
     const auto minimal_bytes{SerializeSnapshot(minimal)};
 
     evo::EvoSnapshot decoded;
-    CDataStream populated{populated_bytes};
+    DataStream populated{populated_bytes};
     populated >> decoded;
     BOOST_REQUIRE(!decoded.mnhf_signals.empty());
-    CDataStream empty{minimal_bytes};
+    DataStream empty{minimal_bytes};
     empty >> decoded;
     BOOST_CHECK(decoded.quorums.empty());
     BOOST_CHECK(decoded.historical_mn_list_diffs.empty());
@@ -1244,7 +1244,7 @@ BOOST_FIXTURE_TEST_CASE(hash_prefix_collision_runs_are_bounded, BasicTestingSetu
     // Every MN() proTxHash shares CollidingH's 64-bit prefix, so run length
     // equals list size here.
     const auto write_list = [](size_t count) {
-        CDataStream stream{SER_DISK, CLIENT_VERSION};
+        DataStream stream{};
         stream << H(42) << 42 << uint32_t{200};
         WriteCompactSize(stream, count);
         for (size_t i{0}; i < count; ++i) {
@@ -1284,7 +1284,7 @@ BOOST_FIXTURE_TEST_CASE(quorum_data_unserialize_replaces_previous_contents, Basi
     evo::QuorumSnapshotData data;
     data.llmq_type = Consensus::LLMQType::LLMQ_TEST;
     data.active_commitments = {Commitment(data.llmq_type, 11, 51, false)};
-    CDataStream encoded{SER_DISK, CLIENT_VERSION};
+    DataStream encoded{};
     encoded << data;
 
     // Every vector the decoder clears starts non-empty and the payload leaves

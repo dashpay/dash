@@ -20,7 +20,7 @@
 #include <vector>
 
 class CBlockIndex;
-class CDataStream;
+class DataStream;
 class CSporkManager;
 namespace Consensus {
 struct LLMQParams;

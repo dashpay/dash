@@ -499,7 +499,7 @@ BOOST_AUTO_TEST_CASE(bls_check_runs_under_the_scheme_it_was_given)
 
 BOOST_AUTO_TEST_CASE(batched_sig_shares_rejects_oversized_inner_vector)
 {
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     stream << VARINT(uint32_t{1});
     WriteCompactSize(stream, MAX_MSGS_TOTAL_BATCHED_SIGS + 1);
 
@@ -514,7 +514,7 @@ BOOST_AUTO_TEST_CASE(batched_sig_shares_accepts_max_inner_vector)
     batched.sessionId = 1;
     batched.sigShares.resize(MAX_MSGS_TOTAL_BATCHED_SIGS); // exactly the cap must be accepted
 
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     stream << batched;
 
     CBatchedSigShares roundtripped;
@@ -539,7 +539,7 @@ BOOST_AUTO_TEST_CASE(qbsigshares_rejects_oversized_batch_count)
 {
     std::vector<CBatchedSigShares> msgs(MAX_MSGS_TOTAL_BATCHED_SIGS + 1); // count over cap, 0 inner shares each
 
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     stream << msgs;
 
     BOOST_CHECK_THROW(UnserializeBatchedSigShares(stream), std::ios_base::failure);
@@ -554,7 +554,7 @@ BOOST_AUTO_TEST_CASE(qbsigshares_rejects_oversized_aggregate_total)
     msgs.push_back(MakeBatch(1, 300));
     msgs.push_back(MakeBatch(2, 200)); // 300 + 200 = 500 > 400, though each batch is <= the cap
 
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     stream << msgs;
 
     BOOST_CHECK_THROW(UnserializeBatchedSigShares(stream), std::ios_base::failure);
@@ -567,7 +567,7 @@ BOOST_AUTO_TEST_CASE(qbsigshares_accepts_aggregate_at_cap)
     msgs.push_back(MakeBatch(1, 200));
     msgs.push_back(MakeBatch(2, MAX_MSGS_TOTAL_BATCHED_SIGS - 200)); // aggregate == cap
 
-    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream stream{};
     stream << msgs;
 
     std::vector<CBatchedSigShares> decoded;

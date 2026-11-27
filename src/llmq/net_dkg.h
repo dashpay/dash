@@ -51,7 +51,7 @@ namespace llmq {
  *          src/test/fuzz/dkg_message_framing.cpp asserts that this never
  *          rejects a payload the worker would accept.
  */
-bool CheckDKGMessageWireStructure(std::string_view msg_type, const CDataStream& payload,
+bool CheckDKGMessageWireStructure(std::string_view msg_type, const DataStream& payload,
                                   const Consensus::LLMQParams& params);
 
 /**
@@ -97,7 +97,7 @@ public:
     ~NetDKG() override;
 
     // NetHandler
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_indexed_quorums_cache);
     bool AlreadyHave(const CInv& inv) override;
     bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) override;
@@ -149,7 +149,7 @@ public:
     }
 
     // NetHandler
-    void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv) override;
+    void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv) override;
 };
 } // namespace llmq
 

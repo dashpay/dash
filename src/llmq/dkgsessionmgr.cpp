@@ -122,7 +122,7 @@ bool CDKGSessionManager::GetPrematureCommitment(const uint256& hash, CDKGPrematu
 
 void CDKGSessionManager::WriteVerifiedVvecContribution(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const uint256& proTxHash, const BLSVerificationVectorPtr& vvec)
 {
-    CDataStream s(SER_DISK, CLIENT_VERSION);
+    DataStream s{};
     WriteCompactSize(s, vvec->size());
     for (const auto& pubkey : *vvec) {
         s << pubkey;

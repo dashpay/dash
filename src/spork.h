@@ -21,7 +21,7 @@
 
 template<typename T>
 class CFlatDB;
-class CDataStream;
+class DataStream;
 class uint256;
 class CInv;
 
