@@ -43,7 +43,7 @@ class CQuorumBlockProcessor;
 namespace node {
 struct NodeContext;
 
-static const bool DEFAULT_PRINTPRIORITY = false;
+static const bool DEFAULT_PRINT_MODIFIED_FEE = false;
 
 struct CBlockTemplate
 {
@@ -180,6 +180,7 @@ public:
         CFeeRate blockMinFeeRate{DEFAULT_BLOCK_MIN_TX_FEE};
         // Whether to call TestBlockValidity() at the end of CreateNewBlock().
         bool test_block_validity{true};
+        bool print_modified_fee{DEFAULT_PRINT_MODIFIED_FEE};
     };
 
     explicit BlockAssembler(Chainstate& chainstate, const node::NodeContext& node, const CTxMemPool* mempool, const Options& options);
