@@ -256,6 +256,9 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
 
         for node in self.nodes:
             self.wait_for_best_chainlock(node, block.hash)
+        if test_block_conflict:
+            # Nodes know the best ChainLock before enforcing it reconnects the block
+            self.wait_for_chainlocked_block_all_nodes(block.hash)
 
         self.sync_blocks()
 
@@ -388,9 +391,11 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
             assert_equal(node.getbestblockhash(), islock_tip)
 
         # Check that the CL-ed block overrides the one with islocks
-        self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 0)  # Re-enable ChainLocks to accept clsig
-        self.test_node.send_clsig(cl)  # relay clsig ASAP to prevent nodes from locking islock-ed tip
+        # Accept ChainLocks without signing any, so no node locks the islock-ed tip, and let every node
+        # see the spork before the clsig: a node that is still disabled drops it
+        self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 1)
         self.wait_for_sporks_same()
+        self.test_node.send_clsig(cl)
         for node in self.nodes:
             self.wait_for_chainlocked_block(node, cl_block.hash)
             # Previous tip should be marked as conflicting now
