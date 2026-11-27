@@ -305,14 +305,20 @@ void EvoSnapshot::Validate(bool require_canonical_order) const
                 !cycle_hashes.insert(entry.cycle_base_block_hash).second ||
                 !historical_hashes.contains(entry.work_block_hash) ||
                 entry.snapshot.mnSkipListMode < SnapshotSkipMode::MODE_NO_SKIPPING ||
-                entry.snapshot.mnSkipListMode > SnapshotSkipMode::MODE_ALL_SKIPPED ||
+                entry.snapshot.mnSkipListMode > SnapshotSkipMode::MODE_SHORT_QUARTERS ||
                 entry.snapshot.activeQuorumMembers.size() > EVO_SNAPSHOT_MAX_MNS ||
                 entry.snapshot.mnSkipList.size() > EVO_SNAPSHOT_MAX_SKIPLIST_ENTRIES ||
-                // Only the first entry is an absolute index; later entries are
-                // deltas that legitimately go negative once the build wraps the
-                // combined MN list. Semantic validity is established by quorum
-                // reconstruction against chain state, not here.
-                (!entry.snapshot.mnSkipList.empty() && entry.snapshot.mnSkipList.front() < 0)) {
+                // Only the first entry is absolute. In the legacy modes later entries
+                // are positions relative to it and legitimately go negative once the
+                // build wraps the combined MN list; MODE_SHORT_QUARTERS stores walk
+                // steps, so its later entries are strictly positive deltas. Semantic
+                // validity is established by quorum reconstruction against chain
+                // state, not here.
+                (!entry.snapshot.mnSkipList.empty() && entry.snapshot.mnSkipList.front() < 0) ||
+                (entry.snapshot.mnSkipListMode == SnapshotSkipMode::MODE_SHORT_QUARTERS &&
+                 entry.snapshot.mnSkipList.size() > 1 &&
+                 std::any_of(std::next(entry.snapshot.mnSkipList.begin()), entry.snapshot.mnSkipList.end(),
+                             [](int delta) { return delta <= 0; }))) {
                 throw std::ios_base::failure("invalid evo quorum rotation snapshot");
             }
             required_work_hashes.insert(entry.work_block_hash);
