@@ -59,7 +59,7 @@ The `includeconf=<file>` option in the `dash.conf` file can be used to include a
 
 Operating System | Data Directory | Example Path
 -- | -- | --
-Windows | `%APPDATA%\DashCore\` | `C:\Users\username\AppData\Roaming\DashCore\dash.conf`
+Windows | `%LOCALAPPDATA%\DashCore\` | `C:\Users\username\AppData\Local\DashCore\dash.conf`
 Linux | `$HOME/.dashcore/` | `/home/username/.dashcore/dash.conf`
 macOS | `$HOME/Library/Application Support/DashCore/` | `/Users/username/Library/Application Support/DashCore/dash.conf`
 
