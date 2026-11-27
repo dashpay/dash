@@ -334,7 +334,7 @@ static bool ContextualCheckTransaction(const CTransaction& tx, TxValidationState
     }
 
     // Size limits
-    if (fDIP0001Active_context && ::GetSerializeSize(tx, PROTOCOL_VERSION) > MAX_STANDARD_TX_SIZE)
+    if (fDIP0001Active_context && ::GetSerializeSize(tx) > MAX_STANDARD_TX_SIZE)
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize");
 
     return true;
@@ -833,7 +833,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     }
 
     // Transactions smaller than 65 bytes are not relayed to mitigate CVE-2017-12842.
-    if (::GetSerializeSize(tx, PROTOCOL_VERSION) < MIN_STANDARD_TX_SIZE)
+    if (::GetSerializeSize(TX_NO_WITNESS(tx)) < MIN_STANDARD_TX_SIZE)
         return state.Invalid(TxValidationResult::TX_NOT_STANDARD, "tx-size-small");
 
     // Only accept nLockTime-using transactions that can be mined in the next
@@ -3446,7 +3446,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
         nSigOps += GetLegacySigOpCount(*tx);
     }
     ::g_stats_client->timing("DisconnectTip_ms", Ticks<std::chrono::milliseconds>(nTime2 - nTime1), 1.0f);
-    ::g_stats_client->gauge("blocks.tip.SizeBytes", ::GetSerializeSize(block, PROTOCOL_VERSION), 1.0f);
+    ::g_stats_client->gauge("blocks.tip.SizeBytes", ::GetSerializeSize(block), 1.0f);
     ::g_stats_client->gauge("blocks.tip.Height", m_chain.Height(), 1.0f);
     ::g_stats_client->gauge("blocks.tip.Version", block.nVersion, 1.0f);
     ::g_stats_client->gauge("blocks.tip.NumTransactions", block.vtx.size(), 1.0f);
@@ -3601,7 +3601,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
             nSigOps += GetLegacySigOpCount(*tx);
         }
         ::g_stats_client->timing("ConnectTip_ms", Ticks<std::chrono::milliseconds>(time_6 - time_1), 1.0f);
-        ::g_stats_client->gauge("blocks.tip.SizeBytes", ::GetSerializeSize(blockConnecting, PROTOCOL_VERSION), 1.0f);
+        ::g_stats_client->gauge("blocks.tip.SizeBytes", ::GetSerializeSize(blockConnecting), 1.0f);
         ::g_stats_client->gauge("blocks.tip.Height", m_chain.Height(), 1.0f);
         ::g_stats_client->gauge("blocks.tip.Version", blockConnecting.nVersion, 1.0f);
         ::g_stats_client->gauge("blocks.tip.NumTransactions", blockConnecting.vtx.size(), 1.0f);
@@ -4508,7 +4508,7 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
     // because we receive the wrong transactions for it.
 
     // Size limits (relaxed)
-    if (block.vtx.empty() || block.vtx.size() > MaxBlockSize() || ::GetSerializeSize(block, PROTOCOL_VERSION) > MaxBlockSize())
+    if (block.vtx.empty() || block.vtx.size() > MaxBlockSize() || ::GetSerializeSize(TX_NO_WITNESS(block)) > MaxBlockSize())
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-length", "size limits failed");
 
     // First transaction must be coinbase, the rest must not be
@@ -4565,7 +4565,7 @@ bool IsBlockMutated(const CBlock& block)
         // Note: This is not a consensus change as this only applies to blocks that
         // don't have a coinbase transaction and would therefore already be invalid.
         return std::any_of(block.vtx.begin(), block.vtx.end(),
-                           [](auto& tx) { return ::GetSerializeSize(*tx, PROTOCOL_VERSION) == 64; });
+                           [](auto& tx) { return ::GetSerializeSize(*tx) == 64; });
     } else {
         // Theoretically it is still possible for a block with a 64 byte
         // coinbase transaction to be mutated but we neglect that possibility
@@ -4667,7 +4667,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
 
     // Size limits
     unsigned int nMaxBlockSize = MaxBlockSize(fDIP0001Active_context);
-    if (block.vtx.empty() || block.vtx.size() > nMaxBlockSize || ::GetSerializeSize(block, PROTOCOL_VERSION) > nMaxBlockSize)
+    if (block.vtx.empty() || block.vtx.size() > nMaxBlockSize || ::GetSerializeSize(block) > nMaxBlockSize)
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-length", "size limits failed");
 
     // Check that all transactions are finalized and not over-sized
@@ -5636,7 +5636,7 @@ void ChainstateManager::LoadExternalBlockFile(
                     if (!pindex || (pindex->nStatus & BLOCK_HAVE_DATA) == 0) {
                         // This block can be processed immediately; deserialize it.
                         pblock = std::make_shared<CBlock>();
-                        SpanReader{SER_DISK, CLIENT_VERSION, MakeUCharSpan(block_data)} >> *pblock;
+                        SpanReader{SER_DISK, CLIENT_VERSION, MakeUCharSpan(block_data)} >> TX_NO_WITNESS(*pblock);
 
                         BlockValidationState state;
                         if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, &hash)) {

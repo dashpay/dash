@@ -338,13 +338,13 @@ std::string ConsumeScalarRPCArgument(FuzzedDataProvider& fuzzed_data_provider, b
         },
         [&] {
             // hex encoded block
-            std::optional<CBlock> opt_block = ConsumeDeserializable<CBlock>(fuzzed_data_provider);
+            std::optional<CBlock> opt_block = ConsumeDeserializable<CBlock>(fuzzed_data_provider, TX_NO_WITNESS);
             if (!opt_block) {
                 good_data = false;
                 return;
             }
             CDataStream data_stream{SER_NETWORK, PROTOCOL_VERSION};
-            data_stream << *opt_block;
+            data_stream << TX_NO_WITNESS(*opt_block);
             r = HexStr(data_stream);
         },
         [&] {
@@ -360,13 +360,13 @@ std::string ConsumeScalarRPCArgument(FuzzedDataProvider& fuzzed_data_provider, b
         },
         [&] {
             // hex encoded tx
-            std::optional<CMutableTransaction> opt_tx = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider);
+            std::optional<CMutableTransaction> opt_tx = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider, TX_NO_WITNESS);
             if (!opt_tx) {
                 good_data = false;
                 return;
             }
-            CDataStream data_stream{SER_NETWORK, PROTOCOL_VERSION};
-            data_stream << *opt_tx;
+            DataStream data_stream;
+            data_stream << TX_NO_WITNESS(*opt_tx);
             r = HexStr(data_stream);
         },
         [&] {

@@ -146,7 +146,7 @@ BOOST_AUTO_TEST_CASE(block_malleation)
         mtx.vout[0].scriptPubKey.resize(4);
         auto tx = MakeTransactionRef(mtx);
         assert(tx->IsCoinBase());
-        assert(::GetSerializeSize(*tx, PROTOCOL_VERSION) == 64);
+        assert(::GetSerializeSize(*tx) == 64);
         block.vtx.push_back(tx);
         block.hashMerkleRoot = BlockMerkleRoot(block);
     }
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(block_malleation)
         mtx.vout[0].scriptPubKey.resize(4);
         auto tx = MakeTransactionRef(mtx);
         assert(!tx->IsCoinBase());
-        assert(::GetSerializeSize(*tx, PROTOCOL_VERSION) == 64);
+        assert(::GetSerializeSize(*tx) == 64);
         block.vtx.push_back(tx);
         block.hashMerkleRoot = BlockMerkleRoot(block);
     }

@@ -18,13 +18,6 @@ fi
 
 # Run linters if CHECK_DOC is set
 if [ "$CHECK_DOC" = 1 ]; then
-    # TODO: Verify subtrees
-    #test/lint/git-subtree-check.sh src/crypto/ctaes
-    #test/lint/git-subtree-check.sh src/secp256k1
-    #test/lint/git-subtree-check.sh src/univalue
-    #test/lint/git-subtree-check.sh src/leveldb
-    # TODO: Check docs (re-enable after all Bitcoin PRs have been merged and docs fully fixed)
-    #test/lint/check-doc.py
-    # Run all linters
-    test/lint/all-lint.py
+    # Run all linters; the subtree and documentation checks are disabled in the runner
+    RUST_BACKTRACE=1 cargo run --manifest-path "./test/lint/test_runner/Cargo.toml"
 fi

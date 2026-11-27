@@ -13,6 +13,7 @@
 #include <test/fuzz/util/mempool.h>
 #include <test/util/setup_common.h>
 
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -37,7 +38,7 @@ FUZZ_TARGET(policy_estimator, .init = initialize_policy_estimator)
         CallOneOf(
             fuzzed_data_provider,
             [&] {
-                const std::optional<CMutableTransaction> mtx = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider);
+                const std::optional<CMutableTransaction> mtx = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider, TX_NO_WITNESS);
                 if (!mtx) {
                     good_data = false;
                     return;
@@ -52,7 +53,7 @@ FUZZ_TARGET(policy_estimator, .init = initialize_policy_estimator)
                 std::list<CTxMemPoolEntry> mempool_entries;
                 LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 10000)
                 {
-                    const std::optional<CMutableTransaction> mtx = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider);
+                    const std::optional<CMutableTransaction> mtx = ConsumeDeserializable<CMutableTransaction>(fuzzed_data_provider, TX_NO_WITNESS);
                     if (!mtx) {
                         good_data = false;
                         break;
@@ -81,8 +82,8 @@ FUZZ_TARGET(policy_estimator, .init = initialize_policy_estimator)
         (void)block_policy_estimator.HighestTargetTracked(fuzzed_data_provider.PickValueInArray(ALL_FEE_ESTIMATE_HORIZONS));
     }
     {
-        FuzzedAutoFileProvider fuzzed_auto_file_provider = ConsumeAutoFile(fuzzed_data_provider);
-        AutoFile fuzzed_auto_file{fuzzed_auto_file_provider.open()};
+        FuzzedFileProvider fuzzed_file_provider{fuzzed_data_provider};
+        AutoFile fuzzed_auto_file{fuzzed_file_provider.open()};
         block_policy_estimator.Write(fuzzed_auto_file);
         block_policy_estimator.Read(fuzzed_auto_file);
     }

@@ -151,8 +151,8 @@ std::string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDeco
 
 std::string EncodeHexTx(const CTransaction& tx)
 {
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-    ssTx << tx;
+    DataStream ssTx;
+    ssTx << TX_NO_WITNESS(tx);
     return HexStr(ssTx);
 }
 
@@ -187,7 +187,7 @@ void TxToUniv(const CTransaction& tx, const uint256& block_hash, UniValue& entry
     // so cast to unsigned before giving it to the user.
     entry.pushKV("version", static_cast<int64_t>(static_cast<uint16_t>(tx.nVersion)));
     entry.pushKV("type", tx.nType);
-    entry.pushKV("size", (int)::GetSerializeSize(tx, PROTOCOL_VERSION));
+    entry.pushKV("size", tx.GetTotalSize());
     entry.pushKV("locktime", (int64_t)tx.nLockTime);
 
     UniValue vin(UniValue::VARR);

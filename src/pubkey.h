@@ -294,7 +294,7 @@ struct CExtPubKey {
     void DecodeWithVersion(const unsigned char code[BIP32_EXTKEY_WITH_VERSION_SIZE]);
     [[nodiscard]] bool Derive(CExtPubKey& out, unsigned int nChild) const;
 
-    void Serialize(CSizeComputer& s) const
+    void Serialize(SizeComputer& s) const
     {
         // Optimized implementation for ::GetSerializeSize that avoids copying.
         s.seek(BIP32_EXTKEY_SIZE + 1); // add one byte for the size (compact int)

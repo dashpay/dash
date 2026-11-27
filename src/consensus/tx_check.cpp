@@ -29,7 +29,7 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     if (!allowEmptyTxOut && tx.vout.empty())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-empty");
     // Size limits
-    if (::GetSerializeSize(tx, PROTOCOL_VERSION) > MAX_LEGACY_BLOCK_SIZE)
+    if (::GetSerializeSize(TX_NO_WITNESS(tx)) > MAX_LEGACY_BLOCK_SIZE)
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize");
     if (tx.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD)
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-payload-oversize");

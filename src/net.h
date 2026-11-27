@@ -35,6 +35,7 @@
 #include <util/sock.h>
 #include <util/threadinterrupt.h>
 #include <util/wpipe.h>
+#include <version.h>
 
 #include <algorithm>
 #include <atomic>
@@ -425,7 +426,7 @@ public:
 class V1Transport final : public Transport
 {
 private:
-    MessageStartChars m_magic_bytes;
+    const MessageStartChars m_magic_bytes;
     const NodeId m_node_id; // Only for logging
     mutable Mutex m_recv_mutex; //!< Lock for receive state
     mutable CHash256 hasher GUARDED_BY(m_recv_mutex);

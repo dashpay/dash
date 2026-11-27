@@ -135,8 +135,8 @@ void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, uint32_t flag
     }
 
 #if defined(HAVE_CONSENSUS_LIB)
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    stream << tx;
+    DataStream stream;
+    stream << TX_NO_WITNESS(tx);
     uint32_t libconsensus_flags{flags & dashconsensus_SCRIPT_FLAGS_VERIFY_ALL};
     if (libconsensus_flags == flags) {
         int expectedSuccessCode = expect ? 1 : 0;
@@ -1425,8 +1425,8 @@ BOOST_AUTO_TEST_CASE(dashconsensus_verify_script_returns_true)
     CTransaction creditTx{BuildCreditingTransaction(scriptPubKey)};
     CTransaction spendTx{BuildSpendingTransaction(scriptSig, creditTx)};
 
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    stream << spendTx;
+    DataStream stream;
+    stream << TX_NO_WITNESS(spendTx);
 
     dashconsensus_error err;
     int result = dashconsensus_verify_script(scriptPubKey.data(), scriptPubKey.size(), UCharCast(stream.data()), stream.size(), nIn, libconsensus_flags, &err);
@@ -1447,8 +1447,8 @@ BOOST_AUTO_TEST_CASE(dashconsensus_verify_script_tx_index_err)
     CTransaction creditTx{BuildCreditingTransaction(scriptPubKey)};
     CTransaction spendTx{BuildSpendingTransaction(scriptSig, creditTx)};
 
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    stream << spendTx;
+    DataStream stream;
+    stream << TX_NO_WITNESS(spendTx);
 
     dashconsensus_error err;
     int result = dashconsensus_verify_script(scriptPubKey.data(), scriptPubKey.size(), UCharCast(stream.data()), stream.size(), nIn, libconsensus_flags, &err);
@@ -1469,8 +1469,8 @@ BOOST_AUTO_TEST_CASE(dashconsensus_verify_script_tx_size)
     CTransaction creditTx{BuildCreditingTransaction(scriptPubKey)};
     CTransaction spendTx{BuildSpendingTransaction(scriptSig, creditTx)};
 
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    stream << spendTx;
+    DataStream stream;
+    stream << TX_NO_WITNESS(spendTx);
 
     dashconsensus_error err;
     int result = dashconsensus_verify_script(scriptPubKey.data(), scriptPubKey.size(), UCharCast(stream.data()), stream.size() * 2, nIn, libconsensus_flags, &err);
@@ -1491,7 +1491,7 @@ BOOST_AUTO_TEST_CASE(dashconsensus_verify_script_tx_serialization)
     CTransaction creditTx{BuildCreditingTransaction(scriptPubKey)};
     CTransaction spendTx{BuildSpendingTransaction(scriptSig, creditTx)};
 
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream stream;
     stream << 0xffffffff;
 
     dashconsensus_error err;
@@ -1513,8 +1513,8 @@ BOOST_AUTO_TEST_CASE(dashconsensus_verify_script_invalid_flags)
     CTransaction creditTx{BuildCreditingTransaction(scriptPubKey)};
     CTransaction spendTx{BuildSpendingTransaction(scriptSig, creditTx)};
 
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    stream << spendTx;
+    DataStream stream;
+    stream << TX_NO_WITNESS(spendTx);
 
     dashconsensus_error err;
     int result = dashconsensus_verify_script(scriptPubKey.data(), scriptPubKey.size(), UCharCast(stream.data()), stream.size(), nIn, libconsensus_flags, &err);

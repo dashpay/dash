@@ -1122,7 +1122,7 @@ static size_t CalculateNestedKeyhashInputSize(bool use_max_sig)
 
     CTxIn tx_in;
     UpdateInput(tx_in, sig_data);
-    return ::GetSerializeSize(tx_in, PROTOCOL_VERSION);
+    return ::GetSerializeSize(tx_in);
 }
 
 BOOST_FIXTURE_TEST_CASE(dummy_input_size_test, TestChain100Setup)

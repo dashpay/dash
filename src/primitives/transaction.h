@@ -226,6 +226,11 @@ public:
 
 struct CMutableTransaction;
 
+struct TransactionSerParams {
+    SER_PARAMS_OPFUNC
+};
+static constexpr TransactionSerParams TX_NO_WITNESS{};
+
 template<typename TxType>
 inline CAmount CalculateOutputValue(const TxType& tx)
 {
@@ -289,6 +294,8 @@ public:
      *  Unserialize is not possible, since it would require overwriting const fields. */
     template <typename Stream>
     CTransaction(deserialize_type, Stream& s) : CTransaction(CMutableTransaction(deserialize, s)) {}
+    template <typename Stream>
+    CTransaction(deserialize_type, const TransactionSerParams& params, Stream& s) : CTransaction(CMutableTransaction(deserialize, params, s)) {}
 
     bool IsNull() const {
         return vin.empty() && vout.empty();
@@ -374,6 +381,11 @@ struct CMutableTransaction
 
     template <typename Stream>
     CMutableTransaction(deserialize_type, Stream& s) {
+        Unserialize(s);
+    }
+
+    template <typename Stream>
+    CMutableTransaction(deserialize_type, const TransactionSerParams& params, Stream& s) {
         Unserialize(s);
     }
 

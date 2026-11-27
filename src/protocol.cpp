@@ -129,9 +129,8 @@ const static std::string netMessageTypesViolateBlocksOnly[] = {
 const static std::set<std::string> netMessageTypesViolateBlocksOnlySet(std::begin(netMessageTypesViolateBlocksOnly), std::end(netMessageTypesViolateBlocksOnly));
 
 CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn, const char* pszCommand, unsigned int nMessageSizeIn)
+    : pchMessageStart{pchMessageStartIn}
 {
-    pchMessageStart = pchMessageStartIn;
-
     // Copy the command name
     size_t i = 0;
     for (; i < COMMAND_SIZE && pszCommand[i] != 0; ++i) pchCommand[i] = pszCommand[i];

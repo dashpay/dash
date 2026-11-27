@@ -5,3 +5,5 @@
 !contrib/containers/develop/Dockerfile
 !.python-version
 !ci/lint
+!test/lint/test_runner
+test/lint/test_runner/target

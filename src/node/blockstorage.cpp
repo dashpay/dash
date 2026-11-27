@@ -1280,7 +1280,7 @@ static std::pair<DataStream, uint32_t> BuildRecordPayload(DataStream data, int l
 static std::pair<DataStream, uint32_t> BuildBlockRecordPayload(const CBlock& block, int level)
 {
     DataStream ss;
-    ss << block;
+    ss << TX_NO_WITNESS(block);
     return BuildRecordPayload(std::move(ss), level);
 }
 
@@ -1296,7 +1296,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
             undo_data << blockundo;
             compressed = CompressRecordPayload(MakeByteSpan(undo_data), m_opts.block_compression);
         }
-        const uint32_t size_field{compressed ? static_cast<uint32_t>(compressed->size()) | BLOCK_RECORD_COMPRESSED : static_cast<uint32_t>(::GetSerializeSize(blockundo, CLIENT_VERSION))};
+        const uint32_t size_field{compressed ? static_cast<uint32_t>(compressed->size()) | BLOCK_RECORD_COMPRESSED : static_cast<uint32_t>(::GetSerializeSize(blockundo))};
         FlatFilePos _pos;
         if (!FindUndoPos(state, block.nFile, _pos, (size_field & BLOCK_RECORD_SIZE_MASK) + BLOCK_SERIALIZATION_HEADER_SIZE + uint256::size())) {
             LogError("ConnectBlock(): FindUndoPos failed\n");
@@ -1367,7 +1367,7 @@ std::optional<uint256> BlockManager::ReadBlockFromDisk(CBlock& block, const Flat
     // Read block
     try {
         util::ZstdFileReader block_in{OpenRecordPayload(filein)};
-        block_in >> block;
+        block_in >> TX_NO_WITNESS(block);
     } catch (const std::exception& e) {
         LogError("ReadBlockFromDisk: Deserialize or I/O error - %s at %s\n", e.what(), pos.ToString());
         return std::nullopt;
@@ -1412,7 +1412,7 @@ std::optional<uint32_t> BlockManager::StoredBlockSizeField(const FlatFilePos& po
 
 FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, const FlatFilePos* dbp)
 {
-    unsigned int nBlockSize = ::GetSerializeSize(block, CLIENT_VERSION);
+    unsigned int nBlockSize = ::GetSerializeSize(TX_NO_WITNESS(block));
     FlatFilePos blockPos;
     const auto position_known {dbp != nullptr};
     DataStream payload;

@@ -33,7 +33,7 @@ bool TxOrphanage::AddTx(const CTransactionRef& tx, NodeId peer)
     // have been mined or received.
     // 100 orphans, each of which is at most 99,999 bytes big is
     // at most 10 megabytes of orphans and somewhat more byprev index (in the worst case):
-    unsigned int sz = GetSerializeSize(*tx, CTransaction::CURRENT_VERSION);
+    unsigned int sz = GetSerializeSize(*tx);
     if (sz > MAX_STANDARD_TX_SIZE)
     {
         LogPrint(BCLog::TXPACKAGES, "ignoring large orphan tx (size: %u, txid: %s)\n", sz, hash.ToString());

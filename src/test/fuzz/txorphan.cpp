@@ -115,7 +115,7 @@ FUZZ_TARGET(txorphan, .init = initialize_orphanage)
                     {
                         bool add_tx = orphanage.AddTx(tx, peer_id);
                         // if have_tx is still false, it must be too big
-                        Assert(!have_tx == (::GetSerializeSize(*tx, PROTOCOL_VERSION) > MAX_STANDARD_TX_SIZE));
+                        Assert(!have_tx == (::GetSerializeSize(*tx) > MAX_STANDARD_TX_SIZE));
                         Assert(!have_tx || !add_tx);
                     }
                 },

@@ -169,7 +169,7 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
 {
     UniValue result = blockheaderToJSON(tip, blockindex, chainlocks);
 
-    result.pushKV("size", (int)::GetSerializeSize(block, PROTOCOL_VERSION));
+    result.pushKV("size", (int)::GetSerializeSize(TX_NO_WITNESS(block)));
     UniValue txs(UniValue::VARR);
     switch (verbosity) {
         case TxVerbosity::SHOW_TXID:
@@ -1044,8 +1044,8 @@ static RPCHelpMan getblock()
 
     if (verbosity <= 0)
     {
-        CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-        ssBlock << block;
+        DataStream ssBlock;
+        ssBlock << TX_NO_WITNESS(block);
         std::string strHex = HexStr(ssBlock);
         return strHex;
     }
@@ -2329,7 +2329,7 @@ static RPCHelpMan getblockstats()
             for (const CTxOut& out : tx->vout) {
                 tx_total_out += out.nValue;
 
-                size_t out_size = GetSerializeSize(out, PROTOCOL_VERSION) + PER_UTXO_OVERHEAD;
+                size_t out_size = GetSerializeSize(out) + PER_UTXO_OVERHEAD;
                 utxo_size_inc += out_size;
 
                 // The Genesis block coinbase don't change the UTXO
@@ -2369,7 +2369,7 @@ static RPCHelpMan getblockstats()
                 const CTxOut& prevoutput = coin.out;
 
                 tx_total_in += prevoutput.nValue;
-                size_t prevout_size = GetSerializeSize(prevoutput, PROTOCOL_VERSION) + PER_UTXO_OVERHEAD;
+                size_t prevout_size = GetSerializeSize(prevoutput) + PER_UTXO_OVERHEAD;
                 utxo_size_inc -= static_cast<int64_t>(prevout_size);
                 utxo_size_inc_actual -= static_cast<int64_t>(prevout_size);
             }

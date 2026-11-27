@@ -38,13 +38,13 @@
 #include <script/sigcache.h>
 #include <spork.h>
 #include <util/chaintype.h>
+#include <util/fs.h>
 #include <util/thread.h>
 #include <validation.h>
 #include <validationinterface.h>
 
 #include <cassert>
 #include <cstdint>
-#include <filesystem>
 #include <functional>
 #include <iosfwd>
 #include <memory>
@@ -62,8 +62,8 @@ int main(int argc, char* argv[])
             << "           BREAK IN FUTURE VERSIONS. DO NOT USE ON YOUR ACTUAL DATADIR." << std::endl;
         return 1;
     }
-    std::filesystem::path abs_datadir = std::filesystem::absolute(argv[1]);
-    std::filesystem::create_directories(abs_datadir);
+    fs::path abs_datadir{fs::absolute(argv[1])};
+    fs::create_directories(abs_datadir);
 
 
     // SETUP: Misc Globals

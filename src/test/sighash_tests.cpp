@@ -77,7 +77,7 @@ uint256 static SignatureHashOld(CScript scriptCode, const CTransaction& txTo, un
 
     // Serialize and hash
     HashWriter ss{};
-    ss << txTmp << nHashType;
+    ss << TX_NO_WITNESS(txTmp) << nHashType;
     return ss.GetHash();
 }
 
@@ -136,8 +136,8 @@ BOOST_AUTO_TEST_CASE(sighash_test)
         sho = SignatureHashOld(scriptCode, CTransaction(txTo), nIn, nHashType);
         sh = SignatureHash(scriptCode, txTo, nIn, nHashType, 0, SigVersion::BASE);
         #if defined(PRINT_SIGHASH_JSON)
-        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-        ss << txTo;
+        DataStream ss;
+        ss << TX_NO_WITNESS(txTo);
 
         std::cout << "\t[\"" ;
         std::cout << HexStr(ss) << "\", \"";
@@ -186,8 +186,8 @@ BOOST_AUTO_TEST_CASE(sighash_from_data)
           nHashType = test[3].getInt<int>();
           sigHashHex = test[4].get_str();
 
-          CDataStream stream(ParseHex(raw_tx), SER_NETWORK, PROTOCOL_VERSION);
-          stream >> tx;
+          DataStream stream(ParseHex(raw_tx));
+          stream >> TX_NO_WITNESS(tx);
 
           TxValidationState state;
           BOOST_CHECK_MESSAGE(CheckTransaction(*tx, state), strTest);

@@ -329,9 +329,9 @@ public:
     }
 
     // cppcheck-suppress functionStatic
-    void Serialize(CSizeComputer& s) const
+    void Serialize(SizeComputer& s) const
     {
-        s.seek(::GetSerializeSize(CNetAddr::V1(CService{}), s.GetVersion()));
+        s.seek(::GetSerializeSize(CNetAddr::V1(CService{})));
     }
 
     template <typename Stream>

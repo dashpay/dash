@@ -122,12 +122,12 @@ BOOST_AUTO_TEST_CASE(siphash)
                      (uint64_t(x+4)<<32)|(uint64_t(x+5)<<40)|(uint64_t(x+6)<<48)|(uint64_t(x+7)<<56));
     }
 
-    CHashWriter ss(SER_DISK, CLIENT_VERSION);
+    HashWriter ss{};
     CMutableTransaction tx;
     // Note these tests were originally written with tx.nVersion=1
     // and the test would be affected by default tx version bumps if not fixed.
     tx.nVersion = 1;
-    ss << tx;
+    ss << TX_NO_WITNESS(tx);
 
     // Check consistency between CSipHasher and SipHashUint256[Extra].
     FastRandomContext ctx;

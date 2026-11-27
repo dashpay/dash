@@ -87,7 +87,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataSt
         // response-only (QDATA). A smuggled value used to select the *_MISSING branches
         // that skip the rate-limit ban, so reject any longer payload by length — this
         // also catches an explicitly serialized UNDEFINED byte and trailing garbage.
-        if (vRecv.size() > GetSerializeSize(request, PROTOCOL_VERSION)) {
+        if (vRecv.size() > GetSerializeSize(request)) {
             m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100, "oversized qgetdata");
             return;
         }

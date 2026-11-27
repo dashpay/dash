@@ -19,8 +19,8 @@ Reproducing the CI lint job
 ---------------------------
 
 The image above is not what CI uses: its default entrypoint runs `ci/lint/06_script.sh`,
-which merge-bases against `master` and runs checks (`check-doc.py`, subtree checks) that
-the CI lint job does not, and it has no cppcheck. The CI lint job
+which merge-bases against `master`, and it has no cppcheck. Neither runs the subtree and
+`check-doc.py` checks: they are disabled in the test runner until they pass. The CI lint job
 (`.github/workflows/lint.yml`) runs `ci/dash/lint.sh` inside the `ci-slim` image, and a
 separate cppcheck job (`.github/workflows/cppcheck.yml`) runs `test/lint/cppcheck-dash.py`
 in the same image. To reproduce them, build that image and run the same scripts with the
@@ -52,6 +52,14 @@ makes it work from a git worktree. `COMMIT_RANGE` uses your local `develop`, so 
 branch current with `dashpay/dash`. The cppcheck cache is kept in the git-ignored
 `ci/scratch/cache/` directory to speed up reruns.
 
+test runner
+===========
+
+To run the checks in the test runner outside the docker, use:
+
+```sh
+( cd ./test/lint/test_runner/ && cargo fmt && cargo clippy && cargo run )
+```
 
 check-doc.py
 ============
