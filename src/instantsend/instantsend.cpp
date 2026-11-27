@@ -9,6 +9,8 @@
 #include <node/blockstorage.h>
 #include <spork.h>
 #include <stats/client.h>
+#include <logging.h>
+#include <util/time.h>
 
 using node::fImporting;
 using node::fReindex;
@@ -156,12 +158,22 @@ void CInstantSendManager::TransactionIsRemoved(const CTransactionRef& tx)
 
 void CInstantSendManager::WriteBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
 {
+    static SteadyClock::duration nTimeWrite{};
+    const auto nTime1{SteadyClock::now()};
     db.WriteBlockInstantSendLocks(pblock, pindex);
+    const auto nTime2{SteadyClock::now()};
+    nTimeWrite += nTime2 - nTime1;
+    LogPrint(BCLog::BENCHMARK, "  - IS WriteBlockInstantSendLocks: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime2 - nTime1), Ticks<SecondsDouble>(nTimeWrite));
 }
 
 void CInstantSendManager::RemoveBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
 {
+    static SteadyClock::duration nTimeRemove{};
+    const auto nTime1{SteadyClock::now()};
     db.RemoveBlockInstantSendLocks(pblock, pindex);
+    const auto nTime2{SteadyClock::now()};
+    nTimeRemove += nTime2 - nTime1;
+    LogPrint(BCLog::BENCHMARK, "  - IS RemoveBlockInstantSendLocks: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime2 - nTime1), Ticks<SecondsDouble>(nTimeRemove));
 }
 
 instantsend::InstantSendLockPtr CInstantSendManager::AttachISLockToTx(const CTransactionRef& tx)
@@ -544,10 +556,19 @@ bool CInstantSendManager::IsInstantSendEnabled() const
 
 Uint256HashMap<instantsend::InstantSendLockPtr> CInstantSendManager::RemoveConfirmedInstantSendLocks(const CBlockIndex* pindex)
 {
+    static SteadyClock::duration nTimeConfirmed{};
+    static SteadyClock::duration nTimeArchived{};
     int nUntilHeight = pindex->nHeight;
+    const auto nTime1{SteadyClock::now()};
     auto removeISLocks = db.RemoveConfirmedInstantSendLocks(nUntilHeight);
+    const auto nTime2{SteadyClock::now()};
 
     db.RemoveArchivedInstantSendLocks(nUntilHeight - 100);
+    const auto nTime3{SteadyClock::now()};
+    nTimeConfirmed += nTime2 - nTime1;
+    nTimeArchived += nTime3 - nTime2;
+    LogPrint(BCLog::BENCHMARK, "  - IS RemoveConfirmedInstantSendLocks: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime2 - nTime1), Ticks<SecondsDouble>(nTimeConfirmed));
+    LogPrint(BCLog::BENCHMARK, "  - IS RemoveArchivedInstantSendLocks: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime3 - nTime2), Ticks<SecondsDouble>(nTimeArchived));
 
     // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
     // from the nonLockedTxs map. Also collect all children of these TXs and mark them for retrying of IS locking.
