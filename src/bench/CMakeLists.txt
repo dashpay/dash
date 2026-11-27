@@ -78,6 +78,7 @@ if(ENABLE_WALLET)
       wallet_balance.cpp
       wallet_create.cpp
       wallet_create_tx.cpp
+      wallet_ismine.cpp
       wallet_loading.cpp
   )
   target_link_libraries(bench_bitcoin bitcoin_wallet)
