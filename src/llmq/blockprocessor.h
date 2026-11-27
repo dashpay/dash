@@ -19,6 +19,7 @@
 
 #include <gsl/pointers.h>
 
+#include <deque>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -73,10 +74,11 @@ private:
 
     // Memoizes GetQcHashes(). The whole-result cache is keyed on the set of active
     // quorum base blocks, the LRU on those base-block hashes; neither key identifies
-    // which CFinalCommitment was mined for a base, so both are dropped whenever mined
-    // commitment state changes (see DropQcHashesCache). Owning them here keeps that
-    // invalidation next to the writes it has to follow, and ties their lifetime to the
-    // block index whose CBlockIndex* the outer cache stores.
+    // which CFinalCommitment was mined for a base, so whenever the commitment mined for
+    // a base changes the whole result is dropped and that base's LRU entry erased (see
+    // DropQcHashesCache). Owning them here keeps that invalidation next to the writes it
+    // has to follow, and ties their lifetime to the block index whose CBlockIndex* the
+    // outer cache stores.
     mutable Mutex m_qc_hashes_cache_mutex;
     mutable std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> m_quorums_cached GUARDED_BY(m_qc_hashes_cache_mutex);
     mutable PerLlmqTypeCache<std::pair<uint256, int>> m_qc_hashes_lru GUARDED_BY(m_qc_hashes_cache_mutex);
@@ -87,6 +89,20 @@ private:
     //! ProcessBlock and the CbTx quorum merkle root to avoid duplicated decodes of BLS elements.
     mutable Mutex m_commitment_payload_mutex;
     mutable Uint256LruHashMap<std::shared_ptr<const CFinalCommitmentTxPayload>, 64> m_commitment_payload_cache GUARDED_BY(m_commitment_payload_mutex);
+
+    // The active quorum set of a block is its parent's set plus the commitments the block
+    // mined, so the lookup for consecutive blocks derives it from the previous answer instead
+    // of walking the mined-commitment tables (one iterator seek per quorum index for rotation).
+    struct MinedCommitmentRef {
+        Consensus::LLMQType type;
+        int quorumIndex;
+        const CBlockIndex* base;
+    };
+    using ActiveQuorums = std::map<Consensus::LLMQType, std::vector<std::pair<int, const CBlockIndex*>>>;
+    mutable uint256 m_active_quorums_block GUARDED_BY(m_qc_hashes_cache_mutex);
+    mutable ActiveQuorums m_active_quorums GUARDED_BY(m_qc_hashes_cache_mutex);
+    mutable std::deque<std::pair<uint256, std::vector<MinedCommitmentRef>>> m_recent_mined GUARDED_BY(m_qc_hashes_cache_mutex);
+
 public:
     CQuorumBlockProcessor() = delete;
     CQuorumBlockProcessor(const CQuorumBlockProcessor&) = delete;
@@ -151,7 +167,8 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!m_qc_hashes_cache_mutex);
 
     std::vector<const CBlockIndex*> GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindex, size_t maxCount) const;
-    std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> GetMinedAndActiveCommitmentsUntilBlock(gsl::not_null<const CBlockIndex*> pindex) const;
+    std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> GetMinedAndActiveCommitmentsUntilBlock(gsl::not_null<const CBlockIndex*> pindex) const
+        EXCLUSIVE_LOCKS_REQUIRED(!m_qc_hashes_cache_mutex);
 
     std::vector<const CBlockIndex*> GetMinedCommitmentsIndexedUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, size_t maxCount) const;
     std::vector<const CBlockIndex*> GetLastMinedCommitmentsPerQuorumIndexUntilBlock(Consensus::LLMQType llmqType,
@@ -159,8 +176,15 @@ public:
                                                                                     size_t cycle) const;
     std::optional<const CBlockIndex*> GetLastMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, int quorumIndex, size_t cycle) const;
 private:
-    //! Called from every site that writes or erases mined commitment state.
-    void DropQcHashesCache() EXCLUSIVE_LOCKS_REQUIRED(!m_qc_hashes_cache_mutex);
+    //! Called from every site that writes or erases the commitment mined for a quorum base.
+    void DropQcHashesCache(Consensus::LLMQType llmqType, const uint256& quorumHash)
+        EXCLUSIVE_LOCKS_REQUIRED(!m_qc_hashes_cache_mutex);
+    //! Walks the mined-commitment tables for the quorums active as of pindex.
+    ActiveQuorums WalkActiveQuorums(gsl::not_null<const CBlockIndex*> pindex) const;
+    //! The active set of pindex derived from its parent's cached set, if both the parent's set
+    //! and pindex's mined commitments are known.
+    std::optional<ActiveQuorums> DeriveActiveQuorums(gsl::not_null<const CBlockIndex*> pindex) const
+        EXCLUSIVE_LOCKS_REQUIRED(m_qc_hashes_cache_mutex);
 
     bool GetCommitmentsFromBlock(const CBlock& block, gsl::not_null<const CBlockIndex*> pindex, std::multimap<Consensus::LLMQType, CFinalCommitment>& ret, BlockValidationState& state) const
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !m_commitment_payload_mutex);

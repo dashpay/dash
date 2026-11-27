@@ -24,6 +24,7 @@
 #include <saltedhasher.h>
 #include <streams.h>
 #include <sync.h>
+#include <util/check.h>
 #include <validation.h>
 
 #include <algorithm>
@@ -292,6 +293,19 @@ bool CQuorumBlockProcessor::ProcessBlock(Chainstate& chainstate, const CBlock& b
         }
     }
 
+    if (!fJustCheck) {
+        std::vector<MinedCommitmentRef> mined;
+        for (const auto& [_, qc] : qcs) {
+            if (qc.IsNull()) continue;
+            // ProcessCommitment rejected the block if a quorum base block is unknown
+            mined.push_back({qc.llmqType, int{qc.quorumIndex},
+                             Assert(chainstate.m_blockman.LookupBlockIndex(qc.quorumHash))});
+        }
+        LOCK(m_qc_hashes_cache_mutex);
+        m_recent_mined.emplace_back(blockHash, std::move(mined));
+        if (m_recent_mined.size() > 8) m_recent_mined.pop_front();
+    }
+
     m_evoDb.Write(DB_BEST_BLOCK_UPGRADE, blockHash);
 
     return true;
@@ -446,7 +460,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
     // Only once this commitment's state change is complete, so the caches can never be
     // repopulated from a half-updated view. Callers all hold cs_main today, but the
     // invalidation should not depend on that.
-    DropQcHashesCache();
+    DropQcHashesCache(llmq_params.type, quorumHash);
 
     WITH_LOCK(minableCommitmentsCs, mapMinedCommitmentBlockCache.erase(qc.llmqType, qc.quorumHash));
 
@@ -456,13 +470,13 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
     return true;
 }
 
-void CQuorumBlockProcessor::DropQcHashesCache()
+void CQuorumBlockProcessor::DropQcHashesCache(Consensus::LLMQType llmqType, const uint256& quorumHash)
 {
     LOCK(m_qc_hashes_cache_mutex);
     m_quorums_cached.clear();
     m_qc_hashes_cached.clear();
     m_qc_indexed_hashes_cached.clear();
-    m_qc_hashes_lru.clear();
+    m_qc_hashes_lru.erase(llmqType, quorumHash);
 }
 
 std::optional<std::pair<QcHashMap, QcIndexedHashMap>> CQuorumBlockProcessor::GetQcHashes(const CBlockIndex* pindexPrev) const
@@ -520,6 +534,13 @@ bool CQuorumBlockProcessor::UndoBlock(const Chainstate& chainstate, const CBlock
 
     PreComputeQuorumMembers(m_dmnman, m_qsnapman, m_chainman, pindex, /*reset_cache=*/true);
 
+    {
+        LOCK(m_qc_hashes_cache_mutex);
+        m_active_quorums_block.SetNull();
+        m_active_quorums.clear();
+        m_recent_mined.clear();
+    }
+
     std::multimap<Consensus::LLMQType, CFinalCommitment> qcs;
     if (BlockValidationState dummy; !GetCommitmentsFromBlock(block, pindex, qcs, dummy)) {
         return false;
@@ -546,7 +567,7 @@ bool CQuorumBlockProcessor::UndoBlock(const Chainstate& chainstate, const CBlock
         }
 
         // Only once this commitment's state change is complete; see ProcessCommitment.
-        DropQcHashesCache();
+        DropQcHashesCache(qc.llmqType, qc.quorumHash);
 
         WITH_LOCK(minableCommitmentsCs, mapMinedCommitmentBlockCache.erase(qc.llmqType, qc.quorumHash));
 
@@ -848,20 +869,94 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsIndexe
     return ret;
 }
 
-// The returned quorums are in reversed order, so the most recent one is at index 0
-std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> CQuorumBlockProcessor::GetMinedAndActiveCommitmentsUntilBlock(gsl::not_null<const CBlockIndex*> pindex) const
+CQuorumBlockProcessor::ActiveQuorums CQuorumBlockProcessor::WalkActiveQuorums(gsl::not_null<const CBlockIndex*> pindex) const
 {
-    std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> ret;
+    ActiveQuorums ret;
 
     for (const auto& params : m_chainman.GetConsensus().llmqs) {
         auto& commitments = ret[params.type];
         if (IsQuorumRotationEnabled(params, pindex)) {
-            commitments = GetLastMinedCommitmentsPerQuorumIndexUntilBlock(params.type, pindex, 0);
+            for (const auto quorumIndex : util::irange(params.signingActiveQuorumCount)) {
+                if (const auto q = GetLastMinedCommitmentsByQuorumIndexUntilBlock(params.type, pindex, quorumIndex, 0)) {
+                    commitments.emplace_back(quorumIndex, *q);
+                }
+            }
         } else {
-            commitments = GetMinedCommitmentsUntilBlock(params.type, pindex, params.signingActiveQuorumCount);
+            for (const auto* base : GetMinedCommitmentsUntilBlock(params.type, pindex, params.signingActiveQuorumCount)) {
+                commitments.emplace_back(0, base);
+            }
         }
     }
 
+    return ret;
+}
+
+std::optional<CQuorumBlockProcessor::ActiveQuorums> CQuorumBlockProcessor::DeriveActiveQuorums(gsl::not_null<const CBlockIndex*> pindex) const
+{
+    AssertLockHeld(m_qc_hashes_cache_mutex);
+
+    if (pindex->pprev == nullptr || m_active_quorums_block != pindex->pprev->GetBlockHash()) {
+        return std::nullopt;
+    }
+    const uint256 block_hash{pindex->GetBlockHash()};
+    const auto it_mined = std::find_if(m_recent_mined.begin(), m_recent_mined.end(),
+                                       [&block_hash](const auto& entry) { return entry.first == block_hash; });
+    if (it_mined == m_recent_mined.end()) {
+        return std::nullopt;
+    }
+
+    ActiveQuorums ret{m_active_quorums};
+    for (const auto& params : Params().GetConsensus().llmqs) {
+        const bool rotation = IsQuorumRotationEnabled(params, pindex);
+        if (rotation != IsQuorumRotationEnabled(params, pindex->pprev)) {
+            return std::nullopt;
+        }
+        auto& commitments = ret[params.type];
+        for (const auto& mined : it_mined->second) {
+            if (mined.type != params.type) continue;
+            if (rotation) {
+                // Same order as the walk: ascending quorum index, one entry per index
+                auto pos = std::lower_bound(commitments.begin(), commitments.end(), mined.quorumIndex,
+                                            [](const auto& entry, int index) { return entry.first < index; });
+                if (pos != commitments.end() && pos->first == mined.quorumIndex) {
+                    pos->second = mined.base;
+                } else {
+                    commitments.emplace(pos, mined.quorumIndex, mined.base);
+                }
+            } else {
+                // Same order as the walk: most recently mined first, at most signingActiveQuorumCount
+                commitments.emplace(commitments.begin(), 0, mined.base);
+                if (commitments.size() > static_cast<size_t>(params.signingActiveQuorumCount)) {
+                    commitments.pop_back();
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+// The returned quorums are in reversed order, so the most recent one is at index 0
+std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> CQuorumBlockProcessor::GetMinedAndActiveCommitmentsUntilBlock(gsl::not_null<const CBlockIndex*> pindex) const
+{
+    LOCK(m_qc_hashes_cache_mutex);
+
+    if (m_active_quorums_block != pindex->GetBlockHash()) {
+        if (auto derived = DeriveActiveQuorums(pindex)) {
+            m_active_quorums = std::move(*derived);
+        } else {
+            m_active_quorums = WalkActiveQuorums(pindex);
+        }
+        m_active_quorums_block = pindex->GetBlockHash();
+    }
+
+    std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> ret;
+    for (const auto& [type, commitments] : m_active_quorums) {
+        auto& bases = ret[type];
+        bases.reserve(commitments.size());
+        for (const auto& [_, base] : commitments) {
+            bases.push_back(base);
+        }
+    }
     return ret;
 }
 
