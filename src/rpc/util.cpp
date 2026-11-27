@@ -17,6 +17,7 @@
 #include <rpc/util.h>
 #include <script/descriptor.h>
 #include <script/signingprovider.h>
+#include <script/solver.h>
 #include <tinyformat.h>
 #include <univalue.h>
 #include <util/check.h>
@@ -287,6 +288,11 @@ public:
     explicit DescribeAddressVisitor() = default;
 
     UniValue operator()(const CNoDestination &dest) const { return UniValue(UniValue::VOBJ); }
+
+    UniValue operator()(const PubKeyDestination& dest) const
+    {
+        return UniValue(UniValue::VOBJ);
+    }
 
     UniValue operator()(const PKHash &pkhash) const {
         UniValue obj(UniValue::VOBJ);

@@ -162,7 +162,7 @@ std::vector<CompactTallyItem> CWallet::SelectCoinsGroupedByAddresses(bool fSkipD
 
         for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
             CTxDestination txdest;
-            if (!ExtractDestination(wtx.tx->vout[i].scriptPubKey, txdest)) continue;
+            if (!ExtractLegacyDestination(wtx.tx->vout[i].scriptPubKey, txdest)) continue;
 
             isminefilter mine = IsMine(txdest);
             if (!(mine & filter)) continue;

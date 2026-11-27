@@ -4,6 +4,7 @@
 
 #include <qt/masternodedialogs.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <evo/providertx.h>
@@ -11,7 +12,6 @@
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <key_io.h>
-#include <script/standard.h>
 #include <support/cleanse.h>
 #include <uint256.h>
 #include <util/strencodings.h>
@@ -70,7 +70,7 @@ uint16_t PortOrDefault(const QStringList& endpoints, uint16_t default_port)
 
 std::optional<CTxDestination> ParseDestination(const QString& text, QString& error)
 {
-    const CTxDestination destination{DecodeDestination(text.trimmed().toStdString())};
+    CTxDestination destination{DecodeDestination(text.trimmed().toStdString())};
     if (!IsValidDestination(destination)) {
         error = QObject::tr("Invalid Dash address: %1").arg(text);
         return std::nullopt;

@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <vector>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chainparams.h>
 #include <coinjoin/client.h>
@@ -31,6 +32,7 @@
 #include <policy/settings.h>
 #include <rpc/rawtransaction_util.h>
 #include <rpc/server.h>
+#include <script/solver.h>
 #include <test/util/index.h>
 #include <test/util/logging.h>
 #include <test/util/masternode.h>
@@ -843,7 +845,7 @@ void TestCoinsResult(ListCoinsTestingSetup& context, OutputType out_type, CAmoun
 {
     LOCK(context.wallet->cs_wallet);
     util::Result<CTxDestination> dest = Assert(context.wallet->GetNewDestination(""));
-    CWalletTx& wtx = context.AddTx(CRecipient{{GetScriptForDestination(*dest)}, amount, /*fSubtractFeeFromAmount=*/true});
+    CWalletTx& wtx = context.AddTx(CRecipient{*dest, amount, /*fSubtractFeeFromAmount=*/true});
     CoinFilterParams filter;
     filter.skip_locked = false;
     CoinsResult available_coins = AvailableCoins(*context.wallet, nullptr, std::nullopt, filter);

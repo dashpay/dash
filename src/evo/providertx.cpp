@@ -7,12 +7,12 @@
 #include <evo/dmn_types.h>
 #include <util/std23.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <clientversion.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <hash.h>
-#include <script/standard.h>
 #include <tinyformat.h>
 
 #include <algorithm>

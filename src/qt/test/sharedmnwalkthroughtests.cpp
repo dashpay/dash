@@ -6,6 +6,7 @@
 
 #include <qt/test/masternodetestutil.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -33,7 +34,6 @@
 #include <qt/sharedmnwidgets.h>
 #include <qt/walletmodel.h>
 #include <rpc/register.h>
-#include <script/standard.h>
 #include <test/util/setup_common.h>
 #include <univalue.h>
 #include <util/strencodings.h>

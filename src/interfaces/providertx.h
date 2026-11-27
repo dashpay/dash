@@ -5,12 +5,12 @@
 #ifndef BITCOIN_INTERFACES_PROVIDERTX_H
 #define BITCOIN_INTERFACES_PROVIDERTX_H
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <consensus/amount.h>
 #include <evo/dmn_types.h>
 #include <primitives/transaction.h>
 #include <pubkey.h>
-#include <script/standard.h>
 #include <uint256.h>
 #include <util/translation.h>
 

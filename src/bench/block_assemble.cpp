@@ -5,9 +5,9 @@
 #include <bench/bench.h>
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
-#include <script/standard.h>
 #include <node/miner.h>
 #include <random.h>
+#include <script/script.h>
 #include <test/util/mining.h>
 #include <test/util/script.h>
 #include <test/util/setup_common.h>

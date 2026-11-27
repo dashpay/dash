@@ -4,9 +4,9 @@
 
 #include <evo/providertx.h>
 
+#include <addresstype.h>
 #include <arith_uint256.h>
 #include <key_io.h>
-#include <script/standard.h>
 #include <tinyformat.h>
 #include <univalue.h>
 #include <util/strencodings.h>

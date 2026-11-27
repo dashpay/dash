@@ -5,7 +5,6 @@
 #ifndef BITCOIN_QT_ADDRESSTABLEMODEL_H
 #define BITCOIN_QT_ADDRESSTABLEMODEL_H
 
-#include <script/standard.h>
 
 #include <optional>
 

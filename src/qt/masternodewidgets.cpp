@@ -4,10 +4,10 @@
 
 #include <qt/masternodewidgets.h>
 
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <interfaces/wallet.h>
 #include <key_io.h>
-#include <script/standard.h>
 #include <support/cleanse.h>
 #include <util/result.h>
 #include <util/strencodings.h>
@@ -241,7 +241,7 @@ void FeeSourcePicker::refresh()
             if (m_wallet_model->wallet().isLockedCoin(outpoint)) continue;
             if (!m_wallet_model->wallet().isSpendable(txout.txout.scriptPubKey)) continue;
             CTxDestination coin_dest;
-            if (!ExtractDestination(txout.txout.scriptPubKey, coin_dest)) continue;
+            if (!ExtractLegacyDestination(txout.txout.scriptPubKey, coin_dest)) continue;
             balances[coin_dest] += txout.txout.nValue;
         }
     }

@@ -15,7 +15,6 @@
 #include <primitives/transaction.h>
 #include <rpc/server.h>
 #include <scheduler.h>
-#include <script/standard.h>
 #include <support/allocators/secure.h>
 #include <sync.h>
 #include <uint256.h>
@@ -89,6 +88,7 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
     result.txout_address_is_mine.reserve(wtx.tx->vout.size());
     for (const auto& txout : wtx.tx->vout) {
         result.txout_is_mine.emplace_back(wallet.IsMine(txout));
+        result.txout_is_change.push_back(OutputIsChange(wallet, txout));
         result.txout_address.emplace_back();
         result.txout_address_is_mine.emplace_back(ExtractDestination(txout.scriptPubKey, result.txout_address.back()) ?
                                                       wallet.IsMine(result.txout_address.back()) :
@@ -528,7 +528,7 @@ public:
         CCoinControl version_1_control{coin_control};
         version_1_control.m_asset_lock_version = CAssetLockPayload::INITIAL_VERSION;
         auto res{CreateTransaction(*m_wallet,
-                                   {CRecipient{GetScriptForDestination(PKHash{funding_pubkey.value}), credit_amount,
+                                   {CRecipient{PKHash{funding_pubkey.value}, credit_amount,
                                                /*fSubtractFeeFromAmount=*/false, /*fPlatformTransfer=*/true}},
                                    RANDOM_CHANGE_POSITION, version_1_control, /*sign=*/true)};
         if (!res) return util::Error{util::ErrorString(res)};
@@ -565,7 +565,7 @@ public:
         std::vector<COutput> address_coins;
         for (const auto& output : AvailableCoinsListUnspent(*m_wallet).All()) {
             CTxDestination destination;
-            if (ExtractDestination(output.txout.scriptPubKey, destination) && destination == fund_destination) {
+            if (ExtractLegacyDestination(output.txout.scriptPubKey, destination) && destination == fund_destination) {
                 address_coins.push_back(output);
             }
         }

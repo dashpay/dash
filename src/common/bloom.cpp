@@ -12,7 +12,7 @@
 #include <primitives/transaction.h>
 #include <random.h>
 #include <script/script.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <span.h>
 #include <streams.h>
 #include <util/fastrange.h>

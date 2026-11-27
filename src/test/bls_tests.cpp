@@ -11,7 +11,7 @@
 #include <crypto/common.h>
 #include <deploymentstatus.h>
 #include <random.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <streams.h>
 #include <test/util/bls.h>
 #include <test/util/setup_common.h>

@@ -42,6 +42,7 @@
 #include <script/script.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
+#include <script/solver.h>
 #include <serialize.h>
 #include <span.h>
 #include <streams.h>
@@ -1098,7 +1099,7 @@ void CWallet::SetSpentKeyState(WalletBatch& batch, const uint256& hash, unsigned
     if (!srctx) return;
 
     CTxDestination dst;
-    if (ExtractDestination(srctx->tx->vout[n].scriptPubKey, dst)) {
+    if (ExtractLegacyDestination(srctx->tx->vout[n].scriptPubKey, dst)) {
         if (IsMine(dst)) {
             if (used != IsAddressPreviouslySpent(dst)) {
                 if (used) {
@@ -1114,17 +1115,16 @@ bool CWallet::IsSpentKey(const CScript& scriptPubKey) const
 {
     AssertLockHeld(cs_wallet);
     CTxDestination dest;
-    if (!ExtractDestination(scriptPubKey, dest)) {
+    if (!ExtractLegacyDestination(scriptPubKey, dest)) {
         return false;
     }
     if (IsAddressPreviouslySpent(dest)) {
         return true;
     }
-    if (IsLegacy()) {
-        LegacyScriptPubKeyMan* spk_man = GetLegacyScriptPubKeyMan();
-        assert(spk_man != nullptr);
+    if (LegacyScriptPubKeyMan* spk_man = GetLegacyScriptPubKeyMan()) {
         for (const auto& keyid : GetAffectedKeys(scriptPubKey, *spk_man)) {
-            if (IsAddressPreviouslySpent(PKHash(keyid))) {
+            dest.emplace<PKHash>(keyid);
+            if (IsAddressPreviouslySpent(dest)) {
                 return true;
             }
         }
@@ -2936,7 +2936,7 @@ void CWallet::MarkDestinationsDirty(const std::set<CTxDestination>& destinations
         if (wtx.m_is_cache_empty) continue;
         for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
             CTxDestination dst;
-            if (ExtractDestination(wtx.tx->vout[i].scriptPubKey, dst) && destinations.count(dst)) {
+            if (ExtractLegacyDestination(wtx.tx->vout[i].scriptPubKey, dst) && destinations.count(dst)) {
                 wtx.MarkDirty();
                 break;
             }

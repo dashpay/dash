@@ -15,30 +15,19 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <optional>
-#include <string>
-#include <utility>
 #include <vector>
 
-class CBlockFileInfo;
-class CBlockIndex;
 class COutPoint;
 class uint256;
-namespace Consensus {
-struct Params;
-};
-namespace util {
-class SignalInterrupt;
-} // namespace util
 
 //! -dbcache default (MiB)
 static const int64_t nDefaultDbCache = 300;
 //! -dbbatchsize default (bytes)
 static const int64_t nDefaultDbBatchSize = 16 << 20;
 
-//! Which legacy synchronous indexes CBlockTreeDB::MigrateOldIndexData() carries over
+//! Which legacy synchronous indexes BlockTreeDB::MigrateOldIndexData() carries over
 struct IndexMigrationOptions {
     bool address_index{false};
     bool spent_index{false};
@@ -96,26 +85,6 @@ public:
 
     //! @returns filesystem path to on-disk storage or std::nullopt if in memory.
     std::optional<fs::path> StoragePath() { return m_db->StoragePath(); }
-};
-
-/** Access to the block database (blocks/index/) */
-class CBlockTreeDB : public CDBWrapper
-{
-public:
-    using CDBWrapper::CDBWrapper;
-    bool WriteBatchSync(const std::vector<std::pair<int, const CBlockFileInfo*> >& fileInfo, int nLastFile, const std::vector<const CBlockIndex*>& blockinfo);
-    bool ReadBlockFileInfo(int nFile, CBlockFileInfo &info);
-    bool ReadLastBlockFile(int &nFile);
-    bool WriteReindexing(bool fReindexing);
-    void ReadReindexing(bool &fReindexing);
-
-    bool WriteFlag(const std::string &name, bool fValue);
-    bool ReadFlag(const std::string &name, bool &fValue);
-    bool LoadBlockIndexGuts(const Consensus::Params& consensusParams, std::function<CBlockIndex*(const uint256&)> insertBlockIndex, const util::SignalInterrupt& interrupt)
-        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-
-    /// Migrate old synchronous index data to new async index databases
-    bool MigrateOldIndexData(const fs::path& data_dir, const IndexMigrationOptions& options) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 };
 
 #endif // BITCOIN_TXDB_H

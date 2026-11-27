@@ -4,10 +4,10 @@
 
 #include <qt/clientfeeds.h>
 
+#include <addresstype.h>
 #include <coins.h>
 #include <governance/object.h>
 #include <key_io.h>
-#include <script/standard.h>
 #include <util/threadnames.h>
 #include <util/time.h>
 
@@ -178,7 +178,7 @@ void MasternodeFeed::fetch()
         CTxDestination collateralDest;
         const auto coin{m_client_model.node().getUnspentOutput(dmn->getCollateralOutpoint())};
         QString collateralStr = QObject::tr("UNKNOWN");
-        if (coin && ExtractDestination(coin->out.scriptPubKey, collateralDest)) {
+        if (coin && ExtractLegacyDestination(coin->out.scriptPubKey, collateralDest)) {
             collateralStr = QString::fromStdString(EncodeDestination(collateralDest));
         }
         int nNextPayment{0};

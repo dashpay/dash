@@ -4,8 +4,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <script/keyorigin.h>
+#include <script/interpreter.h>
 #include <script/signingprovider.h>
-#include <script/standard.h>
 
 #include <logging.h>
 

@@ -6,6 +6,7 @@
 #include <test/util/setup_common.h>
 
 #include <active/masternode.h>
+#include <addresstype.h>
 #include <bls/bls.h>
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/common.h>
@@ -16,7 +17,7 @@
 #include <masternode/sync.h>
 #include <net.h>
 #include <protocol.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <streams.h>
 #include <validation.h>
 

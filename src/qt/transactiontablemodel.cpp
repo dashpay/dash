@@ -15,6 +15,7 @@
 #include <common/system.h>
 #include <core_io.h>
 #include <interfaces/handler.h>
+#include <tinyformat.h>
 #include <uint256.h>
 
 #include <algorithm>
@@ -699,7 +700,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
         case Status:
             return QString::fromStdString(rec->status.sortKey);
         case Date:
-            return rec->time;
+            return QString::fromStdString(strprintf("%020s-%s", rec->time, rec->status.sortKey));
         case Type:
             return formatTxType(rec);
         case Watchonly:

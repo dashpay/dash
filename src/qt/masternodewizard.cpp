@@ -4,13 +4,13 @@
 
 #include <qt/masternodewizard.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <evo/dmn_types.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
 #include <key_io.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
 #include <util/strencodings.h>
 
 #include <qt/bitcoinunits.h>
@@ -702,7 +702,7 @@ bool RegisterMasternodeWizard::isFundCollateral() const
 std::optional<CTxDestination> RegisterMasternodeWizard::knownCollateralDestination() const
 {
     if (isFundCollateral()) {
-        const CTxDestination destination{DecodeDestination(collateralAddress().toStdString())};
+        CTxDestination destination{DecodeDestination(collateralAddress().toStdString())};
         if (IsValidDestination(destination)) return destination;
         return std::nullopt;
     }
@@ -1200,10 +1200,10 @@ void RegisterMasternodeWizard::refreshCollateralCandidates(const std::set<COutPo
             if (registered_collaterals.count(outpoint) != 0) continue;
             if (m_walletModel->wallet().isLockedCoin(outpoint)) continue;
             if (!m_walletModel->wallet().isSpendable(txout.txout.scriptPubKey)) continue;
-            // protx register only accepts P2PKH collaterals; check the coin's own
+            // protx register only accepts P2PKH and P2PK collaterals; check the coin's own
             // script, as listCoins() groups change under the parent's address
             CTxDestination coin_dest;
-            if (!ExtractDestination(txout.txout.scriptPubKey, coin_dest) ||
+            if (!ExtractLegacyDestination(txout.txout.scriptPubKey, coin_dest) ||
                 !std::holds_alternative<PKHash>(coin_dest)) {
                 continue;
             }

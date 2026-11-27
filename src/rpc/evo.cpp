@@ -74,7 +74,7 @@ UniValue CDeterministicMN::ToJson() const
         g_txindex->FindTx(collateralOutpoint.hash, nBlockHash, collateralTx);
         if (collateralTx) {
             CTxDestination dest;
-            if (ExtractDestination(collateralTx->vout[collateralOutpoint.n].scriptPubKey, dest)) {
+            if (ExtractLegacyDestination(collateralTx->vout[collateralOutpoint.n].scriptPubKey, dest)) {
                 obj.pushKV("collateralAddress", EncodeDestination(dest));
             }
         }

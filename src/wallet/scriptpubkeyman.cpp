@@ -7,7 +7,9 @@
 #include <logging.h>
 #include <messagesigner.h>
 #include <script/descriptor.h>
+#include <script/script.h>
 #include <script/sign.h>
+#include <script/solver.h>
 #include <shutdown.h>
 #include <util/bip32.h>
 #include <util/strencodings.h>

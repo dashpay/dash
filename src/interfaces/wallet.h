@@ -5,12 +5,13 @@
 #ifndef BITCOIN_INTERFACES_WALLET_H
 #define BITCOIN_INTERFACES_WALLET_H
 
-#include <consensus/amount.h>          // For CAmount
+#include <addresstype.h>
+#include <consensus/amount.h>
 #include <governance/common.h>
-#include <interfaces/chain.h>          // For ChainClient
-#include <pubkey.h>                    // For CKeyID and CScriptID (definitions needed in CTxDestination instantiation)
-#include <script/standard.h>           // For CTxDestination
-#include <support/allocators/secure.h> // For SecureString
+#include <interfaces/chain.h>
+#include <pubkey.h>
+#include <script/script.h>
+#include <support/allocators/secure.h>
 #include <util/fs.h>
 #include <util/message.h>
 #include <util/result.h>
@@ -579,6 +580,7 @@ struct WalletTx
     CTransactionRef tx;
     std::vector<wallet::isminetype> txin_is_mine;
     std::vector<wallet::isminetype> txout_is_mine;
+    std::vector<bool> txout_is_change;
     std::vector<CTxDestination> txout_address;
     std::vector<wallet::isminetype> txout_address_is_mine;
     CAmount credit;

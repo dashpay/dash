@@ -4,6 +4,7 @@
 
 #include <qt/test/providertransactiontests.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <evo/assetlocktx.h>
 #include <evo/specialtx.h>
@@ -19,7 +20,7 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
-#include <script/standard.h>
+#include <script/solver.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
 #include <wallet/test/util.h>
@@ -283,7 +284,8 @@ void ProviderTransactionTests::providerTransactionHistory()
                                                               input_amount(4) - asset_lock_fee, external_script)};
     const CAmount received_core_amount{COIN};
     const CTransactionRef received_from_asset_lock{MakeAssetLockTransaction(
-        COutPoint{uint256::TWO, 7}, 2 * COIN, external_script, CTxOut{received_core_amount, own_script})};
+        COutPoint{uint256::TWO, 7}, 2 * COIN, external_script,
+        CTxOut{received_core_amount, GetScriptForDestination(PKHash(test.coinbaseKey.GetPubKey()))})};
     const CTransactionRef shared_update_share{MakeSpecialTransaction(TRANSACTION_PROVIDER_UPDATE_SHARE, make_owned_input(5),
                                                                      input_amount(5) - share_fee, own_script)};
     const CTransactionRef shared_update_registrar{

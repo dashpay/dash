@@ -7,7 +7,8 @@
 #include <key_io.h>
 #include <pubkey.h>
 #include <script/script.h>
-#include <script/standard.h>
+#include <script/signingprovider.h>
+#include <script/solver.h>
 
 #include <common/args.h>
 #include <common/system.h>
@@ -727,8 +728,8 @@ public:
     std::optional<OutputType> GetOutputType() const override
     {
         switch (m_destination.index()) {
-            case 1 /* PKHash */:
-            case 2 /* ScriptHash */: return OutputType::LEGACY;
+            case 2 /* PKHash */:
+            case 3 /* ScriptHash */: return OutputType::LEGACY;
             case 0 /* CNoDestination */:
             default: return std::nullopt;
         }
@@ -753,8 +754,8 @@ public:
         CTxDestination dest;
         ExtractDestination(m_script, dest);
         switch (dest.index()) {
-            case 1 /* PKHash */:
-            case 2 /* ScriptHash */: return OutputType::LEGACY;
+            case 2 /* PKHash */:
+            case 3 /* ScriptHash */: return OutputType::LEGACY;
             case 0 /* CNoDestination */:
             default: return std::nullopt;
         }

@@ -4,6 +4,7 @@
 
 #include <qt/mnsharesession.h>
 
+#include <addresstype.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <core_io.h>
@@ -17,7 +18,6 @@
 #include <messagesigner.h>
 #include <primitives/transaction.h>
 #include <random.h>
-#include <script/standard.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 

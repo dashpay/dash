@@ -16,6 +16,8 @@ if [ "$RUN_UNIT_TESTS" != "true" ] && [ "$RUN_UNIT_TESTS_SEQUENTIAL" != "true" ]
   exit 0
 fi
 
+echo "System info: $(uname --kernel-name --kernel-release)"
+
 export BOOST_TEST_RANDOM="${BOOST_TEST_RANDOM:-1}"
 if [ -z "$NO_DEPENDS" ]; then
   export LD_LIBRARY_PATH="$DEPENDS_DIR/$HOST/lib"

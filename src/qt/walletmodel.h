@@ -6,7 +6,6 @@
 #define BITCOIN_QT_WALLETMODEL_H
 
 #include <key.h>
-#include <script/standard.h>
 
 #include <qt/walletmodeltransaction.h>
 
