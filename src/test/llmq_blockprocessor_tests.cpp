@@ -188,6 +188,13 @@ BOOST_FIXTURE_TEST_CASE(qfcommit_with_more_signers_replaces_stored_one, TestChai
     BOOST_CHECK_EQUAL(deliver(qc_two_other), 0);
     BOOST_CHECK_EQUAL(deliver(qc_three), 100);
 
+    // A commitment more than one DKG interval old is dropped before verification, and its sender
+    // is not scored: a peer that is still catching up relays commitments recent at its own tip.
+    const CBlockIndex* stale_base{base_index->GetAncestor(base_index->nHeight - 2 * llmq_params.dkgInterval)};
+    const auto stale_qc = CreateValidCommitment(llmq_params, stale_base->GetBlockHash());
+    BOOST_CHECK_EQUAL(deliver(stale_qc), 0);
+    BOOST_CHECK(!blockprocessor.HasMineableCommitment(::SerializeHash(stale_qc)));
+
     BOOST_CHECK(!blockprocessor.AddMineableCommitment(qc_one).has_value());
     BOOST_CHECK(blockprocessor.HasMineableCommitment(::SerializeHash(qc_two)));
 
@@ -210,8 +217,9 @@ struct PreV19Setup : public TestChain100Setup {
 };
 
 // No DKG runs for a quorum base before v19, so a relayed commitment for one is ignored without
-// verifying it. A stale one still costs the peer, as it would after v19.
-BOOST_FIXTURE_TEST_CASE(pre_v19_qfcommit_is_ignored_unless_stale, PreV19Setup)
+// verifying it. A stale one is ignored without scoring the peer too, as after v19: a peer that is
+// still catching up relays commitments that are recent at its own tip.
+BOOST_FIXTURE_TEST_CASE(pre_v19_qfcommit_is_ignored, PreV19Setup)
 {
     LOCK(NetEventsInterface::g_msgproc_mutex);
     BOOST_REQUIRE(!m_node.chainman->IsInitialBlockDownload());
@@ -243,7 +251,7 @@ BOOST_FIXTURE_TEST_CASE(pre_v19_qfcommit_is_ignored_unless_stale, PreV19Setup)
     BOOST_CHECK_EQUAL(deliver(recent_qc), 0);
     BOOST_CHECK(!blockprocessor.HasMineableCommitment(::SerializeHash(recent_qc)));
 
-    BOOST_CHECK_EQUAL(deliver(CreateValidCommitment(llmq_params, stale_base->GetBlockHash())), 100);
+    BOOST_CHECK_EQUAL(deliver(CreateValidCommitment(llmq_params, stale_base->GetBlockHash())), 0);
 
     SetMockTime(0s);
 }
