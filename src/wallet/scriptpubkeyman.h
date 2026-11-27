@@ -58,7 +58,7 @@ public:
     // methods below are unique from Dash due to different implementation of HD
     virtual void NewKeyPoolCallback() = 0;
     virtual void KeepDestinationCallback(bool erased) = 0;
-    //! Callback function for after TopUp completes containining any scripts that were added by a SPKMan
+    //! Callback function for after TopUp completes containing any scripts that were added by a SPKMan
     virtual void TopUpCallback(const std::set<CScript>&, ScriptPubKeyMan*) = 0;
 };
 
