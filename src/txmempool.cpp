@@ -1241,13 +1241,9 @@ void CTxMemPool::removeProTxVotingPayeeConflicts(const uint256& proTxHash, const
     }
 }
 
-static SteadyClock::duration g_bench_collateral_scan{};
-
 void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
 {
-    const auto nTimeScan{SteadyClock::now()};
     removeProTxSpentCollateralConflicts(tx);
-    g_bench_collateral_scan += SteadyClock::now() - nTimeScan;
 
     const uint256 tx_hash{tx.GetHash()};
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
@@ -1359,7 +1355,6 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
 void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight)
 {
     AssertLockHeld(cs);
-    const auto nScanBefore{g_bench_collateral_scan};
     std::vector<const CTxMemPoolEntry*> entries;
     for (const auto& tx : vtx)
     {
@@ -1386,7 +1381,6 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
     }
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = true;
-    LogPrint(BCLog::BENCHMARK, "  - removeProTxSpentCollateralConflicts: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(g_bench_collateral_scan - nScanBefore), Ticks<SecondsDouble>(g_bench_collateral_scan));
 }
 
 /**
