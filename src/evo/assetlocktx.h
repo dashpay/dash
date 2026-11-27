@@ -123,9 +123,9 @@ public:
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson() const;
 
-    bool VerifySig(const llmq::CQuorumManager& qman, const uint256& msgHash, gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state) const;
+    bool VerifySig(const llmq::CQuorumManager& qman, const uint256& msgHash, gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state, bool check_sigs) const;
     bool VerifySig(const llmq::CQuorumManager& qman, const CChain& chain, const uint256& msgHash,
-                   gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state) const
+                   gsl::not_null<const CBlockIndex*> pindexTip, TxValidationState& state, bool check_sigs) const
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     // getters
@@ -168,10 +168,11 @@ public:
 };
 
 bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state, bool is_v24_active);
-bool CheckAssetUnlockTx(const node::BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes, bool is_v24_active, TxValidationState& state);
+bool CheckAssetUnlockTx(const node::BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes, bool is_v24_active, TxValidationState& state, bool check_sigs = true);
 bool CheckAssetUnlockTx(const node::BlockManager& blockman, const llmq::CQuorumManager& qman, const CChain& chain,
                         const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
-                        const std::optional<CRangesSet>& indexes, bool is_v24_active, TxValidationState& state)
+                        const std::optional<CRangesSet>& indexes, bool is_v24_active, TxValidationState& state,
+                        bool check_sigs = true)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 bool GetAssetUnlockFee(const CTransaction& tx, CAmount& txfee, TxValidationState& state);
 
