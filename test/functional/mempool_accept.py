@@ -28,7 +28,7 @@ from test_framework.script import (
     OP_RETURN,
     OP_TRUE,
     SIGHASH_ALL,
-    sign_input,
+    sign_input_legacy,
 )
 from test_framework.script_util import (
     keys_to_multisig_script,
@@ -401,7 +401,7 @@ class MempoolAcceptanceTest(BitcoinTestFramework):
         tx_spend.vin.append(CTxIn(COutPoint(tx.sha256, 0), b""))
         tx_spend.vout.append(CTxOut(tx.vout[0].nValue - int(fee*COIN), script_to_p2sh_script(CScript([OP_TRUE]))))
         tx_spend.rehash()
-        sign_input(tx_spend, 0, tx.vout[0].scriptPubKey, privkey, sighash_type=SIGHASH_ALL)
+        sign_input_legacy(tx_spend, 0, tx.vout[0].scriptPubKey, privkey, sighash_type=SIGHASH_ALL)
         tx_spend.vin[0].scriptSig = bytes(CScript([OP_0])) + tx_spend.vin[0].scriptSig
         self.check_mempool_result(
             result_expected=[{'txid': tx_spend.rehash(), 'allowed': True, 'vsize': tx_spend.get_vsize(), 'fees': { 'base': Decimal('0.00000700')}}],

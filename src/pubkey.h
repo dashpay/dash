@@ -9,6 +9,7 @@
 
 #include <hash.h>
 #include <serialize.h>
+#include <span.h>
 #include <uint256.h>
 
 #include <array>
@@ -174,7 +175,16 @@ public:
     /*
      * Check syntactic correctness.
      *
-     * Note that this is consensus critical as CheckSig() calls it!
+     * When setting a pubkey (Set()) or deserializing fails (its header bytes
+     * don't match the length of the data), the size is set to 0. Thus,
+     * by checking size, one can observe whether Set() or deserialization has
+     * failed.
+     *
+     * This does not check for more than that. In particular, it does not verify
+     * that the coordinates correspond to a point on the curve (see IsFullyValid()
+     * for that instead).
+     *
+     * Note that this is consensus critical as CheckECDSASignature() calls it!
      */
     bool IsValid() const
     {
@@ -254,6 +264,39 @@ public:
     {
         return a.m_pubkey != b.m_pubkey;
     }
+};
+
+class XOnlyPubKey
+{
+private:
+    uint256 m_keydata;
+
+public:
+    /** Construct an x-only pubkey from exactly 32 bytes. */
+    XOnlyPubKey(Span<const unsigned char> bytes);
+
+    /** Verify a Schnorr signature against this public key.
+     *
+     * sigbytes must be exactly 64 bytes.
+     */
+    bool VerifySchnorr(const uint256& msg, Span<const unsigned char> sigbytes) const;
+    /** Compute the Taproot tweak as specified in BIP341, with *this as internal
+     * key:
+     *  - if merkle_root == nullptr: H_TapTweak(xonly_pubkey)
+     *  - otherwise:                 H_TapTweak(xonly_pubkey || *merkle_root)
+     *
+     * Note that the behavior of this function with merkle_root != nullptr is
+     * consensus critical.
+     */
+    uint256 ComputeTapTweakHash(const uint256* merkle_root) const;
+
+    /** Verify that this is a Taproot tweaked output public key for the given internal key and Merkle root.
+     * parity selects the parity of the (untweaked) output key. */
+    bool CheckTapTweak(const XOnlyPubKey& internal, const uint256& merkle_root, bool parity) const;
+
+    const unsigned char& operator[](int pos) const { return *(m_keydata.begin() + pos); }
+    const unsigned char* data() const { return m_keydata.begin(); }
+    size_t size() const { return m_keydata.size(); }
 };
 
 struct CExtPubKey {

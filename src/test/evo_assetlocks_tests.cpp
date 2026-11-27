@@ -32,7 +32,7 @@
 // Helpers:
 static bool IsStandardTx(const CTransaction& tx, std::string& reason)
 {
-    return IsStandardTx(tx, MAX_OP_RETURN_RELAY, DEFAULT_PERMIT_BAREMULTISIG, CFeeRate{DUST_RELAY_TX_FEE}, reason);
+    return IsStandardTx(tx, MAX_OP_RETURN_RELAY, DEFAULT_PERMIT_BAREMULTISIG, CFeeRate{DUST_RELAY_TX_FEE}, /*taproot_active=*/true, reason);
 }
 
 // Create two dummy transactions, each with two outputs.  The first has 11 and 50 CENT outputs
@@ -185,7 +185,8 @@ static void CheckAssetLockCommon(uint8_t version, bool is_v24_active)
 
     BOOST_CHECK(CheckAssetLockTx(CTransaction(tx), tx_state, is_v24_active));
 
-    BOOST_CHECK(AreInputsStandard(CTransaction(tx), coins));
+    BOOST_CHECK(AreInputsStandard(CTransaction(tx), coins, false));
+    BOOST_CHECK(AreInputsStandard(CTransaction(tx), coins, true));
 
     // Check version
     {

@@ -21,7 +21,6 @@ FUZZ_TARGET(script_flags)
     DataStream ds{buffer};
     try {
         const CTransaction tx(deserialize, ds);
-        const PrecomputedTransactionData txdata(tx);
 
         unsigned int verify_flags;
         ds >> verify_flags;
@@ -31,6 +30,7 @@ FUZZ_TARGET(script_flags)
         unsigned int fuzzed_flags;
         ds >> fuzzed_flags;
 
+        std::vector<CTxOut> spent_outputs;
         for (unsigned i = 0; i < tx.vin.size(); ++i) {
             CTxOut prevout;
             ds >> prevout;
@@ -38,14 +38,22 @@ FUZZ_TARGET(script_flags)
                 // prevouts should be consensus-valid
                 prevout.nValue = 1;
             }
+            spent_outputs.push_back(prevout);
+        }
+        PrecomputedTransactionData txdata;
+        txdata.Init(tx, std::move(spent_outputs));
 
+        for (unsigned i = 0; i < tx.vin.size(); ++i) {
+            const CTxOut& prevout = txdata.m_spent_outputs.at(i);
             const TransactionSignatureChecker checker{&tx, i, prevout.nValue, txdata, MissingDataBehavior::ASSERT_FAIL};
 
             ScriptError serror;
             const bool ret = VerifyScript(tx.vin.at(i).scriptSig, prevout.scriptPubKey, verify_flags, checker, &serror);
             assert(ret == (serror == SCRIPT_ERR_OK));
 
-            // Verify that removing flags from a passing test or adding flags to a failing test does not change the result
+            // Verify that removing flags from a passing test or adding flags to a failing test does not change the result.
+            // Dash: without SCRIPT_VERIFY_TAPROOT a taproot spend is evaluated as a plain script, so that flag stays fixed.
+            fuzzed_flags &= ~SCRIPT_VERIFY_TAPROOT;
             if (ret) {
                 verify_flags &= ~fuzzed_flags;
             } else {
