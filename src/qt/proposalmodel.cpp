@@ -16,7 +16,10 @@
 
 #include <univalue.h>
 
+#include <QTimer>
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 namespace {
@@ -111,6 +114,16 @@ int Proposal::paymentsRequested() const
     return std::max<int>(1, ((proposal_duration + superblock_cycle - 1) / superblock_cycle));
 }
 
+int Proposal::paymentsRemaining() const
+{
+    if (!m_startDate.isValid() || !m_endDate.isValid()) {
+        return 0;
+    }
+    return governance::CountRemainingPayments({m_startDate.toSecsSinceEpoch(), m_endDate.toSecsSinceEpoch()},
+                                              m_gov_info.nextsuperblock, m_gov_info.superblockcycle, m_block_height,
+                                              QDateTime::currentSecsSinceEpoch());
+}
+
 QString Proposal::toHtml(const BitcoinUnit& unit) const
 {
     QString ret;
@@ -183,6 +196,15 @@ ProposalModel::ProposalModel(QObject* parent) :
     QAbstractTableModel(parent)
 {
     refreshIcons();
+
+    auto* clock{new QTimer(this)};
+    connect(clock, &QTimer::timeout, this, [this] {
+        if (m_data.empty()) return;
+        for (const int column : {Column::STATUS, Column::PAYMENTS_REMAINING}) {
+            Q_EMIT dataChanged(index(0, column), index(rowCount() - 1, column));
+        }
+    });
+    clock->start(std::chrono::minutes{1});
 }
 
 void ProposalModel::refreshIcons()
@@ -253,6 +275,8 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
             return proposal->startDate().date();
         case Column::END_DATE:
             return proposal->endDate().date();
+        case Column::PAYMENTS_REMAINING:
+            return proposal->paymentsRemaining();
         case Column::PAYMENT_AMOUNT: {
             return formatProposalAmount(m_display_unit, proposal->paymentAmount());
         }
@@ -298,6 +322,8 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
             return proposal->startDate();
         case Column::END_DATE:
             return proposal->endDate();
+        case Column::PAYMENTS_REMAINING:
+            return proposal->paymentsRemaining();
         case Column::PAYMENT_AMOUNT:
             return qlonglong{proposal->paymentAmount()};
         case Column::VOTING_STATUS:
@@ -339,6 +365,9 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
                 return tr("Ready to broadcast, check \"Resume Proposal\" dialog");
             }
             } // no default case, so the compiler can warn about missing cases
+        }
+        if (index.column() == Column::PAYMENTS_REMAINING) {
+            return tr("Estimated superblocks left in the proposal's payment window");
         }
         if (index.column() == Column::VOTING_STATUS) {
             const int margin = proposal->getAbsoluteYesCount() - nAbsVoteReq;
@@ -394,6 +423,8 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
         return tr("Start");
     case Column::END_DATE:
         return tr("End");
+    case Column::PAYMENTS_REMAINING:
+        return tr("Payments Left");
     case Column::PAYMENT_AMOUNT:
         return tr("Amount");
     case Column::VOTING_STATUS:

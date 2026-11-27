@@ -73,6 +73,7 @@ public:
     const uint256& objHash() const { return m_objHash; }
     int blocksUntilSuperblock() const;
     int collateralConfs() const;
+    int paymentsRemaining() const;
     int paymentsRequested() const;
     int requiredConfs() const;
     int32_t getAbsoluteYesCount() const { return m_votes.m_yes - m_votes.m_no; }
@@ -123,6 +124,7 @@ public:
         PAYMENT_AMOUNT,
         START_DATE,
         END_DATE,
+        PAYMENTS_REMAINING,
         VOTING_STATUS,
         MY_VOTES,
         HASH,

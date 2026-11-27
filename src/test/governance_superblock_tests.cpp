@@ -16,6 +16,9 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <vector>
 
 struct SuperblockRegtestSetup : public BasicTestingSetup {
@@ -85,6 +88,7 @@ BOOST_AUTO_TEST_CASE(isvalid_duplicate_payments_require_distinct_outputs)
 
 // The masternode building a trigger estimates the superblock's time from its own height and clock, within the last
 // maturity window before the superblock, and accepts a proposal whose window is at most two hours off that estimate.
+// Counting from any superblock, the payments left in the window are the chosen superblocks not yet behind it.
 BOOST_AUTO_TEST_CASE(proposal_window_holds_exactly_the_chosen_superblocks)
 {
     const int cycle{16616};
@@ -96,10 +100,7 @@ BOOST_AUTO_TEST_CASE(proposal_window_holds_exactly_the_chosen_superblocks)
     for (const double block_seconds : {2.62 * 60 * 0.99, 2.62 * 60, 2.62 * 60 * 1.01}) {
         for (const int blocks_to_next : {maturity_window + 1, cycle / 2 - 1, cycle / 2 + 1, cycle - 1}) {
             const int tip{next_superblock - blocks_to_next};
-            const auto estimated_by_trigger_builder = [&](int superblock, int trigger_height) {
-                const auto trigger_time{static_cast<int64_t>(now + (trigger_height - tip) * block_seconds)};
-                return governance::EstimateBlockTime(superblock, trigger_height, trigger_time);
-            };
+            const auto clock_at = [&](int height) { return static_cast<int64_t>(now + (height - tip) * block_seconds); };
             for (int skipped{0}; skipped < 12; ++skipped) {
                 for (int payments{1}; payments <= 12; ++payments) {
                     const int first_superblock{next_superblock + skipped * cycle};
@@ -111,18 +112,39 @@ BOOST_AUTO_TEST_CASE(proposal_window_holds_exactly_the_chosen_superblocks)
                         const bool chosen{n >= 0 && n < payments};
                         const int64_t slack{chosen ? 0 : fudge};
                         for (const int trigger_height : {superblock - maturity_window, superblock - 1}) {
-                            const int64_t time{estimated_by_trigger_builder(superblock, trigger_height)};
+                            const int64_t trigger_time{clock_at(trigger_height)};
+                            const int64_t time{governance::EstimateBlockTime(superblock, trigger_height, trigger_time)};
                             const bool inside{window.start_epoch - slack <= time && time <= window.end_epoch + slack};
                             BOOST_CHECK_MESSAGE(inside == chosen,
                                                 "blocks_to_next=" << blocks_to_next << " skipped=" << skipped
                                                                   << " payments=" << payments << " n=" << n
                                                                   << " trigger_height=" << trigger_height);
+                            BOOST_CHECK_EQUAL(governance::CountRemainingPayments(window, superblock, cycle,
+                                                                                 trigger_height, trigger_time),
+                                              payments - std::max(n, 0));
                         }
                     }
                 }
             }
         }
     }
+
+    const int tip{next_superblock - cycle / 2};
+    const int64_t cycle_seconds{governance::EstimateBlockTime(cycle, 0, 0)};
+    BOOST_CHECK_EQUAL(governance::CountRemainingPayments({now - 3 * cycle_seconds, now - cycle_seconds},
+                                                         next_superblock, cycle, tip, now),
+                      0);
+    BOOST_CHECK_EQUAL(governance::CountRemainingPayments({now, now + cycle_seconds}, next_superblock,
+                                                         /*superblock_cycle=*/0, tip, now),
+                      0);
+    BOOST_CHECK_EQUAL(governance::CountRemainingPayments({std::numeric_limits<int64_t>::min(),
+                                                          std::numeric_limits<int64_t>::max()},
+                                                         next_superblock, cycle, tip, now),
+                      (std::numeric_limits<int>::max() - next_superblock) / cycle);
+    BOOST_CHECK_EQUAL(
+        governance::CountRemainingPayments({std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max()},
+                                           /*next_superblock=*/0, /*superblock_cycle=*/1, /*ref_height=*/0, now),
+        std::numeric_limits<int>::max());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
