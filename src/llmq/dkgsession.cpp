@@ -54,7 +54,10 @@ double GetSimulatedErrorRate(DKGError::type type)
 
 bool CDKGSession::ShouldSimulateError(DKGError::type type) const
 {
-    if (params.type != Consensus::LLMQType::LLMQ_TEST) {
+    // Simulated errors act on LLMQ_TEST only, except the one that makes a member omit its commitments in every DKG.
+    const bool allowed{type == DKGError::type::COMMIT_OMIT_ALL_TYPES ? m_chainman.GetParams().IsMockableChain()
+                                                                     : params.type == Consensus::LLMQType::LLMQ_TEST};
+    if (!allowed) {
         return false;
     }
     double rate = GetSimulatedErrorRate(type);
