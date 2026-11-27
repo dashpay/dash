@@ -101,7 +101,8 @@ private:
         const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
         const std::vector<instantsend::PendingISLockEntry>& pend);
 
-    void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock);
+    //! Returns false if shutdown or a local system error stopped it
+    [[nodiscard]] bool ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock);
 
     void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
 

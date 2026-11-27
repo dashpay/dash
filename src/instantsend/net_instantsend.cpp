@@ -12,17 +12,21 @@
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
 #include <instantsend/signing.h>
+#include <kernel/notifications_interface.h>
 #include <llmq/commitment.h>
 #include <llmq/quorumsman.h>
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <masternode/sync.h>
 #include <node/interface_ui.h>
+#include <shutdown.h>
+#include <tinyformat.h>
 #include <util/thread.h>
 #include <validation.h>
 
 #include <chrono>
 #include <set>
+#include <string_view>
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
@@ -198,6 +202,9 @@ Uint256HashSet NetInstantSend::ApplyVerificationResults(
     std::set<NodeId> penalized;
 
     for (const auto& pending : pend) {
+        // The node is stopping, possibly because resolving a block conflict failed
+        if (ShutdownRequested()) break;
+
         const auto& hash = pending.islock_hash;
         auto nodeId = pending.node_id;
         const auto& islock = pending.islock;
@@ -429,7 +436,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
     // We only need the ISLOCK from now on to detect conflicts
     TruncateRecoveredSigsForInputs(*islock);
-    ResolveBlockConflicts(hash, *islock);
+    if (!ResolveBlockConflicts(hash, *islock)) return;
 
     if (found_transaction) {
         RemoveMempoolConflictsForLock(hash, *islock);
@@ -608,7 +615,7 @@ void NetInstantSend::NotifyChainLock(const CBlockIndex* pindex, const std::share
     HandleFullyConfirmedBlock(pindex);
 }
 
-void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
+bool NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
 {
     auto conflicts = m_is_manager.RetrieveISConflicts(islockHash, islock);
 
@@ -630,10 +637,22 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
         LogPrintf("NetInstantSend::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock\n",
                   __func__, islock.txid.ToString(), islockHash.ToString());
         m_is_manager.RemoveConflictingLock(islockHash, islock);
-        return;
+        return true;
     }
 
     bool hasTxForLock = m_is_manager.HasTxForLock(islockHash);
+
+    // InvalidateBlock gives up without disconnecting anything once shutdown is requested. Any other failure is a
+    // local system error (unreadable block or undo data, failed flush).
+    const auto report_failure = [this](std::string_view step, const BlockValidationState& state) {
+        if (ShutdownRequested()) {
+            LogPrintf("NetInstantSend::ResolveBlockConflicts -- %s stopped by shutdown: %s\n", step, state.ToString());
+        } else {
+            m_chainman.GetNotifications().fatalError(
+                strprintf("NetInstantSend::ResolveBlockConflicts -- %s failed: %s", step, state.ToString()));
+        }
+        return false;
+    };
 
     bool activateBestChain = false;
     for (const auto& p : conflicts) {
@@ -646,9 +665,7 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
         // need non-const pointer
         auto pindex2 = WITH_LOCK(::cs_main, return m_chainman.ActiveChainstate().m_blockman.LookupBlockIndex(pindex->GetBlockHash()));
         if (!m_chainman.ActiveChainstate().InvalidateBlock(state, pindex2)) {
-            LogPrintf("NetInstantSend::%s -- InvalidateBlock failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
+            return report_failure("InvalidateBlock", state);
         }
         if (hasTxForLock) {
             activateBestChain = true;
@@ -662,11 +679,10 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
     if (activateBestChain) {
         BlockValidationState state;
         if (!m_chainman.ActiveChainstate().ActivateBestChain(state)) {
-            LogPrintf("NetInstantSend::%s -- ActivateBestChain failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
+            return report_failure("ActivateBestChain", state);
         }
     }
+    return true;
 }
 
 void NetInstantSend::TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock)
