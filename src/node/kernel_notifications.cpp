@@ -88,6 +88,11 @@ void KernelNotifications::masternodeListChanged(const CDeterministicMNList& list
     uiInterface.NotifyMasternodeListChanged(list, index);
 }
 
+void KernelNotifications::evoStateWarningChanged()
+{
+    uiInterface.NotifyAlertChanged();
+}
+
 void KernelNotifications::flushError(const std::string& debug_message)
 {
     AbortNode(m_exit_status, debug_message);

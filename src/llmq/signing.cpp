@@ -12,6 +12,7 @@
 #include <chainparams.h>
 #include <common/system.h>
 #include <dbwrapper.h>
+#include <evo/snapshot_types.h>
 #include <streams.h>
 
 #include <algorithm>
@@ -429,6 +430,8 @@ void CRecoveredSigsDb::CleanupOldVotes(int64_t maxAge)
 
 //////////////////
 
+const CEvoDB& CSigningManager::EvoDb() const { return qman.EvoDb(); }
+
 CSigningManager::CSigningManager(const CQuorumManager& _qman, const util::DbWrapperParams& db_params,
                                  int64_t max_recsigs_age) :
     db{db_params},
@@ -587,21 +590,29 @@ bool CSigningManager::CollectPendingRecoveredSigsToVerify(
             auto llmqType = recSig->getLlmqType();
             auto quorumKey = std::make_pair(recSig->getLlmqType(), recSig->getQuorumHash());
             if (!ret_pubkeys.count(quorumKey)) {
-                auto quorum = qman.GetQuorum(llmqType, recSig->getQuorumHash());
-                if (!quorum) {
-                    LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not found, node=%d\n", __func__,
-                              recSig->getQuorumHash().ToString(), nodeId);
-                    it = v.erase(it);
-                    continue;
-                }
-                if (!IsQuorumActive(llmqType, qman, quorum->qc->quorumHash)) {
-                    LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not active anymore, node=%d\n", __func__,
-                              recSig->getQuorumHash().ToString(), nodeId);
-                    it = v.erase(it);
-                    continue;
-                }
+                try {
+                    auto quorum = qman.GetQuorum(llmqType, recSig->getQuorumHash());
+                    if (!quorum) {
+                        LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not found, node=%d\n", __func__,
+                                 recSig->getQuorumHash().ToString(), nodeId);
+                        it = v.erase(it);
+                        continue;
+                    }
+                    if (!IsQuorumActive(llmqType, qman, quorum->qc->quorumHash)) {
+                        LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not active anymore, node=%d\n",
+                                 __func__, recSig->getQuorumHash().ToString(), nodeId);
+                        it = v.erase(it);
+                        continue;
+                    }
 
-                ret_pubkeys.emplace(quorumKey, quorum->qc->quorumPublicKey);
+                    ret_pubkeys.emplace(quorumKey, quorum->qc->quorumPublicKey);
+                } catch (const evo::LocalStateError& e) {
+                    // Only this signature is dropped, and its peer is not to blame.
+                    LogPrint(BCLog::LLMQ, "CSigningManager::%s -- cannot check quorum %s: %s, node=%d\n", __func__,
+                             recSig->getQuorumHash().ToString(), e.what(), nodeId);
+                    it = v.erase(it);
+                    continue;
+                }
             }
 
             ++it;

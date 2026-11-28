@@ -4,6 +4,8 @@
 
 #include <llmq/net_signing.h>
 
+#include <evo/evodb.h>
+
 #include <bls/bls_batchverifier.h>
 #include <llmq/quorums.h>
 #include <llmq/signhash.h>
@@ -284,12 +286,15 @@ bool NetSigning::ProcessPendingRecoveredSigs()
 void NetSigning::WorkThreadSigning()
 {
     while (!workInterrupt) {
-        bool fMoreWork = ProcessPendingRecoveredSigs();
+        bool fMoreWork{false};
+        RunActiveEvoRound(&m_sig_manager.EvoDb(), "recsig-signing", [&] {
+            fMoreWork = ProcessPendingRecoveredSigs();
 
-        constexpr auto CLEANUP_INTERVAL{5s};
-        if (cleanupThrottler.TryCleanup(CLEANUP_INTERVAL)) {
-            m_sig_manager.Cleanup();
-        }
+            constexpr auto CLEANUP_INTERVAL{5s};
+            if (cleanupThrottler.TryCleanup(CLEANUP_INTERVAL)) {
+                m_sig_manager.Cleanup();
+            }
+        });
 
         // TODO Wakeup when pending signing is needed?
         if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
@@ -324,10 +329,12 @@ void NetSigning::WorkThreadCleaning()
     assert(m_shares_manager);
 
     while (!workInterrupt) {
-        RemoveDiscouragedNodeStates();
+        RunActiveEvoRound(&m_sig_manager.EvoDb(), "sigshares-cleaning", [&] {
+            RemoveDiscouragedNodeStates();
 
-        m_shares_manager->SendMessages();
-        m_shares_manager->Cleanup();
+            m_shares_manager->SendMessages();
+            m_shares_manager->Cleanup();
+        });
 
         workInterrupt.sleep_for(std::chrono::milliseconds(100));
     }
@@ -338,52 +345,58 @@ void NetSigning::WorkThreadDispatcher()
     assert(m_shares_manager);
 
     while (!workInterrupt) {
-        // Dispatch all pending signs (individual tasks)
-        {
-            auto signs = m_shares_manager->DispatchPendingSigns();
-            // Dispatch all signs to worker pool
-            for (auto& work : signs) {
-                if (workInterrupt) break;
+        // Tasks pushed below run under this round's binding.
+        RunActiveEvoRound(&m_sig_manager.EvoDb(), "sigshares-dispatch", [&] {
+            // Dispatch all pending signs (individual tasks)
+            {
+                auto signs = m_shares_manager->DispatchPendingSigns();
+                // Dispatch all signs to worker pool
+                for (auto& work : signs) {
+                    if (workInterrupt) break;
 
-                worker_pool.push([this, work = std::move(work)](int) mutable {
-                    auto rs = m_shares_manager->SignAndProcessSingleShare(std::move(work));
-                    ProcessRecoveredSig(rs, true);
-                });
-            }
-        }
-
-        // Collect pending sig shares synchronously and dispatch each batch to a worker for parallel BLS verification.
-        // Batches awaiting verification are bounded so that under flood shares back up in the capped
-        // pending maps instead of migrating into the unbounded worker pool task queue.
-        //
-        // Each batch is bounded by actual share count (not unique-session count), so at most
-        // MAX_UNVERIFIED_BATCHES * MAX_SHARES_PER_BATCH shares can be sitting in / on the worker pool at once.
-        static constexpr int MAX_UNVERIFIED_BATCHES{4};
-        static constexpr size_t MAX_SHARES_PER_BATCH{32};
-        while (!workInterrupt && unverified_batches < MAX_UNVERIFIED_BATCHES) {
-            std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
-            std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
-
-            bool more_work = m_shares_manager->CollectPendingSigSharesToVerify(MAX_SHARES_PER_BATCH, sigSharesByNodes, quorums);
-
-            if (sigSharesByNodes.empty()) {
-                break;
+                    worker_pool.push(WithCapturedEvoView([this, work = std::move(work)](int) mutable {
+                        auto rs = m_shares_manager->SignAndProcessSingleShare(std::move(work));
+                        ProcessRecoveredSig(rs, true);
+                    }));
+                }
             }
 
-            ++unverified_batches;
-            worker_pool.push([this, sigSharesByNodes = std::move(sigSharesByNodes), quorums = std::move(quorums)](int) mutable {
-                // Ensures unverified_batches is decremented on every exit path, including exceptions.
-                struct UnverifiedBatchGuard {
-                    std::atomic<int>& count;
-                    ~UnverifiedBatchGuard() { --count; }
-                } guard{unverified_batches};
-                ProcessPendingSigShares(std::move(sigSharesByNodes), std::move(quorums));
-            });
+            // Collect pending sig shares synchronously and dispatch each batch to a worker for parallel BLS
+            // verification. Batches awaiting verification are bounded so that under flood shares back up in the capped
+            // pending maps instead of migrating into the unbounded worker pool task queue.
+            //
+            // Each batch is bounded by actual share count (not unique-session count), so at most
+            // MAX_UNVERIFIED_BATCHES * MAX_SHARES_PER_BATCH shares can be sitting in / on the worker pool at once.
+            static constexpr int MAX_UNVERIFIED_BATCHES{4};
+            static constexpr size_t MAX_SHARES_PER_BATCH{32};
+            while (!workInterrupt && unverified_batches < MAX_UNVERIFIED_BATCHES) {
+                std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
+                std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
 
-            if (!more_work) {
-                break;
+                bool more_work = m_shares_manager->CollectPendingSigSharesToVerify(MAX_SHARES_PER_BATCH,
+                                                                                   sigSharesByNodes, quorums);
+
+                if (sigSharesByNodes.empty()) {
+                    break;
+                }
+
+                ++unverified_batches;
+                worker_pool.push(WithCapturedEvoView(
+                    [this, sigSharesByNodes = std::move(sigSharesByNodes), quorums = std::move(quorums)](int) mutable {
+                        // Ensures unverified_batches is decremented on every exit path, including exceptions.
+                        struct UnverifiedBatchGuard {
+                            std::atomic<int>& count;
+                            ~UnverifiedBatchGuard() { --count; }
+                        } guard{unverified_batches};
+                        ProcessPendingSigShares(std::move(sigSharesByNodes), std::move(quorums));
+                    },
+                    [this] { --unverified_batches; }));
+
+                if (!more_work) {
+                    break;
+                }
             }
-        }
+        });
 
         // Always sleep briefly between checks
         workInterrupt.sleep_for(std::chrono::milliseconds(10));

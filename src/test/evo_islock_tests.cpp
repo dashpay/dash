@@ -16,6 +16,7 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <primitives/transaction.h>
+#include <protocol.h>
 #include <script/solver.h>
 #include <spork.h>
 #include <streams.h>
@@ -24,6 +25,7 @@
 #include <util/strencodings.h>
 #include <validation.h>
 
+#include <optional>
 #include <string_view>
 
 #include <boost/test/unit_test.hpp>
@@ -67,6 +69,38 @@ BOOST_FIXTURE_TEST_CASE(chainlocked_conflict_overrides_confirmed_locks, TestChai
     BOOST_CHECK(!isman.ConflictingISLockIfAny(conflict_tx));
     for (const auto& txid : locked_txids) {
         BOOST_CHECK(!isman.IsLocked(txid));
+    }
+}
+
+//! A lock discarded for a block it conflicts with, whether stored or still
+//! waiting for its transaction, is no longer served, and is not requested again.
+BOOST_FIXTURE_TEST_CASE(discarded_lock_is_not_served, TestChain100Setup)
+{
+    constexpr const char* REGTEST_SPORK_PRIVKEY{"cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"};
+    BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
+    BOOST_REQUIRE(m_node.sporkman->SetPrivKey(REGTEST_SPORK_PRIVKEY));
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_2_INSTANTSEND_ENABLED, 0).has_value());
+
+    auto& isman = *m_node.isman;
+    for (const bool stored : {true, false}) {
+        auto islock = std::make_shared<instantsend::InstantSendLock>();
+        islock->txid = GetRandHash();
+        islock->inputs = {COutPoint{GetRandHash(), 0}};
+        const uint256 hash{::SerializeHash(*islock)};
+        if (stored) {
+            isman.WriteNewISLock(hash, islock, /*minedHeight=*/std::nullopt);
+        } else {
+            isman.AddPendingISLock(hash, islock, /*from=*/0);
+        }
+        instantsend::InstantSendLock served;
+        BOOST_REQUIRE(isman.GetInstantSendLockByHash(hash, served));
+        BOOST_CHECK_EQUAL(isman.HasTxForLock(hash), stored);
+
+        isman.RemoveConflictingLock(hash, *islock);
+        isman.RemovePendingNoTxLock(hash);
+        BOOST_CHECK(!isman.GetInstantSendLockByHash(hash, served));
+        BOOST_CHECK(isman.HasTxForLock(hash));
+        BOOST_CHECK(isman.AlreadyHave(CInv{MSG_ISDLOCK, hash}));
     }
 }
 

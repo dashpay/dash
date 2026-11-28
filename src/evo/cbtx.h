@@ -87,7 +87,16 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
                                BlockValidationState& state);
 uint256 CalcCbTxMerkleRootAssetUnlocks(const CBlock& block);
 
+/** Decode a coinbase's CbTx payload strictly: the ChainLock signature
+ *  eagerly, and nothing may follow the payload. */
+std::optional<CCbTx> DecodeCbTxPayload(const CTransaction& tx);
+/** The non-null ChainLock in the coinbase of `pindex`'s block. A block this
+ *  node has but cannot read raises BlockDataReadError; one it lacks reads as
+ *  none, except at or below the base in a snapshot view, where it raises
+ *  BlockDataUnavailableError. */
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const node::BlockManager& blockman, const CBlockIndex* pindex);
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, int32_t height);
+/** The non-null ChainLock in `block`'s coinbase, decoded strictly, where
+ *  `index` is the block's own index. */
+std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlock& block, const CBlockIndex& index);
 
 #endif // BITCOIN_EVO_CBTX_H

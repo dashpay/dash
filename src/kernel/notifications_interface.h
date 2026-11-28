@@ -43,6 +43,7 @@ public:
     virtual void progress(const bilingual_str& title, int progress_percent, bool resume_possible) {}
     virtual void warning(const bilingual_str& warning) {}
     virtual void masternodeListChanged(const CDeterministicMNList& list, const CBlockIndex* index) {}
+    virtual void evoStateWarningChanged() {}
 
     //! The flush error notification is sent to notify the user that an error
     //! occurred while flushing block data to disk. Kernel code may ignore flush

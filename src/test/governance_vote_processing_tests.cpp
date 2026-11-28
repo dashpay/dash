@@ -6,6 +6,7 @@
 #include <bls/bls.h>
 #include <consensus/amount.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <governance/governance.h>
@@ -188,14 +189,18 @@ struct GovernanceVoteSetup : public TestChainSetup {
     //! rejects the raw-pubkey coinbase script, IsCollateralValid() rejects anything else).
     CScript payout_script() const { return GetScriptForDestination(PKHash(coinbaseKey.GetPubKey())); }
 
-    CDeterministicMNList tip_mn_list() const { return m_node.dmnman->GetListAtChainTip(); }
+    CDeterministicMNList tip_mn_list() const
+    {
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        return m_node.dmnman->GetListAtChainTip();
+    }
 
     void MineBlock(const std::vector<CMutableTransaction>& txns)
     {
         const CBlock block = CreateAndProcessBlock(txns, coinbase_script());
         const CBlockIndex* tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip())};
         BOOST_REQUIRE_EQUAL(tip->GetBlockHash(), block.GetHash());
-        m_node.dmnman->UpdatedBlockTip(tip);
+        NotifyMNListTip(*m_node.dmnman, tip);
         SetMockTime(GetTime() + 1);
         IndexWaitSynced(*m_node.gov_collateral_index);
     }
@@ -268,6 +273,7 @@ struct GovernanceReorgSetup : GovernanceVoteSetup {
 
 BOOST_FIXTURE_TEST_CASE(votes_follow_masternode_identity_across_reorg, GovernanceReorgSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& chainman = *m_node.chainman;
     auto& govman = *m_node.govman;
     CKey owner_key, other_owner_key, voting_key;
@@ -330,6 +336,7 @@ BOOST_FIXTURE_TEST_CASE(votes_follow_masternode_identity_across_reorg, Governanc
 // otherwise every vote that races ahead of its proposal is lost for good.
 BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
 
     // Build the proposal but keep it out of the manager: the vote arrives first.
@@ -385,6 +392,7 @@ BOOST_AUTO_TEST_CASE(orphan_vote_is_cached_and_applied_when_parent_arrives)
 
 BOOST_AUTO_TEST_CASE(orphan_funding_votes_from_multiple_masternodes_are_applied)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     CKey second_voting_key;
     CBLSSecretKey second_operator_key;
     const auto protx{CreateProRegTx(*m_node.chainman, utxos, /*port=*/2, payout_script(), coinbaseKey,
@@ -423,6 +431,7 @@ BOOST_AUTO_TEST_CASE(orphan_funding_votes_from_multiple_masternodes_are_applied)
 
 BOOST_AUTO_TEST_CASE(orphan_timestamp_variants_replay_only_the_newest_vote)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
     const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
     uint256 newest_hash;
@@ -451,6 +460,7 @@ BOOST_AUTO_TEST_CASE(orphan_timestamp_variants_replay_only_the_newest_vote)
 
 BOOST_AUTO_TEST_CASE(operator_orphans_do_not_displace_a_voting_key_orphan)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
     const uint256 parent_hash{MakeProposal(uint256{}).GetHash()};
     CGovernanceVote operator_vote{MakeVote(parent_hash, VOTE_SIGNAL_FUNDING, VOTE_OUTCOME_YES)};
@@ -478,6 +488,7 @@ BOOST_AUTO_TEST_CASE(operator_orphans_do_not_displace_a_voting_key_orphan)
 
 BOOST_AUTO_TEST_CASE(old_key_orphan_does_not_suppress_a_current_key_vote)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     // Before DIP3 enforcement, registrar updates must keep the owner and voting keys equal.
     MineBlocks(500 - tip_mn_list().GetHeight());
     auto& govman = *m_node.govman;
@@ -526,6 +537,7 @@ BOOST_AUTO_TEST_CASE(old_key_orphan_does_not_suppress_a_current_key_vote)
 // Votes are only counted if they carry a signature from a registered masternode.
 BOOST_AUTO_TEST_CASE(unsigned_and_unknown_masternode_votes_are_rejected)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
 
     const CGovernanceObject proposal{MakeProposal(uint256::ONE)};
@@ -594,6 +606,7 @@ BOOST_AUTO_TEST_CASE(unsigned_and_unknown_masternode_votes_are_rejected)
 
 BOOST_AUTO_TEST_CASE(invalid_signature_does_not_suppress_valid_vote)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
     const CGovernanceObject proposal{MakeProposal(uint256::ONE)};
     const uint256 parent_hash{proposal.GetHash()};
@@ -646,6 +659,7 @@ BOOST_AUTO_TEST_CASE(invalid_signature_does_not_suppress_valid_vote)
 // away by the 1h GOVERNANCE_UPDATE_MIN limit instead of the rule under test.
 BOOST_AUTO_TEST_CASE(proposal_funding_votes_require_the_voting_key)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& govman = *m_node.govman;
 
     const CGovernanceObject proposal{MakeProposal(uint256::ONE)};
@@ -746,6 +760,7 @@ BOOST_AUTO_TEST_CASE(legacy_governance_cache_is_discarded)
 // throttled: every one cost a BLS verification and a mapErasedGovernanceObjects entry.
 BOOST_AUTO_TEST_CASE(failed_triggers_advance_the_masternode_rate_limit)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     const int64_t now{GetTime()};
     constexpr int attempts{12};
     int stored{0};
@@ -771,6 +786,7 @@ BOOST_AUTO_TEST_CASE(failed_triggers_advance_the_masternode_rate_limit)
 // would be announced, and served on GETDATA, once it aged past RELIABLE_PROPAGATION_TIME.
 BOOST_AUTO_TEST_CASE(failed_trigger_is_not_scheduled_for_deferred_relay)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     const int64_t now{GetTime()};
     // Inside (now + MAX_TIME_FUTURE_DEVIATION - RELIABLE_PROPAGATION_TIME, now + MAX_TIME_FUTURE_DEVIATION],
     // i.e. 1h - 60s < offset <= 1h: accepted by MasternodeRateCheck, too new to propagate reliably.

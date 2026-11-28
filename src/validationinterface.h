@@ -7,6 +7,7 @@
 #define BITCOIN_VALIDATIONINTERFACE_H
 
 #include <kernel/cs_main.h>
+#include <kernel/chain.h>
 #include <primitives/transaction.h> // CTransaction(Ref)
 #include <sync.h>
 
@@ -104,7 +105,7 @@ protected:
      * but may not be called on every intermediate tip. If the latter behavior is desired,
      * subscribe to BlockConnected() instead.
      *
-     * Called on a background thread.
+     * Called on a background thread. Only called for the active chainstate.
      */
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
     /**
@@ -119,6 +120,14 @@ protected:
      * other listeners like ZMQ.
      */
     virtual void InitializeCurrentBlockTip(const CBlockIndex* /*tip*/, bool /*ibd*/) {}
+    /**
+     * InitializeCurrentBlockTip for a snapshot tip that became active without
+     * a block connection. The activation already set what
+     * SynchronousUpdatedBlockTip would, and a block may have connected and set
+     * it again before this runs on the validation interface queue, so
+     * implementations must leave that state alone.
+     */
+    virtual void InitializeSnapshotTip(const CBlockIndex* tip, bool ibd) { InitializeCurrentBlockTip(tip, ibd); }
     /**
      * Same as UpdatedBlockTip, but called from the caller's thread
      */
@@ -168,11 +177,12 @@ protected:
      *
      * Called on a background thread.
      */
-    virtual void BlockConnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex *pindex) {}
+    virtual void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock> &block, const CBlockIndex *pindex) {}
     /**
      * Notifies listeners of a block being disconnected
      *
-     * Called on a background thread.
+     * Called on a background thread. Only called for the active chainstate, since
+     * background chainstates should never disconnect blocks.
      */
     virtual void BlockDisconnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex *pindex) {}
     virtual void NotifyTransactionLock(const CTransactionRef &tx, const std::shared_ptr<const instantsend::InstantSendLock>& islock) {}
@@ -199,17 +209,18 @@ protected:
      *
      * Called on a background thread.
      */
-    virtual void ChainStateFlushed(const CBlockLocator &locator) {}
+    virtual void ChainStateFlushed(ChainstateRole role, const CBlockLocator &locator) {}
     /**
      * Notifies listeners of a block validation result.
      * If the provided BlockValidationState IsValid, the provided block
      * is guaranteed to be the current best block at the time the
-     * callback was generated (not necessarily now)
+     * callback was generated (not necessarily now).
      */
     virtual void BlockChecked(const CBlock&, const BlockValidationState&) {}
     /**
      * Notifies listeners that a block which builds directly on our current tip
-     * has been received and connected to the headers tree, though not validated yet */
+     * has been received and connected to the headers tree, though not validated yet.
+     */
     virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& block) {};
     friend class CMainSignals;
     friend class ValidationInterfaceTest;
@@ -240,10 +251,11 @@ public:
     void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload);
     void UpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
     void InitializeCurrentBlockTip(const CBlockIndex* tip, bool ibd);
+    void InitializeSnapshotTip(const CBlockIndex* tip, bool ibd);
     void SynchronousUpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
     void TransactionAddedToMempool(const CTransactionRef&, int64_t, uint64_t mempool_sequence);
     void TransactionRemovedFromMempool(const CTransactionRef&, MemPoolRemovalReason, uint64_t mempool_sequence);
-    void BlockConnected(const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex);
+    void BlockConnected(ChainstateRole, const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex);
     void BlockDisconnected(const std::shared_ptr<const CBlock> &, const CBlockIndex* pindex);
     void NotifyTransactionLock(const CTransactionRef &tx, const std::shared_ptr<const instantsend::InstantSendLock>& islock);
     void NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig, const std::string& id);
@@ -252,7 +264,7 @@ public:
     void NotifyInstantSendDoubleSpendAttempt(const CTransactionRef& currentTx, const CTransactionRef& previousTx, const uint256& previous_txid);
     void NotifyRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig> &sig, const std::string& id, bool proactive_relay);
     void NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff);
-    void ChainStateFlushed(const CBlockLocator &);
+    void ChainStateFlushed(ChainstateRole, const CBlockLocator &);
     void BlockChecked(const CBlock&, const BlockValidationState&);
     void NewPoWValidBlock(const CBlockIndex *, const std::shared_ptr<const CBlock>&);
 };

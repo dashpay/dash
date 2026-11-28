@@ -91,6 +91,11 @@ bool LoadMempool(CTxMemPool& pool, const fs::path& load_path, Chainstate& active
             }
             if (nTime > TicksSinceEpoch<std::chrono::seconds>(now - pool.m_expiry)) {
                 LOCK(cs_main);
+                // A snapshot activation or rejection moves the mempool to another chainstate, or detaches it.
+                if (active_chainstate.GetMempool() != &pool) {
+                    LogPrintf("Stopping the mempool load: the chainstate no longer holds this mempool\n");
+                    return false;
+                }
                 const auto& accepted = AcceptToMemoryPool(active_chainstate, tx, nTime, /*bypass_limits=*/false, /*test_accept=*/false);
                 if (accepted.m_result_type == MempoolAcceptResult::ResultType::VALID) {
                     ++count;

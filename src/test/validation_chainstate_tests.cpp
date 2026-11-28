@@ -4,9 +4,15 @@
 //
 #include <chainparams.h>
 #include <consensus/validation.h>
-#include <evo/evodb.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
+#include <evo/mnhftx.h>
+#include <evo/specialtxman.h>
 #include <index/txindex.h>
+#include <init.h>
+#include <llmq/blockprocessor.h>
+#include <llmq/context.h>
+#include <node/blockstorage.h>
 #include <node/interface_ui.h>
 #include <random.h>
 #include <rpc/blockchain.h>
@@ -30,17 +36,47 @@ namespace {
 class TipEventCounter final : public CValidationInterface
 {
 public:
+    explicit TipEventCounter(const CEvoDB& evodb) :
+        m_evodb{evodb}
+    {
+    }
+
     int block_connected{0};
+    int background_block_connected{0};
     int updated_tip{0};
     int mn_list_changed{0};
     int chainstate_flushed{0};
+    int background_chainstate_flushed{0};
+    //! The Evo view each BlockChecked callback ran under.
+    std::vector<EvoDbIdentity> block_checked_views;
 
-    void BlockConnected(const std::shared_ptr<const CBlock>&, const CBlockIndex*) override { ++block_connected; }
+    void BlockChecked(const CBlock&, const BlockValidationState&) override
+    {
+        block_checked_views.push_back(m_evodb.CurrentView().identity);
+    }
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>&, const CBlockIndex*) override
+    {
+        ++(role == ChainstateRole::BACKGROUND ? background_block_connected : block_connected);
+    }
     void UpdatedBlockTip(const CBlockIndex*, const CBlockIndex*, bool) override { ++updated_tip; }
     void NotifyMasternodeListChanged(bool, const CDeterministicMNList&, const CDeterministicMNListDiff&) override { ++mn_list_changed; }
-    void ChainStateFlushed(const CBlockLocator&) override { ++chainstate_flushed; }
+    void ChainStateFlushed(ChainstateRole role, const CBlockLocator&) override
+    {
+        ++(role == ChainstateRole::BACKGROUND ? background_chainstate_flushed : chainstate_flushed);
+    }
+
+private:
+    const CEvoDB& m_evodb;
 };
 
+//! Whether `key` is durably stored in the snapshot generation `generation`.
+template <typename K>
+bool StoredInGeneration(CEvoDB& evodb, uint32_t generation, const K& key)
+{
+    DataStream raw_key{CEvoDBStore::GenerationPrefix(generation)};
+    raw_key << key;
+    return evodb.GetRawDB().Exists(raw_key);
+}
 } // namespace
 
 BOOST_FIXTURE_TEST_SUITE(validation_chainstate_tests, ChainTestingSetup)
@@ -164,7 +200,7 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
     }
 
     SyncWithValidationInterfaceQueue();
-    TipEventCounter event_counter;
+    TipEventCounter event_counter{*m_node.evodb};
     RegisterValidationInterface(&event_counter);
     int ui_mn_list_changed{0};
     auto ui_connection = uiInterface.NotifyMasternodeListChanged_connect(
@@ -184,11 +220,158 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
     // validation chain.
     BOOST_CHECK(block_added);
     BOOST_CHECK_EQUAL(curr_tip, ::g_best_block);
+    // Block and flush events of a background connect carry its role.
     BOOST_CHECK_EQUAL(event_counter.block_connected, 0);
+    BOOST_CHECK_EQUAL(event_counter.background_block_connected, 1);
     BOOST_CHECK_EQUAL(event_counter.updated_tip, 0);
     BOOST_CHECK_EQUAL(event_counter.mn_list_changed, 0);
     BOOST_CHECK_EQUAL(event_counter.chainstate_flushed, 0);
+    BOOST_CHECK_GE(event_counter.background_chainstate_flushed, 1);
     BOOST_CHECK_EQUAL(ui_mn_list_changed, 0);
+    // Synchronous notifications of a background connect run under its view.
+    BOOST_CHECK(event_counter.block_checked_views == std::vector<EvoDbIdentity>{EvoDbIdentity::NORMAL});
+
+    // A queued event runs under the view it was enqueued with, and is dropped
+    // when that view's snapshot generation was retired in the meantime.
+    CEvoDB& evodb{*m_node.evodb};
+    TipEventCounter queued_counter{evodb};
+    RegisterValidationInterface(&queued_counter);
+    const EvoViewToken snapshot_view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+    EvoViewToken retired_view{snapshot_view};
+    ++retired_view.generation;
+    {
+        EvoViewScope live{snapshot_view};
+        GetMainSignals().ChainStateFlushed(ChainstateRole::ASSUMEDVALID, CBlockLocator{});
+    }
+    {
+        EvoViewScope stale{retired_view};
+        GetMainSignals().ChainStateFlushed(ChainstateRole::ASSUMEDVALID, CBlockLocator{});
+    }
+    SyncWithValidationInterfaceQueue();
+    UnregisterValidationInterface(&queued_counter);
+    BOOST_CHECK_EQUAL(queued_counter.chainstate_flushed, 1);
+
+    // Scheduler tasks start before the block databases load, and a load retry
+    // replaces the Evo database: they bind the active view only once startup
+    // has published the database it keeps.
+    bool scheduler_bound{true};
+    RunSchedulerTask(m_node, [&] { scheduler_bound = evodb.IsBound(); });
+    BOOST_CHECK(!scheduler_bound);
+    m_node.evodb_for_dispatch = &evodb;
+    RunSchedulerTask(m_node, [&] { scheduler_bound = evodb.IsBound(); });
+    BOOST_CHECK(scheduler_bound);
+    m_node.evodb_for_dispatch = nullptr;
+
+    // Recomputing the EHF signals at the active snapshot tip runs and flushes
+    // only the snapshot view, leaving the background's pending state alone.
+    const auto normal_key{std::make_pair(std::string{"test_force_signal"}, uint8_t{0})};
+    const auto snapshot_key{std::make_pair(std::string{"test_force_signal"}, uint8_t{1})};
+    {
+        LOCK(::cs_main);
+        {
+            auto tx = evodb.BeginTransaction(EvoDbIdentity::NORMAL);
+            evodb.Write(normal_key, uint8_t{1});
+            tx->Commit();
+        }
+        {
+            auto tx = evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+            evodb.Write(snapshot_key, uint8_t{1});
+            tx->Commit();
+        }
+        Chainstate& active{chainman.ActiveChainstate()};
+        BOOST_REQUIRE(m_node.special_tx->m_mnhfman->ForceSignalDBUpdate(active.EvoView(), active.m_chain.Tip()));
+        BOOST_CHECK(StoredInGeneration(evodb, snapshot_view.generation, snapshot_key));
+        BOOST_CHECK(!evodb.GetRawDB().Exists(normal_key));
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::NORMAL));
+    }
+
+    // During dual operation an unbound Evo read is a typed local error, never
+    // a silent pick of either view: for the background chainstate's state and
+    // for the active one's alike. The check is not an Assume, so it fires in
+    // every build.
+    BOOST_CHECK(!evodb.IsBound());
+    BOOST_CHECK_THROW(m_node.dmnman->GetListForBlock(WITH_LOCK(::cs_main, return background_cs.m_chain.Tip())),
+                      EvoViewBindingError);
+    BOOST_CHECK_THROW(m_node.dmnman->GetListAtChainTip(), EvoViewBindingError);
+
+    // A connect-path entry point taking an explicit chainstate refuses to run
+    // under another chainstate's view with the same typed binding error as the
+    // undo path, which every chainstate boundary classifies as a local stall.
+    {
+        LOCK(::cs_main);
+        EvoViewScope snapshot_bound{chainman.ActiveChainstate().EvoView()};
+        const CBlockIndex* background_tip{background_cs.m_chain.Tip()};
+        CBlock block;
+        BOOST_REQUIRE(chainman.m_blockman.ReadBlockFromDisk(block, *background_tip));
+        BlockValidationState wrong_view_state;
+        BOOST_CHECK_THROW(m_node.llmq_ctx->quorum_block_processor->ProcessBlock(background_cs, block, background_tip,
+                                                                                wrong_view_state, /*fJustCheck=*/true,
+                                                                                /*fBLSChecks=*/false),
+                          EvoViewBindingError);
+        CCoinsViewCache coins{&background_cs.CoinsTip()};
+        MNListUpdates updates;
+        BOOST_CHECK_THROW(m_node.special_tx->ProcessSpecialTxsInBlock(
+                              background_cs, background_cs.m_chain, block, background_tip,
+                              GetSpecialTxRules(background_tip->pprev, chainman), coins,
+                              GetBlockSubsidy(background_tip, chainman.GetConsensus()), /*fJustCheck=*/true,
+                              /*fCheckCbTxMerkleRoots=*/false, wrong_view_state, updates),
+                          EvoViewBindingError);
+        BOOST_CHECK(wrong_view_state.IsValid());
+    }
+}
+
+//! Reconsidering blocks raises the best header that invalidating them lowered,
+//! to the most-work header whose chain is neither invalid nor in conflict with
+//! a ChainLock.
+BOOST_FIXTURE_TEST_CASE(chainstate_reconsider_restores_best_header, TestChain100Setup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    Chainstate& chainstate = chainman.ActiveChainstate();
+    const CScript script{GetScriptForRawPubKey(coinbaseKey.GetPubKey())};
+    const auto best_header{[&] { return WITH_LOCK(::cs_main, return chainman.m_best_header); }};
+    const auto tip{[&] { return WITH_LOCK(::cs_main, return chainstate.m_chain.Tip()); }};
+    const auto index{[&](const CBlock& block) {
+        return Assert(WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(block.GetHash())));
+    }};
+    const auto submit_header{[&](const CBlock& block) {
+        BlockValidationState state;
+        BOOST_REQUIRE(chainman.ProcessNewBlockHeaders({block.GetBlockHeader()}, state));
+        return index(block);
+    }};
+    const auto reconsider{[&](CBlockIndex* block) { WITH_LOCK(::cs_main, chainstate.ResetBlockFailureFlags(block)); }};
+    BlockValidationState state;
+
+    CBlockIndex* const parent{tip()};
+    BOOST_REQUIRE(chainstate.InvalidateBlock(state, parent));
+    BOOST_REQUIRE_EQUAL(best_header(), parent->pprev);
+    reconsider(parent);
+    BOOST_CHECK_EQUAL(best_header(), parent);
+    BOOST_REQUIRE(chainstate.ActivateBestChain(state));
+
+    CBlockIndex* const header{submit_header(CreateBlock({}, CScript{} << OP_2, chainstate))};
+    BOOST_REQUIRE_EQUAL(best_header(), header);
+    BOOST_REQUIRE(chainstate.InvalidateBlock(state, header));
+    BOOST_REQUIRE_EQUAL(best_header(), parent);
+    reconsider(header);
+    BOOST_CHECK_EQUAL(best_header(), header);
+
+    // A ChainLock picks a sibling of a fork whose next header is known.
+    const CBlock locked{CreateBlock({}, script, chainstate)};
+    const CBlock conflicting{CreateAndProcessBlock({}, CScript{} << OP_TRUE)};
+    CreateAndProcessBlock({}, script);
+    CBlockIndex* const conflicting_header{submit_header(CreateBlock({}, script, chainstate))};
+    BOOST_REQUIRE(chainman.ProcessNewBlock(std::make_shared<const CBlock>(locked), /*force_processing=*/true,
+                                           /*new_block=*/nullptr));
+    chainstate.EnforceBlock(state, index(locked));
+    BOOST_REQUIRE(chainstate.ActivateBestChain(state));
+    BOOST_REQUIRE_EQUAL(tip(), index(locked));
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return index(conflicting)->nStatus & BLOCK_CONFLICT_CHAINLOCK));
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return !(conflicting_header->nStatus & BLOCK_CONFLICT_CHAINLOCK)));
+
+    BOOST_REQUIRE(chainstate.InvalidateBlock(state, parent));
+    BOOST_REQUIRE_EQUAL(best_header(), parent->pprev);
+    reconsider(parent);
+    BOOST_CHECK_EQUAL(best_header(), index(locked));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
