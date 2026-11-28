@@ -1401,7 +1401,7 @@ BOOST_AUTO_TEST_CASE(test_Capitalize)
 BOOST_AUTO_TEST_CASE(test_CRanges_deserialize_validation)
 {
     const auto encoded = [](std::initializer_list<std::pair<uint64_t, uint64_t>> ranges) {
-        CDataStream stream{SER_NETWORK, 0};
+        DataStream stream{};
         WriteCompactSize(stream, ranges.size());
         for (const auto& [begin, end] : ranges) stream << begin << end;
         return stream;
@@ -1429,7 +1429,7 @@ BOOST_AUTO_TEST_CASE(test_CRanges_deserialize_validation)
     BOOST_CHECK(max_value.Add(max - 2));
     BOOST_CHECK(max_value.Add(max - 1));
     BOOST_CHECK(max_value.Add(max));
-    CDataStream max_encoded{SER_NETWORK, 0};
+    DataStream max_encoded{};
     max_encoded << max_value;
     CRangesSet max_decoded;
     max_encoded >> max_decoded;
@@ -1439,7 +1439,7 @@ BOOST_AUTO_TEST_CASE(test_CRanges_deserialize_validation)
     BOOST_CHECK(max_decoded.Contains(max));
 
     BOOST_CHECK(max_decoded.Remove(max));
-    CDataStream removed_max_encoded{SER_NETWORK, 0};
+    DataStream removed_max_encoded{};
     removed_max_encoded << max_decoded;
     CRangesSet removed_max_decoded;
     removed_max_encoded >> removed_max_decoded;
@@ -1449,7 +1449,7 @@ BOOST_AUTO_TEST_CASE(test_CRanges_deserialize_validation)
     BOOST_CHECK(!removed_max_decoded.Contains(max));
 
     BOOST_CHECK(max_value.Remove(max - 1));
-    CDataStream removed_interior_encoded{SER_NETWORK, 0};
+    DataStream removed_interior_encoded{};
     removed_interior_encoded << max_value;
     CRangesSet removed_interior_decoded;
     removed_interior_encoded >> removed_interior_decoded;

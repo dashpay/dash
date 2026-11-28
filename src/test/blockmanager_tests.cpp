@@ -39,7 +39,7 @@ using node::MAX_BLOCKFILE_SIZE;
 /** Size field of the record whose payload starts at pos */
 static uint32_t ReadSizeField(const BlockManager& blockman, const FlatFilePos& pos)
 {
-    CAutoFile file{blockman.OpenBlockFile(FlatFilePos{pos.nFile, pos.nPos - sizeof(uint32_t)}, true)};
+    AutoFile file{blockman.OpenBlockFile(FlatFilePos{pos.nFile, pos.nPos - sizeof(uint32_t)}, true)};
     uint32_t size_field;
     file >> size_field;
     return size_field;
@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_record)
     // a record written by software without compression support is still readable
     FlatFilePos legacy_pos{0, plain_blockman.GetBlockFileInfo(0)->nSize};
     {
-        CAutoFile file{plain_blockman.OpenBlockFile(legacy_pos)};
+        AutoFile file{plain_blockman.OpenBlockFile(legacy_pos)};
         file << params->MessageStart() << serialized_size;
         legacy_pos.nPos = FileTell64(file.Get());
         file << block;

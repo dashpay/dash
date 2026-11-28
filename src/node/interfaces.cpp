@@ -764,7 +764,7 @@ public:
         if (!islock) {
             return {};
         }
-        CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
+        DataStream ds{};
         ds << *islock;
         return {UCharCast(ds.data()), UCharCast(ds.data()) + ds.size()};
     }

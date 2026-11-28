@@ -8,7 +8,6 @@
 
 #include <net.h>
 #include <validationinterface.h>
-#include <version.h>
 
 #include <msg_result.h>
 
@@ -25,7 +24,6 @@ class CInv;
 class CJWalletManager;
 class CMasternodeMetaMan;
 class CMasternodeSync;
-class CNetMsgMaker;
 class CSporkManager;
 class CTransaction;
 class CTxMemPool;
@@ -157,7 +155,7 @@ public:
     virtual bool DeferAnnouncement(const CInv& inv) { return false; }
 
     // It should return true, if there's data has been pushed
-    virtual bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) { return false; }
+    virtual bool ProcessGetData(CNode& pfrom, const CInv& inv) { return false; }
 protected:
     PeerManagerInternal* m_peer_manager;
 };
@@ -250,7 +248,7 @@ public:
     virtual void CheckForStaleTipAndEvictPeers() = 0;
 
     /** Process a single message from a peer. Public for fuzz testing */
-    virtual void ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv,
+    virtual void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv,
                                 const std::chrono::microseconds time_received, const std::atomic<bool>& interruptMsgProc) EXCLUSIVE_LOCKS_REQUIRED(g_msgproc_mutex) = 0;
 
     /** Finish message processing. Used for some specific messages */

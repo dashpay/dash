@@ -53,9 +53,8 @@ void NetGovernance::Schedule(CScheduler& scheduler)
                 for (const uint256& nHash : vecOrphanHashes) {
                     for (CNode* pnode : snap.Nodes()) {
                         if (!pnode->CanRelay()) continue;
-                        CNetMsgMaker msgMaker(pnode->GetCommonVersion());
                         CBloomFilter filter; // Empty filter - we want the object, not votes
-                        m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, nHash, filter));
+                        m_connman.PushMessage(pnode, NetMsg::Make(NetMsgType::MNGOVERNANCESYNC, nHash, filter));
                     }
                 }
             }
@@ -136,8 +135,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, Dat
 
         if (object_fetch) {
             if (m_gov_manager.HaveObjectForFetch(nProp)) {
-                CNetMsgMaker msgMaker(peer.GetCommonVersion());
-                m_connman.PushMessage(&peer, msgMaker.Make(NetMsgType::INV,
+                m_connman.PushMessage(&peer, NetMsg::Make(NetMsgType::INV,
                                                            std::vector<CInv>{CInv{MSG_GOVERNANCE_OBJECT, nProp}}));
             }
             return;
@@ -148,8 +146,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, Dat
             auto invs = m_gov_manager.GetSyncableObjectInvs();
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCESYNC -- syncing %d objects to peer=%d\n", invs.size(), peer.GetId());
 
-            CNetMsgMaker msgMaker(peer.GetCommonVersion());
-            m_connman.PushMessage(&peer, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ,
+            m_connman.PushMessage(&peer, NetMsg::Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ,
                                                        static_cast<int>(invs.size())));
             for (const auto& inv : invs) {
                 m_peer_manager->PeerPushInventory(peer.GetId(), inv);
@@ -160,8 +157,7 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, Dat
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCESYNC -- syncing %d votes for %s to peer=%d\n", invs.size(),
                      nProp.ToString(), peer.GetId());
 
-            CNetMsgMaker msgMaker(peer.GetCommonVersion());
-            m_connman.PushMessage(&peer, msgMaker.Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ_VOTE,
+            m_connman.PushMessage(&peer, NetMsg::Make(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ_VOTE,
                                                        static_cast<int>(invs.size())));
             for (const auto& inv : invs) {
                 m_peer_manager->PeerPushInventory(peer.GetId(), inv);
@@ -260,9 +256,8 @@ void NetGovernance::ProcessMessage(CNode& peer, const std::string& msg_type, Dat
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECTVOTE -- Rejected vote, error = %s\n", exception.what());
             if (hashToRequest != uint256()) {
                 // Orphan vote - request the missing governance object
-                CNetMsgMaker msgMaker(peer.GetCommonVersion());
                 CBloomFilter filter; // Empty filter - we just want the object, not votes
-                m_connman.PushMessage(&peer, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, hashToRequest, filter));
+                m_connman.PushMessage(&peer, NetMsg::Make(NetMsgType::MNGOVERNANCESYNC, hashToRequest, filter));
             }
             if ((exception.GetNodePenalty() != 0) && m_node_sync.IsSynced()) {
                 m_peer_manager->PeerMisbehaving(peer.GetId(), exception.GetNodePenalty());
@@ -291,14 +286,14 @@ bool NetGovernance::DeferAnnouncement(const CInv& inv)
     return m_gov_manager.IsValid() && (m_gov_manager.IsCollateralSourceBehind() || !m_node_sync.IsBlockchainSynced());
 }
 
-bool NetGovernance::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker)
+bool NetGovernance::ProcessGetData(CNode& pfrom, const CInv& inv)
 {
     if (inv.type == MSG_GOVERNANCE_OBJECT) {
         if (!m_gov_manager.HaveObjectForHash(inv.hash)) return false;
         DataStream ss{};
         ss.reserve(1000);
         if (!m_gov_manager.SerializeObjectForHash(inv.hash, ss)) return false;
-        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECT, Span{ss}));
+        m_connman.PushMessage(&pfrom, NetMsg::Make(NetMsgType::MNGOVERNANCEOBJECT, Span{ss}));
         return true;
     }
     if (inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
@@ -306,7 +301,7 @@ bool NetGovernance::ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgM
         DataStream ss{};
         ss.reserve(1000);
         if (!m_gov_manager.SerializeVoteForHash(inv.hash, ss)) return false;
-        m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::MNGOVERNANCEOBJECTVOTE, Span{ss}));
+        m_connman.PushMessage(&pfrom, NetMsg::Make(NetMsgType::MNGOVERNANCEOBJECTVOTE, Span{ss}));
         return true;
     }
     return false;

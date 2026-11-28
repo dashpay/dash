@@ -32,9 +32,8 @@ void SyncManager::Schedule(CScheduler& scheduler)
 
 void SyncManager::SendGovernanceSyncRequest(CNode* pnode) const
 {
-    CNetMsgMaker msgMaker(pnode->GetCommonVersion());
     CBloomFilter filter;
-    m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, uint256(), filter));
+    m_connman.PushMessage(pnode, NetMsg::Make(NetMsgType::MNGOVERNANCESYNC, uint256(), filter));
 }
 
 void SyncManager::SendGovernanceObjectSyncRequest(CNode* pnode, const uint256& nHash, bool fUseFilter) const
@@ -45,8 +44,7 @@ void SyncManager::SendGovernanceObjectSyncRequest(CNode* pnode, const uint256& n
 
     CBloomFilter filter = fUseFilter ? m_gov_manager.GetVoteBloomFilter(nHash) : CBloomFilter{};
 
-    CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-    m_connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, nHash, filter));
+    m_connman.PushMessage(pnode, NetMsg::Make(NetMsgType::MNGOVERNANCESYNC, nHash, filter));
 }
 
 int SyncManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesCopy) const
@@ -179,7 +177,6 @@ void SyncManager::ProcessTick()
 
     // TODO: move switch-case out from this loop; logic & nodes code to be separated
     for (auto& pnode : snap.Nodes()) {
-        CNetMsgMaker msgMaker(pnode->GetCommonVersion());
 
         // Don't try to sync any data from outbound non-relay "masternode" connections.
         // Inbound connection this early is most likely a "masternode" connection
@@ -225,7 +222,7 @@ void SyncManager::ProcessTick()
                                                                                            "mempool-sync");
                             if (!pNodeTmp->IsInboundConn() && !fRequestedEarlier && !pNodeTmp->IsBlockRelayOnly()) {
                                 m_netfulfilledman.AddFulfilledRequest(pNodeTmp->addr, "mempool-sync");
-                                m_connman.PushMessage(pNodeTmp, msgMaker.Make(NetMsgType::MEMPOOL));
+                                m_connman.PushMessage(pNodeTmp, NetMsg::Make(NetMsgType::MEMPOOL));
                                 LogPrint(BCLog::MNSYNC,
                                          "Sync Tick -- nTick %d asset_id %d -- syncing mempool from peer=%d\n", nTick,
                                          asset_id, pNodeTmp->GetId());

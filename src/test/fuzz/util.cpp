@@ -8,7 +8,6 @@
 #include <util/check.h>
 #include <util/overflow.h>
 #include <util/time.h>
-#include <version.h>
 
 #include <memory>
 

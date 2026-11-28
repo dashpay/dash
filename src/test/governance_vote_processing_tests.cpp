@@ -28,7 +28,6 @@
 #include <util/time.h>
 #include <validation.h>
 #include <validationinterface.h>
-#include <version.h>
 
 #include <test/util/index.h>
 #include <test/util/masternode.h>

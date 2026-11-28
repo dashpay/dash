@@ -19,6 +19,7 @@
 #include <core_io.h>
 #include <net.h>
 #include <netmessagemaker.h>
+#include <node/protocol_version.h>
 #include <shutdown.h>
 #include <txmempool.h>
 #include <util/check.h>
@@ -26,7 +27,6 @@
 #include <util/moneystr.h>
 #include <util/translation.h>
 #include <validation.h>
-#include <version.h>
 #include <wallet/coincontrol.h>
 #include <wallet/coinselection.h>
 #include <wallet/receive.h>
@@ -623,8 +623,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, Chainstate& activ
 
     // push all of our signatures to the Masternode
     WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- pushing signed inputs to the masternode, finalMutableTransaction=%s", __func__, finalMutableTransaction.ToString()); // NOLINT(bitcoin-unterminated-logprintf)
-    CNetMsgMaker msgMaker(peer.GetCommonVersion());
-    connman.PushMessage(&peer, msgMaker.Make(NetMsgType::DSSIGNFINALTX, signed_inputs));
+    connman.PushMessage(&peer, NetMsg::Make(NetMsgType::DSSIGNFINALTX, signed_inputs));
     SetState(POOL_STATE_SIGNING);
     nTimeLastSuccessfulStep = GetTime();
 
@@ -1671,8 +1670,7 @@ bool CCoinJoinClientSession::ProcessPendingDsaRequest(CConnman& connman)
         }
         WalletCJLogPrint(m_wallet, "-- processing dsa queue for addr=%s\n", pnode->addr.ToStringAddrPort());
         nTimeLastSuccessfulStep = GetTime();
-        CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-        connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSACCEPT, ProtocolSerParams::Network(pnode->GetCommonVersion())(pendingDsaRequest.GetDSA())));
+        connman.PushMessage(pnode, NetMsg::Make(NetMsgType::DSACCEPT, ProtocolSerParams::Network(pnode->GetCommonVersion())(pendingDsaRequest.GetDSA())));
         return true;
     });
 
@@ -2421,8 +2419,7 @@ void CCoinJoinClientSession::RelayIn(const CCoinJoinEntry& entry, CConnman& conn
     connman.ForNode(mixingMasternode->pdmnState->netInfo->GetPrimary(), [&entry, &connman, this](CNode* pnode) {
         WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::RelayIn -- found master, relaying message to %s\n",
                          pnode->addr.ToStringAddrPort());
-        CNetMsgMaker msgMaker(pnode->GetCommonVersion());
-        connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSVIN, entry));
+        connman.PushMessage(pnode, NetMsg::Make(NetMsgType::DSVIN, entry));
         return true;
     });
 }

@@ -16,10 +16,10 @@
 #include <net.h>
 #include <net_processing.h>
 #include <netaddress.h>
+#include <node/protocol_version.h>
 #include <spork.h>
 #include <streams.h>
 #include <validation.h>
-#include <version.h>
 
 #include <chainlock/chainlock.h>
 #include <chainlock/clsig.h>
@@ -468,7 +468,7 @@ BOOST_FIXTURE_TEST_CASE(unrequested_clsig_is_dropped_and_scored, TestChain100Set
     // dedup and cost the peer nothing -- so only charging for both proves the gate is what rejected
     // them, and that an unsolicited peer cannot keep repeating the work for free.
     for (int i = 0; i < 2; ++i) {
-        CDataStream unsolicited_payload{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream unsolicited_payload{};
         unsolicited_payload << unsolicited_clsig;
         SendMessage(*m_node.peerman, *unsolicited_peer, NetMsgType::CLSIG, std::move(unsolicited_payload));
     }
@@ -489,7 +489,7 @@ BOOST_FIXTURE_TEST_CASE(unrequested_clsig_is_dropped_and_scored, TestChain100Set
     AnnounceInv(*m_node.peerman, *announcing_peer, announced_inv);
     {
         const int score_before_race = MisbehaviorScore(*m_node.peerman, *announcing_peer);
-        CDataStream raced_payload{SER_NETWORK, PROTOCOL_VERSION};
+        DataStream raced_payload{};
         raced_payload << announced_clsig;
         SendMessage(*m_node.peerman, *announcing_peer, NetMsgType::CLSIG, std::move(raced_payload));
 
@@ -504,7 +504,7 @@ BOOST_FIXTURE_TEST_CASE(unrequested_clsig_is_dropped_and_scored, TestChain100Set
     m_node.peerman->SendMessages(announcing_peer.get());
     const int score_before = MisbehaviorScore(*m_node.peerman, *announcing_peer);
 
-    CDataStream announced_payload{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream announced_payload{};
     announced_payload << announced_clsig;
     SendMessage(*m_node.peerman, *announcing_peer, NetMsgType::CLSIG, std::move(announced_payload));
 
@@ -518,7 +518,7 @@ BOOST_FIXTURE_TEST_CASE(unrequested_clsig_is_dropped_and_scored, TestChain100Set
     // grace are spent, so a replay of the very payload we asked for is unsolicited again -- a peer
     // must not be able to induce one request and then repeat the payload for free.
     const int score_before_replay = MisbehaviorScore(*m_node.peerman, *announcing_peer);
-    CDataStream replayed_payload{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream replayed_payload{};
     replayed_payload << announced_clsig;
     SendMessage(*m_node.peerman, *announcing_peer, NetMsgType::CLSIG, std::move(replayed_payload));
     BOOST_CHECK_EQUAL(MisbehaviorScore(*m_node.peerman, *announcing_peer),

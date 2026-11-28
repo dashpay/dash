@@ -49,18 +49,15 @@ inline void Xor(Span<std::byte> write, Span<const std::byte> key, size_t key_off
  *
  * The referenced vector will grow as necessary
  */
-class CVectorWriter
+class VectorWriter
 {
- public:
-
+public:
 /*
- * @param[in]  nTypeIn Serialization Type
- * @param[in]  nVersionIn Serialization Version (including any flags)
  * @param[in]  vchDataIn  Referenced byte vector to overwrite/append
  * @param[in]  nPosIn Starting position. Vector index where writes should start. The vector will initially
  *                    grow as necessary to max(nPosIn, vec.size()). So to append, use vec.size().
 */
-    CVectorWriter(int nTypeIn, int nVersionIn, std::vector<unsigned char>& vchDataIn, size_t nPosIn) : nType(nTypeIn), nVersion(nVersionIn), vchData(vchDataIn), nPos(nPosIn)
+    VectorWriter(std::vector<unsigned char>& vchDataIn, size_t nPosIn) : vchData{vchDataIn}, nPos{nPosIn}
     {
         if(nPos > vchData.size())
             vchData.resize(nPos);
@@ -70,7 +67,7 @@ class CVectorWriter
  * @param[in]  args  A list of items to serialize starting at nPosIn.
 */
     template <typename... Args>
-    CVectorWriter(int nTypeIn, int nVersionIn, std::vector<unsigned char>& vchDataIn, size_t nPosIn, Args&&... args) : CVectorWriter(nTypeIn, nVersionIn, vchDataIn, nPosIn)
+    VectorWriter(std::vector<unsigned char>& vchDataIn, size_t nPosIn, Args&&... args) : VectorWriter{vchDataIn, nPosIn}
     {
         ::SerializeMany(*this, std::forward<Args>(args)...);
     }
@@ -86,27 +83,14 @@ class CVectorWriter
         }
         nPos += src.size();
     }
-    template<typename T>
-    CVectorWriter& operator<<(const T& obj)
+    template <typename T>
+    VectorWriter& operator<<(const T& obj)
     {
         ::Serialize(*this, obj);
         return (*this);
     }
-    int GetVersion() const
-    {
-        return nVersion;
-    }
-    int GetType() const
-    {
-        return nType;
-    }
-    size_t size() const
-    {
-        return vchData.size() - nPos;
-    }
+
 private:
-    const int nType;
-    const int nVersion;
     std::vector<unsigned char>& vchData;
     size_t nPos;
 };
@@ -116,19 +100,13 @@ private:
 class SpanReader
 {
 private:
-    const int m_type;
-    const int m_version;
     Span<const unsigned char> m_data;
 
 public:
-
     /**
-     * @param[in]  type Serialization Type
-     * @param[in]  version Serialization Version (including any flags)
      * @param[in]  data Referenced byte vector to overwrite/append
      */
-    SpanReader(int type, int version, Span<const unsigned char> data)
-        : m_type(type), m_version(version), m_data(data) {}
+    explicit SpanReader(Span<const unsigned char> data) : m_data{data} {}
 
     template<typename T>
     SpanReader& operator>>(T&& obj)
@@ -136,9 +114,6 @@ public:
         ::Unserialize(*this, obj);
         return (*this);
     }
-
-    int GetVersion() const { return m_version; }
-    int GetType() const { return m_type; }
 
     size_t size() const { return m_data.size(); }
     bool empty() const { return m_data.empty(); }
@@ -301,50 +276,6 @@ public:
     void Xor(const std::vector<unsigned char>& key)
     {
         util::Xor(MakeWritableByteSpan(*this), MakeByteSpan(key));
-    }
-};
-
-class CDataStream : public DataStream
-{
-private:
-    int nType;
-    int nVersion;
-
-public:
-    explicit CDataStream(int nTypeIn, int nVersionIn)
-        : nType{nTypeIn},
-          nVersion{nVersionIn} {}
-
-    explicit CDataStream(Span<const uint8_t> sp, int type, int version) : CDataStream{AsBytes(sp), type, version} {}
-    explicit CDataStream(Span<const value_type> sp, int nTypeIn, int nVersionIn)
-        : DataStream{sp},
-          nType{nTypeIn},
-          nVersion{nVersionIn} {}
-
-    template <typename... Args>
-    CDataStream(int nTypeIn, int nVersionIn, Args&&... args)
-        : nType{nTypeIn},
-          nVersion{nVersionIn}
-    {
-        ::SerializeMany(*this, std::forward<Args>(args)...);
-    }
-
-    int GetType() const          { return nType; }
-    void SetVersion(int n)       { nVersion = n; }
-    int GetVersion() const       { return nVersion; }
-
-    template <typename T>
-    CDataStream& operator<<(const T& obj)
-    {
-        ::Serialize(*this, obj);
-        return *this;
-    }
-
-    template <typename T>
-    CDataStream& operator>>(T&& obj)
-    {
-        ::Unserialize(*this, obj);
-        return *this;
     }
 };
 
@@ -523,31 +454,7 @@ public:
     }
 };
 
-class CAutoFile : public AutoFile
-{
-private:
-    const int nVersion;
-
-public:
-    explicit CAutoFile(std::FILE* file, int version, std::vector<std::byte> data_xor = {}) : AutoFile{file, std::move(data_xor)}, nVersion{version} {}
-    int GetVersion() const       { return nVersion; }
-
-    template<typename T>
-    CAutoFile& operator<<(const T& obj)
-    {
-        ::Serialize(*this, obj);
-        return (*this);
-    }
-
-    template<typename T>
-    CAutoFile& operator>>(T&& obj)
-    {
-        ::Unserialize(*this, obj);
-        return (*this);
-    }
-};
-
-/** Wrapper around a CAutoFile& that implements a ring buffer to
+/** Wrapper around an AutoFile& that implements a ring buffer to
  *  deserialize from. It guarantees the ability to rewind a given number of bytes.
  *
  *  Will automatically close the file when it goes out of scope if not null.
@@ -556,7 +463,7 @@ public:
 class BufferedFile
 {
 private:
-    CAutoFile& m_src;
+    AutoFile& m_src;
     uint64_t nSrcPos{0};  //!< how many bytes have been read from source
     uint64_t m_read_pos{0}; //!< how many bytes have been read from this
     uint64_t nReadLimit;  //!< up to which position we're allowed to read
@@ -603,14 +510,12 @@ private:
     }
 
 public:
-    BufferedFile(CAutoFile& file, uint64_t nBufSize, uint64_t nRewindIn)
+    BufferedFile(AutoFile& file, uint64_t nBufSize, uint64_t nRewindIn)
         : m_src{file}, nReadLimit{std::numeric_limits<uint64_t>::max()}, nRewind{nRewindIn}, vchBuf(nBufSize, std::byte{0})
     {
         if (nRewindIn >= nBufSize)
             throw std::ios_base::failure("Rewind limit must be less than buffer size");
     }
-
-    int GetVersion() const { return m_src.GetVersion(); }
 
     //! check whether we're at the end of the source file
     bool eof() const {

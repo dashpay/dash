@@ -17,7 +17,6 @@
 #include <test/util/validation.h>
 #include <util/chaintype.h>
 #include <validationinterface.h>
-#include <version.h>
 
 #include <cstdlib>
 #include <iostream>

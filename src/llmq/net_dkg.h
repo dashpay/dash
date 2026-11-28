@@ -100,7 +100,7 @@ public:
     void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_indexed_quorums_cache);
     bool AlreadyHave(const CInv& inv) override;
-    bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) override;
+    bool ProcessGetData(CNode& pfrom, const CInv& inv) override;
     /**
      * Drives one phase-handler thread per ActiveDKGSessionHandler in active mode;
      * no-op in observer mode (no curSession to drive).

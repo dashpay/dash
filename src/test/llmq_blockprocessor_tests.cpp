@@ -13,10 +13,10 @@
 #include <masternode/meta.h>
 #include <net.h>
 #include <net_processing.h>
+#include <node/protocol_version.h>
 #include <streams.h>
 #include <util/time.h>
 #include <validation.h>
-#include <version.h>
 
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
@@ -32,9 +32,9 @@ using namespace llmq::testutils;
 BOOST_AUTO_TEST_SUITE(llmq_blockprocessor_tests)
 
 namespace {
-CDataStream Serialized(const CFinalCommitment& qc)
+DataStream Serialized(const CFinalCommitment& qc)
 {
-    CDataStream payload{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream payload{};
     payload << qc;
     return payload;
 }

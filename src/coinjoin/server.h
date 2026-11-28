@@ -243,7 +243,7 @@ public:
 
     void ProcessMessage(CNode& pfrom, const std::string& msg_type, DataStream& vRecv) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_coinjoin, !cs_check_pool);
-    bool ProcessGetData(CNode& pfrom, const CInv& inv, const CNetMsgMaker& msgMaker) override;
+    bool ProcessGetData(CNode& pfrom, const CInv& inv) override;
     bool AlreadyHave(const CInv& inv) override;
     void Schedule(CScheduler& scheduler) override;
 

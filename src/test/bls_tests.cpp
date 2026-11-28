@@ -993,7 +993,7 @@ void CheckLazy(const Object& point, const Object& other)
             DataStream in{garbage};
             lazy.Unserialize(in, scheme);
             std::vector<unsigned char> out;
-            CVectorWriter writer(SER_DISK, CLIENT_VERSION, out, 0);
+            VectorWriter writer{out, 0};
             BOOST_CHECK_NO_THROW(lazy.Serialize(writer, scheme));
             BOOST_CHECK(out == garbage);
 
@@ -1033,7 +1033,7 @@ void CheckLazy(const Object& point, const Object& other)
             DataStream raw_in{bytes};
             raw.Unserialize(raw_in, from_scheme);
             std::vector<unsigned char> raw_out;
-            CVectorWriter raw_writer(SER_DISK, CLIENT_VERSION, raw_out, 0);
+            VectorWriter raw_writer{raw_out, 0};
             // An undecoded point serialized under the other scheme is re-encoded. Zeros are written
             // only when the cached bytes do not decode.
             BOOST_CHECK_NO_THROW(raw.Serialize(raw_writer, other_scheme));
@@ -1042,7 +1042,7 @@ void CheckLazy(const Object& point, const Object& other)
 
             // Serializing under another scheme leaves the cached bytes and the point intact.
             std::vector<unsigned char> again;
-            CVectorWriter again_writer(SER_DISK, CLIENT_VERSION, again, 0);
+            VectorWriter again_writer{again, 0};
             raw.Serialize(again_writer, from_scheme);
             BOOST_CHECK(again == bytes);
             BOOST_CHECK(raw.Get() == point);
@@ -1052,7 +1052,7 @@ void CheckLazy(const Object& point, const Object& other)
         DataStream garbage_in{garbage};
         undecodable.Unserialize(garbage_in, BLSScheme::Legacy);
         std::vector<unsigned char> zeros_out;
-        CVectorWriter zeros_writer(SER_DISK, CLIENT_VERSION, zeros_out, 0);
+        VectorWriter zeros_writer{zeros_out, 0};
         BOOST_CHECK_NO_THROW(undecodable.Serialize(zeros_writer, BLSScheme::Basic));
         const std::vector<unsigned char> zeros(Object::SerSize, 0);
         BOOST_CHECK(zeros_out == zeros);
@@ -1061,7 +1061,7 @@ void CheckLazy(const Object& point, const Object& other)
         DataStream in{garbage};
         lazy.Unserialize(in);
         std::vector<unsigned char> out;
-        CVectorWriter writer(SER_DISK, CLIENT_VERSION, out, 0);
+        VectorWriter writer{out, 0};
         BOOST_CHECK_NO_THROW(lazy.Serialize(writer));
         BOOST_CHECK(out == garbage);
 

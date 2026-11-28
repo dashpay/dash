@@ -33,13 +33,12 @@ void ConnmanTestMsg::Handshake(CNode& node,
 {
     auto& peerman{static_cast<PeerManager&>(*m_msgproc)};
     auto& connman{*this};
-    const CNetMsgMaker mm{0};
 
     peerman.InitializeNode(node, local_services);
     FlushSendBuffer(node); // Drop the version message added by InitializeNode.
 
     CSerializedNetMsg msg_version{
-        mm.Make(NetMsgType::VERSION,
+        NetMsg::Make(NetMsgType::VERSION,
                 version,                                        //
                 Using<CustomUintFormatter<8>>(remote_services), //
                 int64_t{},                                      // dummy time
@@ -66,7 +65,7 @@ void ConnmanTestMsg::Handshake(CNode& node,
     assert(statestats.m_relay_txs == (relay_txs && !node.IsBlockOnlyConn()));
     assert(statestats.their_services == remote_services);
     if (successfully_connected) {
-        CSerializedNetMsg msg_verack{mm.Make(NetMsgType::VERACK)};
+        CSerializedNetMsg msg_verack{NetMsg::Make(NetMsgType::VERACK)};
         (void)connman.ReceiveMsgFrom(node, std::move(msg_verack));
         node.fPauseSend = false;
         connman.ProcessMessagesOnce(node);
@@ -164,7 +163,7 @@ std::unique_ptr<CNode> MakeTestPeer(NodeId id)
     return peer;
 }
 
-void SendMessage(PeerManager& peerman, CNode& peer, const std::string& msg_type, CDataStream&& payload)
+void SendMessage(PeerManager& peerman, CNode& peer, const std::string& msg_type, DataStream&& payload)
 {
     std::atomic<bool> interrupt_dummy{false};
     peerman.ProcessMessage(peer, msg_type, payload, GetTime<std::chrono::microseconds>(), interrupt_dummy);
@@ -172,7 +171,7 @@ void SendMessage(PeerManager& peerman, CNode& peer, const std::string& msg_type,
 
 void AnnounceInv(PeerManager& peerman, CNode& peer, const CInv& inv)
 {
-    CDataStream inv_stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream inv_stream{};
     inv_stream << std::vector<CInv>{inv};
     SendMessage(peerman, peer, NetMsgType::INV, std::move(inv_stream));
 }

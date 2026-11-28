@@ -114,7 +114,7 @@ void NetQuorum::ProcessMessage(CNode& pfrom, const std::string& msg_type, DataSt
             request.SetError(nError);
             DataStream ssResponse{};
             ssResponse << request << Span{body};
-            m_connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetCommonVersion()).Make(NetMsgType::QDATA, Span{ssResponse}));
+            m_connman.PushMessage(&pfrom, NetMsg::Make(NetMsgType::QDATA, Span{ssResponse}));
             return misbehave;
         };
 
@@ -368,8 +368,7 @@ DataRequestStatus NetQuorum::RequestQuorumData(CNode& peer, const CQuorum& quoru
     LogPrint(BCLog::LLMQ, "NetQuorum::%s -- sending QGETDATA quorumHash[%s] llmqType[%d] proRegTx[%s]\n", __func__,
              key.quorumHash.ToString(), std23::to_underlying(key.llmqType), key.proRegTx.ToString());
 
-    CNetMsgMaker msgMaker(peer.GetCommonVersion());
-    m_connman.PushMessage(&peer, msgMaker.Make(NetMsgType::QGETDATA, request));
+    m_connman.PushMessage(&peer, NetMsg::Make(NetMsgType::QGETDATA, request));
     return DataRequestStatus::Requested;
 }
 

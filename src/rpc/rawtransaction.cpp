@@ -46,7 +46,6 @@
 #include <util/vector.h>
 #include <validation.h>
 #include <validationinterface.h>
-#include <version.h>
 
 #include <chainlock/chainlock.h>
 #include <evo/assetlocktx.h>
@@ -678,7 +677,7 @@ static RPCHelpMan getislocks()
             objIS.pushKV("cycleHash", islock->cycleHash.ToString());
             objIS.pushKV("signature", islock->sig.ToString());
             {
-                CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+                DataStream ssTx{};
                 ssTx << *islock;
                 objIS.pushKV("hex", HexStr(ssTx));
             }
@@ -1644,7 +1643,7 @@ static RPCHelpMan combinepsbt()
         throw JSONRPCTransactionError(error);
     }
 
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssTx{};
     ssTx << merged_psbt;
     return EncodeBase64(ssTx);
 },
@@ -1689,7 +1688,7 @@ static RPCHelpMan finalizepsbt()
     bool complete = FinalizeAndExtractPSBT(psbtx, mtx);
 
     UniValue result(UniValue::VOBJ);
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssTx{};
     std::string result_str;
 
     if (complete && extract) {
@@ -1736,7 +1735,7 @@ static RPCHelpMan createpsbt()
     }
 
     // Serialize the PSBT
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssTx{};
     ssTx << psbtx;
 
     return EncodeBase64(ssTx);
@@ -1791,7 +1790,7 @@ static RPCHelpMan converttopsbt()
     }
 
     // Serialize the PSBT
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssTx{};
     ssTx << psbtx;
 
     return EncodeBase64(ssTx);
@@ -1838,7 +1837,7 @@ static RPCHelpMan utxoupdatepsbt()
         /*sighash_type=*/SIGHASH_ALL,
         /*finalize=*/false);
 
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssTx{};
     ssTx << psbtx;
     return EncodeBase64(ssTx);
 },
@@ -1917,7 +1916,7 @@ static RPCHelpMan joinpsbts()
         merged_psbt.unknown.insert(psbt.unknown.begin(), psbt.unknown.end());
     }
 
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssTx{};
     ssTx << merged_psbt;
     return EncodeBase64(ssTx);
 },
@@ -2092,7 +2091,7 @@ RPCHelpMan descriptorprocesspsbt()
         complete &= PSBTInputSigned(input);
     }
 
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssTx{};
     ssTx << psbtx;
 
     UniValue result(UniValue::VOBJ);

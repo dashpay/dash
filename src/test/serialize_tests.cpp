@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(vector_bool)
     std::vector<bool> vec2{1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1};
 
     BOOST_CHECK(vec1 == std::vector<uint8_t>(vec2.begin(), vec2.end()));
-    BOOST_CHECK(SerializeHash(vec1) == SerializeHash(vec2));
+    BOOST_CHECK((HashWriter{} << vec1).GetHash() == (HashWriter{} << vec2).GetHash());
 }
 
 
@@ -203,7 +203,7 @@ BOOST_AUTO_TEST_CASE(dynbitset_rejects_oversized_declared_length)
 {
     constexpr uint64_t kClaimedBits = 1'000'000;
 
-    CDataStream s(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream s{};
     WriteCompactSize(s, kClaimedBits);
     // No bit payload follows, so the remaining size is zero.
 
@@ -225,7 +225,7 @@ BOOST_AUTO_TEST_CASE(dynbitset_accepts_maximum_size)
         original[i] = true;
     }
 
-    CDataStream s(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream s{};
     s << DYNBITSET(original);
 
     std::vector<bool> decoded;
@@ -317,7 +317,7 @@ struct new_version
 
 BOOST_AUTO_TEST_CASE(check_backward_compatibility)
 {
-    CDataStream ss(SER_DISK, 0);
+    DataStream ss{};
     old_version old_src({5});
     ss << old_src;
     new_version new_dest({6, 7});

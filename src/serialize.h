@@ -129,21 +129,7 @@ template<typename Stream> inline uint64_t ser_readdata64(Stream &s)
 }
 
 
-/////////////////////////////////////////////////////////////////
-//
-// Templates for serializing to anything that looks like a stream,
-// i.e. anything that supports .read(Span<std::byte>) and .write(Span<const std::byte>)
-//
-
 class SizeComputer;
-
-enum
-{
-    // primary actions
-    SER_NETWORK         = (1 << 0),
-    SER_DISK            = (1 << 1),
-    SER_GETHASH         = (1 << 2),
-};
 
 /**
  * Convert any argument to a reference to X, maintaining constness.
@@ -281,6 +267,9 @@ const Out& AsBase(const In& x)
     BASE_SERIALIZE_METHODS(cls)                                \
     FORMATTER_METHODS_PARAMS(cls, obj, paramcls, paramobj)
 
+// Templates for serializing to anything that looks like a stream,
+// i.e. anything that supports .read(Span<std::byte>) and .write(Span<const std::byte>)
+//
 // clang-format off
 
 // Typically int8_t and char are distinct types, but some systems may define int8_t

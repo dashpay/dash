@@ -12,7 +12,6 @@
 #include <pubkey.h>
 #include <streams.h>
 #include <uint256.h>
-#include <version.h>
 
 #include <test/util/setup_common.h>
 

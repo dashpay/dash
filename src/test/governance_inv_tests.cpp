@@ -14,12 +14,12 @@
 #include <net_processing.h>
 #include <netfulfilledman.h>
 #include <node/connection_types.h>
+#include <node/protocol_version.h>
 #include <protocol.h>
 #include <streams.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <util/time.h>
-#include <version.h>
 
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
@@ -151,7 +151,7 @@ std::unique_ptr<CNode> MakeGovernanceInvPeer(NodeId id)
 void ProcessInvs(PeerManager& peerman, CNode& peer, const std::vector<CInv>& invs)
     EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex)
 {
-    CDataStream inv_stream{SER_NETWORK, PROTOCOL_VERSION};
+    DataStream inv_stream{};
     inv_stream << invs;
     std::atomic<bool> interrupt_dummy{false};
     peerman.ProcessMessage(peer, NetMsgType::INV, inv_stream, GetTime<std::chrono::microseconds>(), interrupt_dummy);

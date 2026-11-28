@@ -288,7 +288,7 @@ static RPCHelpMan getbestchainlock()
         result.pushKV("known_block", chainman.m_blockman.LookupBlockIndex(clsig.getBlockHash()) != nullptr);
     }
 
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssTx{};
     ssTx << clsig;
     result.pushKV("hex", HexStr(ssTx));
 
@@ -758,7 +758,7 @@ static RPCHelpMan getblockheaders()
     UniValue arrHeaders(UniValue::VARR);
     if (!fVerbose) {
         for (const CBlockIndex* pblockindex : headers) {
-            CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+            DataStream ssBlock{};
             ssBlock << pblockindex->GetBlockHeader();
             arrHeaders.push_back(HexStr(ssBlock));
         }
@@ -839,7 +839,7 @@ static RPCHelpMan getmerkleblocks()
 
     CBloomFilter filter;
     std::string strFilter = request.params[0].get_str();
-    CDataStream ssBloomFilter(ParseHex(strFilter), SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ssBloomFilter{ParseHex(strFilter)};
     // CBloomFilter deserialization is now bounded, so an oversized vData count throws a generic
     // length-limit error instead of the historical response. Preserve the old behavior by
     // prechecking the leading vData count without consuming the stream: a fully present oversized
@@ -849,7 +849,7 @@ static RPCHelpMan getmerkleblocks()
     // above-MAX_SIZE prefixes fall through to normal deserialization, which reproduces them.
     enum { PRECHECK_OK, OVERSIZED_COMPLETE, OVERSIZED_TRUNCATED } precheck{PRECHECK_OK};
     try {
-        SpanReader prefix{SER_NETWORK, PROTOCOL_VERSION, MakeUCharSpan(ssBloomFilter)};
+        SpanReader prefix{MakeUCharSpan(ssBloomFilter)};
         const uint64_t vdata_size{ReadCompactSize(prefix)};
         if (vdata_size > MAX_BLOOM_FILTER_SIZE) {
             // Wire size of the fixed fields after vData: nHashFuncs + nTweak (uint32) + nFlags (uint8).
@@ -909,7 +909,7 @@ static RPCHelpMan getmerkleblocks()
             continue;
         }
 
-        CDataStream ssMerkleBlock(SER_NETWORK, PROTOCOL_VERSION);
+        DataStream ssMerkleBlock{};
         ssMerkleBlock << merkleblock;
         std::string strHex = HexStr(ssMerkleBlock);
         arrMerkleBlocks.push_back(strHex);

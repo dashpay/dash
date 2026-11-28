@@ -542,12 +542,12 @@ struct LoadResult
     int m_records{0};
 };
 
-using LoadFunc = std::function<DBErrors(CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err)>;
+using LoadFunc = std::function<DBErrors(CWallet* pwallet, DataStream& key, DataStream& value, std::string& err)>;
 static LoadResult LoadRecords(CWallet* pwallet, DatabaseBatch& batch, const std::string& key, DataStream& prefix, LoadFunc load_func)
 {
     LoadResult result;
     DataStream ssKey;
-    CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+    DataStream ssValue{};
 
     Assume(!prefix.empty());
     std::unique_ptr<DatabaseCursor> cursor = batch.GetNewPrefixCursor(prefix);
@@ -596,7 +596,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
     if (pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
         for (const auto& type : DBKeys::LEGACY_TYPES) {
             DataStream key;
-            CDataStream value(SER_DISK, CLIENT_VERSION);
+            DataStream value{};
 
             DataStream prefix;
             prefix << type;
@@ -621,7 +621,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
     for (const auto& hd_chain_key : {DBKeys::HDCHAIN, DBKeys::CRYPTED_HDCHAIN}) {
         const bool crypted = hd_chain_key == DBKeys::CRYPTED_HDCHAIN;
         LoadResult hd_chain_res = LoadRecords(pwallet, batch, hd_chain_key,
-            [crypted] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+            [crypted] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
             return LoadHDChain(pwallet, value, err, crypted) ? DBErrors:: LOAD_OK : DBErrors::CORRUPT;
         });
         result = std::max(result, hd_chain_res.m_result);
@@ -629,21 +629,21 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
 
     // Load unencrypted keys
     LoadResult key_res = LoadRecords(pwallet, batch, DBKeys::KEY,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
         return LoadKey(pwallet, key, value, err) ? DBErrors::LOAD_OK : DBErrors::CORRUPT;
     });
     result = std::max(result, key_res.m_result);
 
     // Load encrypted keys
     LoadResult ckey_res = LoadRecords(pwallet, batch, DBKeys::CRYPTED_KEY,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
         return LoadCryptedKey(pwallet, key, value, err) ? DBErrors::LOAD_OK : DBErrors::CORRUPT;
     });
     result = std::max(result, ckey_res.m_result);
 
     // Load scripts
     LoadResult script_res = LoadRecords(pwallet, batch, DBKeys::CSCRIPT,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& strErr) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& strErr) {
         uint160 hash;
         key >> hash;
         CScript script;
@@ -665,7 +665,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
 
     // Load keymeta
     LoadResult keymeta_res = LoadRecords(pwallet, batch, DBKeys::KEYMETA,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& strErr) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& strErr) {
         CPubKey vchPubKey;
         key >> vchPubKey;
         CKeyMetadata keyMeta;
@@ -677,7 +677,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
 
     // Load watchonly scripts
     LoadResult watch_script_res = LoadRecords(pwallet, batch, DBKeys::WATCHS,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
         CScript script;
         key >> script;
         uint8_t fYes;
@@ -691,7 +691,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
 
     // Load watchonly meta
     LoadResult watch_meta_res = LoadRecords(pwallet, batch, DBKeys::WATCHMETA,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
         CScript script;
         key >> script;
         CKeyMetadata keyMeta;
@@ -703,7 +703,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
 
     // Load keypool
     LoadResult pool_res = LoadRecords(pwallet, batch, DBKeys::POOL,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
         int64_t nIndex;
         key >> nIndex;
         CKeyPool keypool;
@@ -715,7 +715,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
 
     // Load HD pubkeys
     LoadResult hd_pubkey_res = LoadRecords(pwallet, batch, DBKeys::HDPUBKEY,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
         CHDPubKey hdPubKey;
         try {
             CPubKey vchPubKey;
@@ -744,7 +744,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
     // we want to make sure that it is valid so that we can detect corruption
     // Note: There should only be one DEFAULTKEY with nothing trailing the type
     LoadResult default_key_res = LoadRecords(pwallet, batch, DBKeys::DEFAULTKEY,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
         CPubKey default_pubkey;
         try {
             value >> default_pubkey;
@@ -762,7 +762,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
 
     // "wkey" records are unsupported, if we see any, throw an error
     LoadResult wkey_res = LoadRecords(pwallet, batch, DBKeys::OLD_KEY,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
         err = "Found unsupported 'wkey' record, try loading with version 0.17";
         return DBErrors::LOAD_FAIL;
     });
@@ -802,7 +802,7 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
     int num_keys = 0;
     int num_ckeys= 0;
     LoadResult desc_res = LoadRecords(pwallet, batch, DBKeys::WALLETDESCRIPTOR,
-        [&batch, &num_keys, &num_ckeys, &last_client] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& strErr) {
+        [&batch, &num_keys, &num_ckeys, &last_client] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& strErr) {
         DBErrors result = DBErrors::LOAD_OK;
 
         uint256 id;
@@ -824,7 +824,7 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
         // Get key cache for this descriptor
         DataStream prefix = PrefixStream(DBKeys::WALLETDESCRIPTORCACHE, id);
         LoadResult key_cache_res = LoadRecords(pwallet, batch, DBKeys::WALLETDESCRIPTORCACHE, prefix,
-            [&id, &cache] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+            [&id, &cache] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
             bool parent = true;
             uint256 desc_id;
             uint32_t key_exp_index;
@@ -857,7 +857,7 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
         // Get last hardened cache for this descriptor
         prefix = PrefixStream(DBKeys::WALLETDESCRIPTORLHCACHE, id);
         LoadResult lh_cache_res = LoadRecords(pwallet, batch, DBKeys::WALLETDESCRIPTORLHCACHE, prefix,
-            [&id, &cache] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+            [&id, &cache] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
             uint256 desc_id;
             uint32_t key_exp_index;
             key >> desc_id;
@@ -881,7 +881,7 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
         // Get unencrypted keys
         prefix = PrefixStream(DBKeys::WALLETDESCRIPTORKEY, id);
         LoadResult key_res = LoadRecords(pwallet, batch, DBKeys::WALLETDESCRIPTORKEY, prefix,
-            [&id, &spk_man] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& strErr) {
+            [&id, &spk_man] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& strErr) {
             uint256 desc_id;
             CPubKey pubkey;
             key >> desc_id;
@@ -942,7 +942,7 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
         // Get encrypted keys
         prefix = PrefixStream(DBKeys::WALLETDESCRIPTORCKEY, id);
         LoadResult ckey_res = LoadRecords(pwallet, batch, DBKeys::WALLETDESCRIPTORCKEY, prefix,
-            [&id, &spk_man] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+            [&id, &spk_man] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
             uint256 desc_id;
             CPubKey pubkey;
             key >> desc_id;
@@ -998,7 +998,7 @@ static DBErrors LoadAddressBookRecords(CWallet* pwallet, DatabaseBatch& batch) E
 
     // Load name record
     LoadResult name_res = LoadRecords(pwallet, batch, DBKeys::NAME,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
         std::string strAddress;
         key >> strAddress;
         std::string label;
@@ -1010,7 +1010,7 @@ static DBErrors LoadAddressBookRecords(CWallet* pwallet, DatabaseBatch& batch) E
 
     // Load purpose record
     LoadResult purpose_res = LoadRecords(pwallet, batch, DBKeys::PURPOSE,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
         std::string strAddress;
         key >> strAddress;
         std::string purpose_str;
@@ -1026,7 +1026,7 @@ static DBErrors LoadAddressBookRecords(CWallet* pwallet, DatabaseBatch& batch) E
 
     // Load destination data record
     LoadResult dest_res = LoadRecords(pwallet, batch, DBKeys::DESTDATA,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
         std::string strAddress, strKey, strValue;
         key >> strAddress;
         key >> strKey;
@@ -1060,7 +1060,7 @@ static DBErrors LoadTxRecords(CWallet* pwallet, DatabaseBatch& batch, std::vecto
     // Load tx record
     any_unordered = false;
     LoadResult tx_res = LoadRecords(pwallet, batch, DBKeys::TX,
-        [&any_unordered, &upgraded_txs] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
+        [&any_unordered, &upgraded_txs] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
         DBErrors result = DBErrors::LOAD_OK;
         uint256 hash;
         key >> hash;
@@ -1113,7 +1113,7 @@ static DBErrors LoadTxRecords(CWallet* pwallet, DatabaseBatch& batch, std::vecto
 
     // Load locked utxo record
     LoadResult locked_utxo_res = LoadRecords(pwallet, batch, DBKeys::LOCKED_UTXO,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
         uint256 hash;
         uint32_t n;
         key >> hash;
@@ -1126,7 +1126,7 @@ static DBErrors LoadTxRecords(CWallet* pwallet, DatabaseBatch& batch, std::vecto
     // Load orderposnext record
     // Note: There should only be one ORDERPOSNEXT record with nothing trailing the type
     LoadResult order_pos_res = LoadRecords(pwallet, batch, DBKeys::ORDERPOSNEXT,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
         try {
             value >> pwallet->nOrderPosNext;
         } catch (const std::exception& e) {
@@ -1149,7 +1149,7 @@ static DBErrors LoadActiveSPKMs(CWallet* pwallet, DatabaseBatch& batch) EXCLUSIV
     std::set<std::pair<OutputType, bool>> seen_spks;
     for (const auto& spk_key : {DBKeys::ACTIVEEXTERNALSPK, DBKeys::ACTIVEINTERNALSPK}) {
         LoadResult spkm_res = LoadRecords(pwallet, batch, spk_key,
-            [&seen_spks, &spk_key] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& strErr) {
+            [&seen_spks, &spk_key] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& strErr) {
             uint256 id;
             value >> id;
 
@@ -1173,7 +1173,7 @@ static DBErrors LoadDecryptionKeys(CWallet* pwallet, DatabaseBatch& batch) EXCLU
 
     // Load decryption key (mkey) records
     LoadResult mkey_res = LoadRecords(pwallet, batch, DBKeys::MASTER_KEY,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
         if (!LoadEncryptionKey(pwallet, key, value, err)) {
             return DBErrors::CORRUPT;
         }
@@ -1189,7 +1189,7 @@ static DBErrors LoadDashRecords(CWallet* pwallet, DatabaseBatch& batch) EXCLUSIV
 
     // Load governance object records
     LoadResult gobject_res = LoadRecords(pwallet, batch, DBKeys::G_OBJECT,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
         Governance::Object obj;
         try {
             uint256 nObjectHash;
@@ -1213,7 +1213,7 @@ static DBErrors LoadDashRecords(CWallet* pwallet, DatabaseBatch& batch) EXCLUSIV
 
     // Load Platform data records
     LoadResult platform_data_res = LoadRecords(pwallet, batch, DBKeys::PLATFORM_DATA,
-        [] (CWallet* pwallet, DataStream& key, CDataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
+        [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet) {
         std::string strKey;
         std::vector<unsigned char> vchValue;
         try {
@@ -1387,7 +1387,7 @@ bool WalletBatch::EraseAddressReceiveRequest(const CTxDestination& dest, const s
 
 bool WalletBatch::EraseAddressData(const CTxDestination& dest)
 {
-    CDataStream prefix(SER_DISK, CLIENT_VERSION);
+    DataStream prefix{};
     prefix << DBKeys::DESTDATA << EncodeDestination(dest);
     return m_batch->ErasePrefix({prefix.data(), prefix.size()});
 }

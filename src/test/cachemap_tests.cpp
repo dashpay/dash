@@ -4,7 +4,6 @@
 
 #include <cachemap.h>
 #include <streams.h>
-#include <version.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -117,7 +116,7 @@ BOOST_AUTO_TEST_CASE(cachemap_test)
     }
 
     // test serialization
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    DataStream ss{};
     ss << cmapTest1;
 
     CacheMap<int,int> mapTest2;
