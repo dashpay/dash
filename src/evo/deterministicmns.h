@@ -7,7 +7,9 @@
 
 #include <evo/dmn_types.h>
 #include <evo/dmnstate.h>
+#include <evo/snapshot_types.h>
 #include <evo/types.h>
+#include <evo/viewcache.h>
 
 #include <arith_uint256.h>
 #include <clientversion.h>
@@ -21,8 +23,10 @@
 #include <immer/map.hpp>
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <numeric>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
@@ -66,6 +70,13 @@ public:
         // only non-initial values
         assert(_internalId != std::numeric_limits<uint64_t>::max());
     }
+    //! A copy of `other` under another internal id.
+    CDeterministicMN(const CDeterministicMN& other, uint64_t _internalId) :
+        CDeterministicMN{other}
+    {
+        assert(_internalId != std::numeric_limits<uint64_t>::max());
+        internalId = _internalId;
+    }
     template <typename Stream>
     CDeterministicMN(deserialize_type, Stream& s) { s >> *this; }
 
@@ -77,6 +88,14 @@ public:
         READWRITE(obj.nOperatorReward);
         READWRITE(obj.pdmnState);
         READWRITE(obj.nType);
+    }
+
+    //! Every serialized field but the internal id, which each node assigns
+    //! locally.
+    template <typename Stream>
+    void SerializeWithoutInternalId(Stream& s) const
+    {
+        s << proTxHash << collateralOutpoint << nOperatorReward << pdmnState << nType;
     }
 
     [[nodiscard]] bool HasInternalId() const { return internalId != std::numeric_limits<uint64_t>::max(); }
@@ -432,6 +451,11 @@ public:
                               const CDeterministicMNListDiff& diff)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
 
+    /** This list with each masternode's internal id replaced by `new_id(dmn)`
+     *  and the registration counter by `total_registered_count`. */
+    [[nodiscard]] CDeterministicMNList Renumbered(const std::function<uint64_t(const CDeterministicMN&)>& new_id,
+                                                  uint32_t total_registered_count) const;
+
     void AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount = true) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
     void UpdateMN(const CDeterministicMN& oldDmn, const std::shared_ptr<const CDeterministicMNState>& pdmnState)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
@@ -760,18 +784,15 @@ struct MNListUpdates
 inline constexpr std::string_view BLOCK_DATA_UNAVAILABLE_SUFFIX{
     "is not available (pruned or below an unvalidated snapshot base)"};
 
-/** Thrown when the masternode list for a block cannot be reconstructed because
- *  the data is not on this node yet (pruned, or below an unvalidated snapshot
- *  base, or pending in another chainstate's unflushed EvoDB overlay). Distinct
- *  from the plain std::runtime_error that CDeterministicMNList::ApplyDiff
- *  raises for genuine local corruption, which must never be swallowed.
- *  The message carries BLOCK_DATA_UNAVAILABLE_SUFFIX, matched by
- *  IsBlockDataUnavailableError(). */
-class BlockDataUnavailableError : public std::runtime_error
-{
-public:
-    using std::runtime_error::runtime_error;
-};
+/** Translation table from the internal ids of a snapshot generation into
+ *  NORMAL's, for promotion: the ids the masternodes of the base list hold in
+ *  each view, and the counters both views had there. None if the two lists do
+ *  not hold the same masternodes. */
+std::optional<std::vector<uint8_t>> MNIdTranslationTable(const CDeterministicMNList& snapshot_base,
+                                                         const CDeterministicMNList& normal_base);
+
+//! CEvoDB::MNRecordTranslation for masternode list and list-diff records.
+bool TranslateMNRecord(Span<const std::byte> table, Span<const std::byte> key, DataStream& value);
 
 class CDeterministicMNManager
 {
@@ -792,10 +813,23 @@ private:
     CEvoDB& m_evoDb;
     CMasternodeMetaMan& m_mn_metaman;
 
-    Uint256HashMap<CDeterministicMNList> mnListsCache GUARDED_BY(cs);
-    Uint256HashMap<CDeterministicMNListDiff> mnListDiffsCache GUARDED_BY(cs);
-    const CBlockIndex* tipIndex GUARDED_BY(cs) {nullptr};
-    const CBlockIndex* m_initial_snapshot_index GUARDED_BY(cs) {nullptr};
+    //! Lists and diffs derived under one Evo view, with the view's own tip and
+    //! initial-snapshot anchor.
+    struct ViewState {
+        Uint256HashMap<CDeterministicMNList> mnListsCache;
+        Uint256HashMap<CDeterministicMNListDiff> mnListDiffsCache;
+        const CBlockIndex* tipIndex{nullptr};
+        const CBlockIndex* m_initial_snapshot_index{nullptr};
+        //! Highest block this view processed and has not undone since. Bounds
+        //! the cache of a view that is not active, and so never learns a tip
+        //! from UpdatedBlockTip.
+        int processed_height{-1};
+    };
+    EvoViewCache<ViewState> m_views GUARDED_BY(cs);
+    std::function<void(const CBlockIndex*)> m_list_snapshot_miss_hook GUARDED_BY(cs);
+
+    //! The partition of the calling operation's Evo view.
+    ViewState& View() EXCLUSIVE_LOCKS_REQUIRED(cs) { return m_views.For(m_evoDb.CurrentView()); }
 
 public:
     CDeterministicMNManager() = delete;
@@ -819,14 +853,46 @@ public:
 
     CDeterministicMNList GetListForBlock(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs) {
         LOCK(cs);
-        return GetListForBlockInternal(pindex);
+        return GetListForBlockInternal(pindex, View());
     };
     CDeterministicMNList GetListAtChainTip() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    /** Seed a canonical full list into `view`, inside the caller's open EvoDB
+     *  transaction for that view. */
+    bool SeedListForBlock(const EvoViewToken& view, const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    //! The EvoDB this manager reads, for callers that bind an Evo view.
+    const CEvoDB& EvoDb() const { return m_evoDb; }
 
     void SetListForBlockForTesting(const CDeterministicMNList& list) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
         LOCK(cs);
-        mnListsCache.insert_or_assign(list.GetBlockHash(), list);
+        View().mnListsCache.insert_or_assign(list.GetBlockHash(), list);
+    }
+
+    /** Test-only hook invoked whenever a list lookup misses both the cache and
+     *  the stored full lists, before diff-chain reconstruction. */
+    void SetListSnapshotMissHookForTesting(std::function<void(const CBlockIndex*)> hook) EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        m_list_snapshot_miss_hook = std::move(hook);
+    }
+
+    //! Heights of the lists cached for the current view.
+    std::vector<int> CachedListHeightsForTesting() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        std::vector<int> heights;
+        for (const auto& [_, list] : View().mnListsCache) {
+            heights.push_back(list.GetHeight());
+        }
+        return heights;
+    }
+
+    //! The tip the current view was last told of.
+    const CBlockIndex* TipForTesting() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        return View().tipIndex;
     }
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
@@ -865,8 +931,9 @@ public:
     [[nodiscard]] bool MigrateLegacyDiffs(const CBlockIndex* const tip_index) EXCLUSIVE_LOCKS_REQUIRED(!cs, ::cs_main);
 
 private:
-    void CleanupCache(int nHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    CDeterministicMNList GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    static void CleanupCache(ViewState& view, int nHeight);
+    CDeterministicMNList GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex, ViewState& view)
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     // Helper methods for RecalculateAndRepairDiffs
     static std::vector<const CBlockIndex*> CollectSnapshotBlocks(const CBlockIndex* start_index,

@@ -7,6 +7,7 @@
 
 #include <bls/bls.h>
 #include <checkqueue.h>
+#include <evo/viewcache.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
 #include <llmq/cache.h>
 #include <llmq/params.h>
@@ -75,7 +76,7 @@ private:
 
     // Cache the block in which a commitment was mined. Membership in a
     // particular chain is checked on every call so reorgs need no cache flush.
-    mutable PerLlmqTypeCache<uint256> mapMinedCommitmentBlockCache GUARDED_BY(minableCommitmentsCs);
+    mutable EvoViewCache<PerLlmqTypeCache<uint256>> mapMinedCommitmentBlockCache GUARDED_BY(minableCommitmentsCs);
 
     // Memoizes GetQcHashes(). The whole-result cache is keyed on the set of active
     // quorum base blocks, the LRU on those base-block hashes; neither key identifies
@@ -84,10 +85,13 @@ private:
     // invalidation next to the writes it has to follow, and ties their lifetime to the
     // block index whose CBlockIndex* the outer cache stores.
     mutable Mutex m_qc_hashes_cache_mutex;
-    mutable std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> m_quorums_cached GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable PerLlmqTypeCache<std::pair<uint256, int>> m_qc_hashes_lru GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable QcHashMap m_qc_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
-    mutable QcIndexedHashMap m_qc_indexed_hashes_cached GUARDED_BY(m_qc_hashes_cache_mutex);
+    struct QcHashesCache {
+        std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> m_quorums_cached;
+        PerLlmqTypeCache<std::pair<uint256, int>> m_qc_hashes_lru;
+        QcHashMap m_qc_hashes_cached;
+        QcIndexedHashMap m_qc_indexed_hashes_cached;
+    };
+    mutable EvoViewCache<QcHashesCache> m_qc_hashes GUARDED_BY(m_qc_hashes_cache_mutex);
 
     using ValidMemberSigners = std::vector<std::pair<uint256, bool>>;
     mutable Mutex m_signing_records_mutex;
@@ -155,6 +159,11 @@ public:
     bool HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, const CChain& chain) const
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !minableCommitmentsCs);
     std::pair<CFinalCommitment, uint256> GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
+    /** Seed a mined commitment and its height index into `view`, inside the
+     *  caller's open EvoDB transaction for that view. */
+    bool SeedMinedCommitment(const EvoViewToken& view, Consensus::LLMQType llmqType, const uint256& quorum_hash,
+                             const CFinalCommitment& commitment, const uint256& mined_block_hash)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !minableCommitmentsCs, !m_qc_hashes_cache_mutex);
 
     /**
      * Serialized hashes of the commitments mined for the quorums active as of pindexPrev.
@@ -165,14 +174,22 @@ public:
     std::optional<std::pair<QcHashMap, QcIndexedHashMap>> GetQcHashes(const CBlockIndex* pindexPrev) const
         EXCLUSIVE_LOCKS_REQUIRED(!m_qc_hashes_cache_mutex);
 
-    std::vector<const CBlockIndex*> GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindex, size_t maxCount) const;
+    //! The walks below that take `unreadable` set it, and then return an
+    //! incomplete result, when they stop at an index entry they cannot read or
+    //! on an iterator read error instead of at the end of their range.
+    std::vector<const CBlockIndex*> GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType,
+                                                                  gsl::not_null<const CBlockIndex*> pindex,
+                                                                  size_t maxCount, bool* unreadable = nullptr) const;
     std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> GetMinedAndActiveCommitmentsUntilBlock(gsl::not_null<const CBlockIndex*> pindex) const;
 
     std::vector<const CBlockIndex*> GetMinedCommitmentsIndexedUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, size_t maxCount) const;
     std::vector<const CBlockIndex*> GetLastMinedCommitmentsPerQuorumIndexUntilBlock(Consensus::LLMQType llmqType,
-                                                                                    const CBlockIndex* pindex,
-                                                                                    size_t cycle) const;
-    std::optional<const CBlockIndex*> GetLastMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, int quorumIndex, size_t cycle) const;
+                                                                                    const CBlockIndex* pindex, size_t cycle,
+                                                                                    bool* unreadable = nullptr) const;
+    std::optional<const CBlockIndex*> GetLastMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType,
+                                                                                     const CBlockIndex* pindex,
+                                                                                     int quorumIndex, size_t cycle,
+                                                                                     bool* unreadable = nullptr) const;
 
     /**
      * Signing records of every masternode that was a valid member of a non-null commitment mined until pindex

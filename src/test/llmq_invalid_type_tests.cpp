@@ -5,6 +5,7 @@
 #include <test/util/setup_common.h>
 
 #include <chainparams.h>
+#include <evo/evodb.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/cache.h>
 #include <llmq/context.h>
@@ -67,6 +68,7 @@ BOOST_FIXTURE_TEST_CASE(per_llmq_type_cache_ignores_unknown_types, BasicTestingS
 // The crash site itself: an unregistered type must answer false, not abort.
 BOOST_FIXTURE_TEST_CASE(has_mined_commitment_unknown_llmq_type_is_safe, RegTestingSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& qbp = *Assert(m_node.llmq_ctx)->quorum_block_processor;
     const uint256 hash = WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip()->GetBlockHash());
 
@@ -85,6 +87,7 @@ BOOST_FIXTURE_TEST_CASE(has_mined_commitment_unknown_llmq_type_is_safe, RegTesti
 // hash, then consults HasQuorum -> HasMinedCommitment. Must return nullptr, not abort.
 BOOST_FIXTURE_TEST_CASE(get_quorum_unknown_llmq_type_is_safe, RegTestingSetup)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     auto& qman = *Assert(m_node.llmq_ctx)->qman;
     const uint256 tip_hash = WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip()->GetBlockHash());
 
