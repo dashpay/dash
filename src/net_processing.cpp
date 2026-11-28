@@ -53,6 +53,7 @@
 #include <evo/deterministicmns.h>
 #include <evo/mnauth.h>
 #include <evo/smldiff.h>
+#include <evo/snapshot_types.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
 #include <llmq/blockprocessor.h>
@@ -3466,7 +3467,7 @@ bool PeerManagerImpl::ProcessOrphanTx(NodeId node_id)
             // Has inputs but not accepted to mempool
             // Probably non-standard or insufficient fee
             LogPrint(BCLog::TXPACKAGES, "   removed orphan tx %s\n", orphanHash.ToString());
-            m_recent_rejects.insert(orphanHash.ToUint256());
+            if (!state.IsError()) m_recent_rejects.insert(orphanHash.ToUint256());
             m_orphanage.EraseTx(orphanHash);
             ForgetTx(orphanHash);
             return true;
@@ -5087,7 +5088,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                 m_isman.TransactionIsRemoved(ptx);
             }
         } else {
-            m_recent_rejects.insert(relay_hash);
+            if (!state.IsError()) m_recent_rejects.insert(relay_hash);
             ForgetTx(tx);
             if (RecursiveDynamicUsage(*ptx) < 100000) {
                 AddToCompactExtraTransactions(ptx);
@@ -5739,9 +5740,16 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         llmq::CQuorumRotationInfo quorumRotationInfoRet;
         std::string strError;
         bool use_legacy_construction = pfrom.GetCommonVersion() < EFFICIENT_QRINFO_VERSION;;
-        const bool built{BuildQuorumRotationInfo(m_dmnman, *m_llmq_ctx.qsnapman, m_chainman, *m_llmq_ctx.qman,
-                                                 *m_llmq_ctx.quorum_block_processor, cmd, use_legacy_construction,
-                                                 quorumRotationInfoRet, strError)};
+        bool built{false};
+        try {
+            built = BuildQuorumRotationInfo(m_dmnman, *m_llmq_ctx.qsnapman, m_chainman, *m_llmq_ctx.qman,
+                                            *m_llmq_ctx.quorum_block_processor, cmd, use_legacy_construction,
+                                            quorumRotationInfoRet, strError);
+        } catch (const evo::LocalStateError& e) {
+            // This node's Evo state cannot answer: not the peer's fault, but
+            // charged below like any build that stopped partway.
+            strError = strprintf("%s %s", e.what(), BLOCK_DATA_UNAVAILABLE_SUFFIX);
+        }
         if (!pfrom.HasPermission(NetPermissionFlags::NoBan)) {
             // The token taken above paid for one diff. Charge the rest of the reply (the tip, H, the
             // target cycles and the snapshot diffs) now that its size is known. A build that failed
