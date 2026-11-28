@@ -2,15 +2,22 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
+#include <chainlock/chainlock.h>
 #include <chainparams.h>
+#include <consensus/merkle.h>
 #include <consensus/validation.h>
+#include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
+#include <evo/mnhftx.h>
+#include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <governance/superblock.h>
+#include <kernel/context.h>
 #include <kernel/disconnected_transactions.h>
 #include <node/chainstate.h>
 #include <node/kernel_notifications.h>
 #include <node/utxo_snapshot.h>
+#include <pow.h>
 #include <random.h>
 #include <rpc/blockchain.h>
 #include <sync.h>
@@ -34,6 +41,8 @@
 
 #include <tinyformat.h>
 
+#include <optional>
+#include <string>
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
@@ -52,6 +61,57 @@ void SeedSnapshotMarker(CEvoDB& evodb, const uint256& hash)
     tx->Commit();
     BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
 }
+
+//! The regtest assumeutxo fixture predates DIP3. Activate DIP3 from height 1
+//! for the lifetime of this guard, so the cold EvoDB holds no MN-list history
+//! for blocks that now count as DIP3-active.
+class ScopedDIP3FromGenesis
+{
+    Consensus::Params& m_params{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    const int m_old_height{m_params.DIP0003Height};
+
+public:
+    ScopedDIP3FromGenesis() { m_params.DIP0003Height = 1; }
+    ~ScopedDIP3FromGenesis() { m_params.DIP0003Height = m_old_height; }
+};
+
+//! Turn a pre-DIP3 template into one whose coinbase is a CbTx, as required
+//! once DIP3 is active, and solve it again.
+CBlock MakeCbTxBlock(CBlock block, int height, CCbTx::Version version = CCbTx::Version::MERKLE_ROOT_QUORUMS)
+{
+    CCbTx cbtx;
+    cbtx.nVersion = version;
+    cbtx.nHeight = height;
+    CMutableTransaction coinbase{*block.vtx[0]};
+    coinbase.nVersion = CTransaction::SPECIAL_VERSION;
+    coinbase.nType = TRANSACTION_COINBASE;
+    SetTxPayload(coinbase, cbtx);
+    block.vtx[0] = MakeTransactionRef(std::move(coinbase));
+    block.hashMerkleRoot = BlockMerkleRoot(block);
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
+        ++block.nNonce;
+    return block;
+}
+
+//! The validation result announced for one block.
+class BlockCheckedCatcher final : public CValidationInterface
+{
+public:
+    explicit BlockCheckedCatcher(const uint256& hash) :
+        m_hash{hash}
+    {
+    }
+    std::optional<BlockValidationState> state{};
+
+protected:
+    void BlockChecked(const CBlock& block, const BlockValidationState& checked) override
+    {
+        if (block.GetHash() == m_hash) state = checked;
+    }
+
+private:
+    const uint256 m_hash{};
+};
 
 } // namespace
 
@@ -474,6 +534,135 @@ struct SnapshotTestSetup : TestChain100Setup {
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, SnapshotTestSetup)
 {
     this->SetupSnapshot();
+}
+
+//! A snapshot chainstate on a cold EvoDB, which never derived the MN lists
+//! below the snapshot base. While a test holds a ScopedDIP3FromGenesis, DIP3
+//! is active at the base, so a block that needs one of those lists stalls the
+//! chainstate on its own Evo state.
+struct EvoStallTestSetup : SnapshotTestSetup {
+    Chainstate& m_snapshot_cs{*std::get<1>(SetupSnapshot())};
+
+    CBlockIndex* SnapshotTip() const { return WITH_LOCK(::cs_main, return m_snapshot_cs.m_chain.Tip()); }
+
+    //! A CbTx block on `parent` at `height`, built from `block_template`.
+    static std::shared_ptr<const CBlock> ChildOf(const CBlock& block_template, const CBlock& parent, int height,
+                                                 CCbTx::Version version = CCbTx::Version::MERKLE_ROOT_QUORUMS)
+    {
+        CBlock child{block_template};
+        child.hashPrevBlock = parent.GetHash();
+        CMutableTransaction coinbase{*child.vtx[0]};
+        coinbase.vin[0].scriptSig = CScript{} << height << CScriptNum{1};
+        child.vtx[0] = MakeTransactionRef(std::move(coinbase));
+        return std::make_shared<const CBlock>(MakeCbTxBlock(child, height, version));
+    }
+};
+
+//! A historical block body this node does not have is local state, not
+//! invalidity: a snapshot chainstate that has to rebuild the credit pool or the
+//! EHF signals from it stalls, and the block it was connecting stays valid.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, EvoStallTestSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    Chainstate* snapshot_chainstate{&m_snapshot_cs};
+    CBlockIndex* tip{SnapshotTip()};
+    const CBlock template_block{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), *snapshot_chainstate)};
+    // Prune the tip's body.
+    const uint32_t tip_status{WITH_LOCK(::cs_main, return tip->nStatus)};
+    {
+        LOCK(::cs_main);
+        chainman.m_blockman.m_have_pruned = true;
+        tip->nStatus &= ~(BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO);
+    }
+
+    // With V20 active, the next block needs the credit pool at the tip, which
+    // the snapshot view has to rebuild from the bodies.
+    ScopedDIP3FromGenesis dip3_active;
+    Consensus::Params& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct V20HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~V20HeightRestore() { params.V20Height = height; }
+    } v20_restore{consensus, std::exchange(consensus.V20Height, 1)};
+    const auto block{std::make_shared<const CBlock>(
+        MakeCbTxBlock(template_block, tip->nHeight + 1, CCbTx::Version::CLSIG_AND_BALANCE))};
+    // Connecting it announces the stall as a local error, which blames no peer.
+    const auto checked{std::make_shared<BlockCheckedCatcher>(block->GetHash())};
+    RegisterSharedValidationInterface(checked);
+    BOOST_CHECK(!chainman.ProcessNewBlock(block, /*force_processing=*/true, /*new_block=*/nullptr));
+    UnregisterSharedValidationInterface(checked);
+    BOOST_REQUIRE(checked->state);
+    BOOST_CHECK(IsLocalEvoStateError(*checked->state));
+    BlockValidationState state;
+    BOOST_CHECK(!snapshot_chainstate->ActivateBestChain(state, block));
+    BOOST_CHECK(IsLocalEvoStateError(state));
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* index{chainman.m_blockman.LookupBlockIndex(block->GetHash())};
+        BOOST_REQUIRE(index);
+        BOOST_CHECK_EQUAL(index->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), tip);
+    }
+    BOOST_CHECK(!m_node.kernel->interrupt);
+
+    // A tip body this node has but cannot read is not the block's fault
+    // either: checking the block stops the node, as a block ConnectTip cannot
+    // read does.
+    {
+        LOCK(::cs_main);
+        const uint32_t pruned_status{tip->nStatus};
+        const int tip_file{tip->nFile};
+        tip->nStatus = tip_status;
+        tip->nFile = 999999;
+        BlockValidationState read_state;
+        BOOST_CHECK(!TestBlockValidity(read_state, *m_node.chainlocks, *m_node.evodb, Params(), *snapshot_chainstate,
+                                       *block, tip, /*fCheckPOW=*/true, /*fCheckMerkleRoot=*/true));
+        BOOST_CHECK(read_state.IsError());
+        BOOST_CHECK(!IsLocalEvoStateError(read_state));
+        BOOST_CHECK_EQUAL(tip->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK(m_node.kernel->interrupt);
+        m_node.kernel->interrupt.reset();
+        tip->nFile = tip_file;
+        tip->nStatus = pruned_status;
+    }
+    // Processing a sibling that needs it stops the node the same way, and
+    // leaves the sibling valid.
+    {
+        CBlock sibling_template{template_block};
+        ++sibling_template.nTime;
+        const auto sibling{std::make_shared<const CBlock>(
+            MakeCbTxBlock(sibling_template, tip->nHeight + 1, CCbTx::Version::CLSIG_AND_BALANCE))};
+        const auto [pruned_status, tip_file]{WITH_LOCK(::cs_main, return std::make_pair(tip->nStatus, tip->nFile))};
+        WITH_LOCK(::cs_main, tip->nStatus = tip_status; tip->nFile = 999999);
+        BOOST_CHECK(!chainman.ProcessNewBlock(sibling, /*force_processing=*/true, /*new_block=*/nullptr));
+        LOCK(::cs_main);
+        const CBlockIndex* sibling_index{chainman.m_blockman.LookupBlockIndex(sibling->GetHash())};
+        BOOST_REQUIRE(sibling_index);
+        BOOST_CHECK_EQUAL(sibling_index->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), tip);
+        BOOST_CHECK(m_node.kernel->interrupt);
+        m_node.kernel->interrupt.reset();
+        tip->nFile = tip_file;
+        tip->nStatus = pruned_status;
+    }
+
+    // Checking a child's EHF signals never rebuilds those of the block it
+    // extends, which was never connected: it ends in a local error.
+    const auto child{ChildOf(template_block, *block, tip->nHeight + 2, CCbTx::Version::CLSIG_AND_BALANCE)};
+    chainman.ProcessNewBlock(child, /*force_processing=*/true, /*new_block=*/nullptr);
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* child_index{chainman.m_blockman.LookupBlockIndex(child->GetHash())};
+        BOOST_REQUIRE(child_index);
+        BlockValidationState mnhf_state;
+        BOOST_CHECK(!m_node.special_tx->m_mnhfman->ProcessBlock(*child, child_index, /*fJustCheck=*/true, mnhf_state));
+        BOOST_CHECK(mnhf_state.IsError());
+    }
+    {
+        LOCK(::cs_main);
+        tip->nStatus = tip_status;
+        chainman.m_blockman.m_have_pruned = false;
+    }
 }
 
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_reconsider_block_candidates, SnapshotTestSetup)

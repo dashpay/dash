@@ -68,6 +68,7 @@
 #include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <instantsend/instantsend.h>
@@ -1696,7 +1697,17 @@ MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTra
 
     std::vector<COutPoint> coins_to_uncache;
     auto args = MemPoolAccept::ATMPArgs::SingleAccept(chainparams, accept_time, bypass_limits, coins_to_uncache, test_accept);
-    MempoolAcceptResult result = MemPoolAccept(pool, active_chainstate).AcceptSingleTransaction(tx, args);
+    MempoolAcceptResult result = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
+        try {
+            return MemPoolAccept(pool, active_chainstate).AcceptSingleTransaction(tx, args);
+        } catch (const evo::LocalStateError& e) {
+            // This node's Evo state cannot judge the transaction: an error, not
+            // invalidity, and the coins it loaded are dropped like any failure's.
+            TxValidationState state;
+            state.Error(strprintf("evo-local-unavailable: %s", e.what()));
+            return MempoolAcceptResult::Failure(state);
+        }
+    }();
     if (result.m_result_type != MempoolAcceptResult::ResultType::VALID || test_accept) {
         if (result.m_result_type != MempoolAcceptResult::ResultType::VALID) {
             LogPrint(BCLog::MEMPOOL, "%s: %s %s (%s)\n", __func__, tx->GetHash().ToString(), result.m_state.GetRejectReason(), result.m_state.GetDebugMessage());
@@ -1731,12 +1742,20 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
     const CChainParams& chainparams = active_chainstate.m_chainman.GetParams();
     auto result = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
         AssertLockHeld(cs_main);
-        if (test_accept) {
-            auto args = MemPoolAccept::ATMPArgs::PackageTestAccept(chainparams, GetTime(), coins_to_uncache);
-            return MemPoolAccept(pool, active_chainstate).AcceptMultipleTransactions(package, args);
-        } else {
-            auto args = MemPoolAccept::ATMPArgs::PackageChildWithParents(chainparams, GetTime(), coins_to_uncache);
-            return MemPoolAccept(pool, active_chainstate).AcceptPackage(package, args);
+        try {
+            if (test_accept) {
+                auto args = MemPoolAccept::ATMPArgs::PackageTestAccept(chainparams, GetTime(), coins_to_uncache);
+                return MemPoolAccept(pool, active_chainstate).AcceptMultipleTransactions(package, args);
+            } else {
+                auto args = MemPoolAccept::ATMPArgs::PackageChildWithParents(chainparams, GetTime(), coins_to_uncache);
+                return MemPoolAccept(pool, active_chainstate).AcceptPackage(package, args);
+            }
+        } catch (const evo::LocalStateError& e) {
+            // This node's Evo state cannot judge the package: an error of this
+            // mempool, not invalidity.
+            PackageValidationState state;
+            state.Invalid(PackageValidationResult::PCKG_MEMPOOL_ERROR, "evo-local-unavailable", e.what());
+            return PackageMempoolAcceptResult(state, {});
         }
     }();
 
@@ -3361,6 +3380,23 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
     UpdateTipLog(coins_tip, pindexNew, params, m_evoDb, __func__, "", warning_messages.original);
 }
 
+/** Classify an error about this node's own Evo state at a chainstate boundary.
+ *  A block body it has but cannot read shuts the node down, as a block
+ *  ConnectTip cannot read does; anything else is an error result
+ *  (IsLocalEvoStateError). None of them marks the block invalid or blames a
+ *  peer. */
+static bool LocalEvoStateError(ChainstateManager& chainman, const evo::LocalStateError& e, BlockValidationState& state)
+{
+    LogPrintf("ERROR: local Evo state error: %s\n", e.what());
+    if (dynamic_cast<const BlockDataReadError*>(&e)) {
+        return FatalError(chainman.GetNotifications(), state, strprintf("Failed to read block: %s", e.what()));
+    }
+    if (dynamic_cast<const EvoViewBindingError*>(&e)) {
+        return state.LocalEvoStateError(LocalEvoStateResult::BINDING, "evo-local-binding");
+    }
+    return state.LocalEvoStateError(LocalEvoStateResult::UNAVAILABLE, "evo-local-unavailable");
+}
+
 /** Disconnect m_chain's tip.
   * After calling, the mempool will be in an inconsistent state, with
   * transactions from disconnected blocks being added to disconnectpool.  You
@@ -3390,7 +3426,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     }
     // Apply the block atomically to the chain state.
     const auto time_start{SteadyClock::now()};
-    {
+    try {
         auto dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
 
         CCoinsViewCache view(&CoinsTip());
@@ -3402,6 +3438,8 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
         bool flushed = view.Flush();
         assert(flushed);
         dbTx->Commit();
+    } catch (const evo::LocalStateError& e) {
+        return LocalEvoStateError(m_chainman, e, state);
     }
     LogPrint(BCLog::BENCHMARK, "- Disconnect block: %.2fms\n",
              Ticks<MillisecondsDouble>(SteadyClock::now() - time_start));
@@ -3531,7 +3569,12 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
         auto dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
 
         CCoinsViewCache view(&CoinsTip());
-        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view);
+        bool rv{false};
+        try {
+            rv = ConnectBlock(blockConnecting, state, pindexNew, view);
+        } catch (const evo::LocalStateError& e) {
+            rv = LocalEvoStateError(m_chainman, e, state);
+        }
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             // Other threads read the open transaction, so roll it back before evicting the
@@ -5048,7 +5091,7 @@ bool TestBlockValidity(BlockValidationState& state,
                        CBlockIndex* pindexPrev,
                        bool fCheckPOW,
                        bool fCheckMerkleRoot)
-{
+try {
     AssertLockHeld(cs_main);
     assert(pindexPrev && pindexPrev == chainstate.m_chain.Tip());
 
@@ -5090,6 +5133,8 @@ bool TestBlockValidity(BlockValidationState& state,
     assert(state.IsValid());
 
     return true;
+} catch (const evo::LocalStateError& e) {
+    return LocalEvoStateError(chainstate.m_chainman, e, state);
 }
 
 /* This function is called from the RPC code for pruneblockchain */
