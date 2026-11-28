@@ -14,6 +14,7 @@
 #include <evo/evodb.h>
 #include <evo/providertx.h>
 #include <evo/simplifiedmns.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <kernel/notifications_interface.h>
 #include <masternode/meta.h>
@@ -1508,6 +1509,10 @@ std::vector<std::pair<uint256, CDeterministicMNListDiff>> CDeterministicMNManage
         result.repair_errors.push_back(strprintf("CRITICAL: Exception during recalculation: %s. "
                                                   "Cannot repair - full reindex required.", e.what()));
         return {}; // Exception - return empty vector
+    } catch (const evo::LocalStateError& e) {
+        result.repair_errors.push_back(strprintf("CRITICAL: Exception during recalculation: %s. "
+                                                  "Cannot repair - full reindex required.", e.what()));
+        return {};
     }
 }
 
