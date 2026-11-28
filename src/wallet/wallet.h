@@ -64,6 +64,7 @@
 #include <boost/signals2/signal.hpp>
 
 class ArgsManager;
+class CBLSPublicKey;
 class CKey;
 class CKeyID;
 class CPubKey;
@@ -563,6 +564,16 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     PlatformKeyStatus DerivePlatformKey(const platformkeys::Path& path, platformkeys::ExtKey256& out) const
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    PlatformKeyStatus DeriveOperatorKeys(uint32_t first, uint32_t count, std::vector<CBLSSecretKey>& out) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    //! Operator key indexes below this were issued; nullopt for an unreadable counter record.
+    std::optional<uint32_t> OperatorKeysIssued() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    //! Move the counter past a window key that a synced provider transaction assigns.
+    void AdvanceOperatorKeyCounter(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    //! Load the stored public keys above the counter; empty without the record or a readable counter.
+    void RebuildOperatorKeyWindow() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    //! Persist the next operator key index and drop the keys below it from the window.
+    bool WriteOperatorKeyCounter(uint32_t next_index) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
 public:
     /**
@@ -606,6 +617,9 @@ public:
     // Generic per-wallet key/value records used by Dash Platform integration
     // (opaque to the wallet; persisted as DBKeys::PLATFORM_DATA).
     std::map<std::string, std::vector<unsigned char>> m_platform_data GUARDED_BY(cs_wallet);
+    //! Basic-scheme public keys of the next operator key indexes above the counter, the keypool of this key
+    //! chain. It shrinks as the counter moves and is refilled by TopUpOperatorKeys.
+    std::vector<unsigned char> m_operator_key_window GUARDED_BY(cs_wallet);
 
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
@@ -1186,6 +1200,17 @@ public:
     PlatformKeyResult<uint32_t> PlatformAccountReference(const IdentityAuthKey& key, const CompactXpub& compact_xpub) const;
     PlatformKeyResult<FriendshipKeychain> EnsureFriendshipReceivingKeychain(const FriendshipKeychainRequest& request);
     PlatformKeyResult<std::vector<AssetLockFunding>> ListAssetLockFundings(const std::vector<AssetLockFundingKey>& keys) const;
+    /** Issue the next DIP-3 operator key m/9'/coin'/3'/3'/index from the wallet mnemonic
+     *  (platformkeys::DeriveOperatorKey): the lowest index above every key in the window that `in_use` accepts,
+     *  so keys of masternodes registered elsewhere consume their indexes. The index is recorded as issued before
+     *  the key is returned. */
+    PlatformKeyStatus IssueOperatorKey(const std::function<bool(const CBLSPublicKey&)>& in_use, uint32_t& index,
+                                       CBLSSecretKey& secret) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Re-derive an operator key issued earlier; INVALID_ARGUMENT for an index not issued yet. */
+    PlatformKeyStatus GetOperatorKey(uint32_t index, CBLSSecretKey& secret) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Fill and store the window of operator public keys that synced provider transactions are matched against.
+     *  Deriving needs the seed, so this runs where a mnemonic enters the wallet, at issuance and at unlock. */
+    PlatformKeyStatus TopUpOperatorKeys() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /* Returns the time of the first created key or, in case of an import, it could be the time of the first received transaction */
     int64_t GetBirthTime() const { return m_birth_time; }

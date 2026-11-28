@@ -353,6 +353,13 @@ static RPCHelpMan upgradetohd()
 
     bool generate_mnemonic = request.params[0].isNull() || request.params[0].get_str().empty();
     bool mnemonic_passphrase_has_null{false};
+    // If you are generating new mnemonic it is assumed that the addresses have never gotten a transaction before, so you don't need to rescan for transactions
+    bool rescan = request.params[3].isNull() ? !generate_mnemonic : request.params[3].get_bool();
+    // Reserved before the mnemonic enters the wallet: no operator key is issued between the upgrade and its rescan.
+    WalletRescanReserver reserver(*pwallet);
+    if (rescan && !reserver.reserve()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
+    }
     {
         LOCK2(pwallet->m_relock_mutex, pwallet->cs_wallet);
 
@@ -432,6 +439,12 @@ static RPCHelpMan upgradetohd()
 
         if (pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
             pwallet->SetupDescriptorScriptPubKeyMans(mnemonic, mnemonic_passphrase);
+            // A supplied mnemonic may already have operator keys on-chain; the
+            // stored public keys let the rescan below recognise them and must
+            // exist before encryption locks the seed away.
+            if (!generate_mnemonic && pwallet->TopUpOperatorKeys() != PlatformKeyStatus::SUCCESS) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Failed to store the operator public keys");
+            }
         } else {
             auto spk_man = pwallet->GetLegacyScriptPubKeyMan();
             if (!spk_man) {
@@ -456,13 +469,7 @@ static RPCHelpMan upgradetohd()
         }
     } // pwallet->cs_wallet
 
-    // If you are generating new mnemonic it is assumed that the addresses have never gotten a transaction before, so you don't need to rescan for transactions
-    bool rescan = request.params[3].isNull() ? !generate_mnemonic : request.params[3].get_bool();
     if (rescan) {
-        WalletRescanReserver reserver(*pwallet);
-        if (!reserver.reserve()) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
-        }
         CWallet::ScanResult result = pwallet->ScanForWalletTransactions(pwallet->chain().getBlockHash(0), 0, {}, reserver, /*fUpdate=*/true, /*save_progress=*/false);
         switch (result.status) {
         case CWallet::ScanResult::SUCCESS:
