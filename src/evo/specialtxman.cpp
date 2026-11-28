@@ -989,6 +989,10 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             }
         }
 
+        if (!fJustCheck && DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20)) {
+            m_cpoolman->CacheBlockData(block, pindex);
+        }
+
         const auto nTime4{SteadyClock::now()};
         nTimeCreditPool += nTime4 - nTime3;
         LogPrint(BCLog::BENCHMARK, "      - CheckCreditPoolDiffForBlock: %.2fms [%.2fs]\n", Ticks<MillisecondsDouble>(nTime4 - nTime3),
