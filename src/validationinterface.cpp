@@ -8,6 +8,8 @@
 #include <attributes.h>
 #include <chain.h>
 #include <consensus/validation.h>
+#include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <logging.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
@@ -18,6 +20,14 @@
 #include <utility>
 
 std::string RemovalReasonToString(const MemPoolRemovalReason& r) noexcept;
+
+namespace {
+//! Set by a queued event for the Iterate call that delivers it. A queued
+//! event has no caller to report a local Evo error to, so its delivery
+//! contains the error per subscriber. Synchronous signals, including those a
+//! subscriber raises itself, pass it on to their caller.
+thread_local bool g_contain_local_evo_errors{false};
+} // namespace
 
 /**
  * MainSignalsImpl manages a list of shared_ptr<CValidationInterface> callbacks.
@@ -80,12 +90,22 @@ public:
 
     template<typename F> void Iterate(F&& f) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
     {
+        const bool contain_local_evo_errors{std::exchange(g_contain_local_evo_errors, false)};
         WAIT_LOCK(m_mutex, lock);
         for (auto it = m_list.begin(); it != m_list.end();) {
             ++it->count;
-            {
+            try {
                 REVERSE_LOCK(lock);
                 f(*it->callbacks);
+            } catch (const evo::LocalStateError& e) {
+                if (!contain_local_evo_errors) {
+                    if (!--it->count) m_list.erase(it);
+                    throw;
+                }
+                LogPrintf("ERROR: Evo state unavailable to a validation subscriber: %s\n", e.what());
+            } catch (...) {
+                if (!--it->count) m_list.erase(it);
+                throw;
             }
             it = --it->count ? std::next(it) : m_list.erase(it);
         }
@@ -177,14 +197,18 @@ void SyncWithValidationInterfaceQueue()
 // evaluating arguments when logging is not enabled.
 //
 // NOTE: The lambda captures all local variables by value.
-#define ENQUEUE_AND_LOG_EVENT(event, fmt, name, ...)           \
-    do {                                                       \
-        auto local_name = (name);                              \
-        LOG_EVENT("Enqueuing " fmt, local_name, __VA_ARGS__);  \
-        m_internals->m_schedulerClient.AddToProcessQueue([=] { \
-            LOG_EVENT(fmt, local_name, __VA_ARGS__);           \
-            event();                                           \
-        });                                                    \
+//! Events run under the Evo view binding they were enqueued with.
+#define ENQUEUE_AND_LOG_EVENT(event, fmt, name, ...)                                        \
+    do {                                                                                    \
+        auto local_name = (name);                                                           \
+        LOG_EVENT("Enqueuing " fmt, local_name, __VA_ARGS__);                               \
+        m_internals->m_schedulerClient.AddToProcessQueue([=, evo_view = EvoViewCapture{}] { \
+            evo_view.Run([&] {                                                              \
+                LOG_EVENT(fmt, local_name, __VA_ARGS__);                                    \
+                g_contain_local_evo_errors = true;                                          \
+                event();                                                                    \
+            });                                                                             \
+        });                                                                                 \
     } while (0)
 
 #define LOG_EVENT(fmt, ...) \

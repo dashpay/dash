@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <evo/evodb.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
 #include <test/util/txmempool.h>
@@ -17,6 +18,7 @@ BOOST_FIXTURE_TEST_SUITE(policyestimator_tests, ChainTestingSetup)
 
 BOOST_AUTO_TEST_CASE(BlockPolicyEstimates)
 {
+    const ActiveEvoViewScope turn{m_node.evodb.get()};
     CBlockPolicyEstimator& feeEst = *Assert(m_node.fee_estimator);
     CTxMemPool& mpool = *Assert(m_node.mempool);
     LOCK2(cs_main, mpool.cs);
