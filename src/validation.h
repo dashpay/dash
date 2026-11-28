@@ -386,6 +386,14 @@ bool TestBlockValidity(BlockValidationState& state,
                        bool fCheckPOW = true,
                        bool fCheckMerkleRoot = true) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
+/** Whether `state` reports an error about this node's own Evo state rather
+ *  than about the block: the block is not known to be invalid, so callers must
+ *  not treat it as bad. */
+inline bool IsLocalEvoStateError(const BlockValidationState& state)
+{
+    return state.IsError() && state.GetLocalEvoStateResult() != LocalEvoStateResult::NONE;
+}
+
 enum class VerifyDBResult {
     SUCCESS,
     CORRUPTED_BLOCK_DB,
@@ -1123,6 +1131,11 @@ public:
     //! deletion and continue using the snapshot chainstate as active.
     //! Otherwise, revert to using the ibd chainstate and shutdown.
     SnapshotCompletionResult MaybeCompleteSnapshotValidation() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    /** Reject the active assumeutxo snapshot chainstate, revert to the
+     * background chainstate and shut down. Returns false when no usable
+     * snapshot is active or an EvoDB transaction must unwind first. */
+    bool HandleSnapshotStateMismatch(const std::string& reason);
 
     //! The most-work chain.
     Chainstate& ActiveChainstate() const;

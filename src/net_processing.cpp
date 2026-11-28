@@ -3466,7 +3466,7 @@ bool PeerManagerImpl::ProcessOrphanTx(NodeId node_id)
             // Has inputs but not accepted to mempool
             // Probably non-standard or insufficient fee
             LogPrint(BCLog::TXPACKAGES, "   removed orphan tx %s\n", orphanHash.ToString());
-            m_recent_rejects.insert(orphanHash.ToUint256());
+            if (!state.IsError()) m_recent_rejects.insert(orphanHash.ToUint256());
             m_orphanage.EraseTx(orphanHash);
             ForgetTx(orphanHash);
             return true;
@@ -5087,7 +5087,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                 m_isman.TransactionIsRemoved(ptx);
             }
         } else {
-            m_recent_rejects.insert(relay_hash);
+            if (!state.IsError()) m_recent_rejects.insert(relay_hash);
             ForgetTx(tx);
             if (RecursiveDynamicUsage(*ptx) < 100000) {
                 AddToCompactExtraTransactions(ptx);

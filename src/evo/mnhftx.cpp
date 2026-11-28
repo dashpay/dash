@@ -6,6 +6,7 @@
 #include <deploymentstatus.h>
 #include <evo/evodb.h>
 #include <evo/mnhftx.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <kernel/notifications_interface.h>
 #include <llmq/commitment.h>
@@ -311,9 +312,15 @@ void CMNHFManager::RebuildSignals(const CBlockIndex* pindex)
         if (pindex_top->nHeight % 1000 == 0) {
             LogPrintf("re-index EHF signals at block %d\n", pindex_top->nHeight);
         }
+        // A body this node does not have (pruned, or below an unvalidated
+        // snapshot base), or has but cannot read, is a local state error,
+        // never the block's fault.
+        if (!(pindex_top->nStatus & BLOCK_HAVE_DATA)) {
+            throw BlockDataUnavailableError("failed-getehfforblock-read");
+        }
         CBlock block;
-        if (!m_blockman.ReadBlockFromDisk(block, *pindex_top)) {
-            throw std::runtime_error("failed-getehfforblock-read");
+        if (m_blockman.ReadBlockFromDisk(block, pindex_top->GetBlockPos()) != pindex_top->GetBlockHash()) {
+            throw BlockDataReadError("failed-getehfforblock-read");
         }
         BlockValidationState state;
         signalsTmp = ProcessBlock(block, pindex_top, false, state);
