@@ -162,6 +162,65 @@ std::vector<blst_scalar> SecureAggregationFactors(const std::vector<PublicKeyByt
     return factors;
 }
 
+//! blst's multi-scalar functions under one name for both groups. They are called directly, as UBSan's
+//! -fsanitize=function rejects a call through a pointer to them: blst defines them with its internal types.
+void ToAffine(blst_p1_affine* dst, const blst_p1* const* points, size_t n) { blst_p1s_to_affine(dst, points, n); }
+void ToAffine(blst_p2_affine* dst, const blst_p2* const* points, size_t n) { blst_p2s_to_affine(dst, points, n); }
+
+void Pippenger(blst_p1& sum, const blst_p1_affine* const* points, size_t n, const uint8_t* const* scalars)
+{
+    std::vector<limb_t> scratch(blst_p1s_mult_pippenger_scratch_sizeof(n) / sizeof(limb_t) + 1);
+    blst_p1s_mult_pippenger(&sum, points, n, scalars, 256, scratch.data());
+}
+
+void Pippenger(blst_p2& sum, const blst_p2_affine* const* points, size_t n, const uint8_t* const* scalars)
+{
+    std::vector<limb_t> scratch(blst_p2s_mult_pippenger_scratch_sizeof(n) / sizeof(limb_t) + 1);
+    blst_p2s_mult_pippenger(&sum, points, n, scalars, 256, scratch.data());
+}
+
+//! The sum of every point multiplied by its factor, computed all at once, which takes a fraction of the time
+//! of the multiplications one by one. Only for points of the subgroup, where a factor counts modulo the group
+//! order, and for factors that are no secret.
+template <typename Point, typename Affine>
+Point WeightedSumOf(const std::vector<const Point*>& points, const std::vector<blst_scalar>& factors)
+{
+    assert(!points.empty() && points.size() == factors.size());
+    std::vector<Affine> affine(points.size());
+    ToAffine(affine.data(), points.data(), points.size());
+
+    // blst reads an array that follows its first element when the next pointer is null
+    const Affine* const affine_arg[]{affine.data(), nullptr};
+    const uint8_t* const factors_arg[]{factors[0].b, nullptr};
+    static_assert(sizeof(blst_scalar) == 32);
+
+    Point sum;
+    Pippenger(sum, affine_arg, points.size(), factors_arg);
+    return sum;
+}
+
+blst_p1 WeightedSum(const std::vector<const blst_p1*>& points, const std::vector<blst_scalar>& factors)
+{
+    return WeightedSumOf<blst_p1, blst_p1_affine>(points, factors);
+}
+
+blst_p2 WeightedSum(const std::vector<const blst_p2*>& points, const std::vector<blst_scalar>& factors)
+{
+    return WeightedSumOf<blst_p2, blst_p2_affine>(points, factors);
+}
+
+//! The points that objects hold, as WeightedSum() takes them
+template <typename T, typename Point, typename Base>
+std::vector<const Point*> PointsOf(Span<T> objects, Point Base::* impl)
+{
+    std::vector<const Point*> points;
+    points.reserve(objects.size());
+    for (const T& object : objects) {
+        points.push_back(&(object.*impl));
+    }
+    return points;
+}
+
 //! The number an id stands for as the argument of a polynomial
 blst_scalar ScalarFromId(const uint256& id)
 {
@@ -378,14 +437,14 @@ bool CBLSPublicKey::PublicKeyShare(Span<CBLSPublicKey> mpk, const CBLSId& _id)
         }
     }
 
-    // Horner's method: the polynomial with these coefficients, evaluated at the id
+    // The polynomial with these coefficients, evaluated at the id: every coefficient times a power of it
     const blst_scalar x{ScalarFromId(_id.impl)};
-    blst_p1 y{mpk.back().impl};
-    for (size_t i = mpk.size() - 1; i > 0; --i) {
-        Multiply(y, y, x);
-        blst_p1_add_or_double(&y, &y, &mpk[i - 1].impl);
+    std::vector<blst_scalar> powers(mpk.size());
+    powers[0].b[0] = 1;
+    for (size_t i = 1; i < powers.size(); i++) {
+        blst_sk_mul_n_check(&powers[i], &powers[i - 1], &x);
     }
-    impl = y;
+    impl = WeightedSum(PointsOf(mpk, &CBLSPublicKey::impl), powers);
 
     fValid = true;
     return true;
@@ -448,11 +507,7 @@ CBLSSignature CBLSSignature::AggregateSecure(Span<CBLSSignature> sigs,
     const std::vector<blst_scalar> factors{SecureAggregationFactors(pk_bytes)};
 
     CBLSSignature ret;
-    for (size_t i = 0; i < sigs.size(); i++) {
-        blst_p2 multiple;
-        Multiply(multiple, sigs[i].impl, factors[i]);
-        blst_p2_add_or_double(&ret.impl, &ret.impl, &multiple);
-    }
+    ret.impl = WeightedSum(PointsOf(sigs, &CBLSSignature::impl), factors);
     ret.fValid = true;
     return ret;
 }
@@ -533,12 +588,7 @@ bool CBLSSignature::VerifySecureAggregated(Span<CBLSPublicKey> pks, const uint25
     }
     const std::vector<blst_scalar> factors{SecureAggregationFactors(pk_bytes)};
 
-    blst_p1 aggregated{};
-    for (size_t i = 0; i < pks.size(); i++) {
-        blst_p1 multiple;
-        Multiply(multiple, pks[i].impl, factors[i]);
-        blst_p1_add_or_double(&aggregated, &aggregated, &multiple);
-    }
+    const blst_p1 aggregated{WeightedSum(PointsOf(pks, &CBLSPublicKey::impl), factors)};
     if (blst_p1_is_inf(&aggregated)) {
         return false;
     }
@@ -576,7 +626,7 @@ bool CBLSSignature::Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids)
         return false;
     }
 
-    blst_p2 recovered{};
+    std::vector<blst_scalar> weights(xs.size());
     for (size_t i = 0; i < xs.size(); i++) {
         blst_scalar denominator{xs[i]};
         for (size_t j = 0; j < xs.size(); j++) {
@@ -589,15 +639,10 @@ bool CBLSSignature::Recover(Span<CBLSSignature> sigs, Span<CBLSId> ids)
             }
             blst_sk_mul_n_check(&denominator, &denominator, &difference);
         }
-        blst_scalar weight;
-        blst_sk_inverse(&weight, &denominator);
-        blst_sk_mul_n_check(&weight, &numerator, &weight);
-
-        blst_p2 multiple;
-        Multiply(multiple, sigs[i].impl, weight);
-        blst_p2_add_or_double(&recovered, &recovered, &multiple);
+        blst_sk_inverse(&weights[i], &denominator);
+        blst_sk_mul_n_check(&weights[i], &numerator, &weights[i]);
     }
-    impl = recovered;
+    impl = WeightedSum(PointsOf(sigs, &CBLSSignature::impl), weights);
 
     fValid = true;
     return true;

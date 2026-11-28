@@ -403,6 +403,70 @@ static void BLS_SignatureAggregate_1000(benchmark::Bench& bench)
     bench.run([&] { ankerl::nanobench::doNotOptimizeAway(CBLSSignature::AggregateInsecure(sigs)); });
 }
 
+//! The recovery of a threshold signature from the shares of as many members as it takes
+static void BLS_Recover(benchmark::Bench& bench, size_t threshold)
+{
+    if (!bench.output()) threshold = 2;
+    std::vector<CBLSSecretKey> coefficients(threshold);
+    for (auto& coefficient : coefficients) {
+        coefficient.MakeNewKey();
+    }
+    const uint256 hash{GetRandHash()};
+    std::vector<CBLSId> ids;
+    std::vector<CBLSSignature> shares;
+    for (size_t i = 0; i < threshold; i++) {
+        CBLSSecretKey share;
+        const bool shared{share.SecretKeyShare(coefficients, ids.emplace_back(GetRandHash()))};
+        assert(shared);
+        shares.push_back(share.Sign(hash));
+    }
+
+    CBLSSignature sig;
+    bench.run([&] {
+        const bool recovered{sig.Recover(shares, ids)};
+        assert(recovered);
+    });
+    assert(sig.VerifyInsecure(coefficients[0].GetPublicKey(), hash));
+}
+
+static void BLS_Recover_45(benchmark::Bench& bench) { BLS_Recover(bench, 45); }
+static void BLS_Recover_240(benchmark::Bench& bench) { BLS_Recover(bench, 240); }
+
+//! The signature of all members of a quorum under its final commitment
+static void BLS_SecureAggregate(benchmark::Bench& bench, size_t count, bool verify)
+{
+    if (!bench.output()) count = 2;
+    const uint256 hash{GetRandHash()};
+    std::vector<CBLSPublicKey> pubKeys;
+    std::vector<CBLSSignature> sigs;
+    for (size_t i = 0; i < count; i++) {
+        const CBLSSecretKey sk{NewSecretKey()};
+        pubKeys.push_back(sk.GetPublicKey());
+        sigs.push_back(sk.Sign(hash));
+    }
+
+    CBLSSignature sig{CBLSSignature::AggregateSecure(sigs, pubKeys, hash)};
+    if (verify) {
+        bench.run([&] {
+            const bool valid{sig.VerifySecureAggregated(pubKeys, hash)};
+            assert(valid);
+        });
+    } else {
+        bench.run([&] { sig = CBLSSignature::AggregateSecure(sigs, pubKeys, hash); });
+        assert(sig.VerifySecureAggregated(pubKeys, hash));
+    }
+}
+
+static void BLS_AggregateSecure_400(benchmark::Bench& bench) { BLS_SecureAggregate(bench, 400, /*verify=*/false); }
+static void BLS_VerifySecureAggregated_100(benchmark::Bench& bench)
+{
+    BLS_SecureAggregate(bench, 100, /*verify=*/true);
+}
+static void BLS_VerifySecureAggregated_400(benchmark::Bench& bench)
+{
+    BLS_SecureAggregate(bench, 400, /*verify=*/true);
+}
+
 BENCHMARK(BLS_PubKeyAggregate_Normal, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_SecKeyAggregate_Normal, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_SignatureAggregate_Normal, benchmark::PriorityLevel::HIGH)
@@ -423,3 +487,8 @@ BENCHMARK(BLS_Signature_ToBytes, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_PubKey_SetBytes, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_Signature_SetBytes, benchmark::PriorityLevel::HIGH)
 BENCHMARK(BLS_SignatureAggregate_1000, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_Recover_45, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_Recover_240, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_AggregateSecure_400, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_VerifySecureAggregated_100, benchmark::PriorityLevel::HIGH)
+BENCHMARK(BLS_VerifySecureAggregated_400, benchmark::PriorityLevel::HIGH)
