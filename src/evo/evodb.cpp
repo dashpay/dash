@@ -687,7 +687,7 @@ bool CEvoDB::DiscardSnapshotMarkers()
     return DiscardBoundGeneration();
 }
 
-bool CEvoDB::PrepareSnapshotPromotion(const uint256& snapshot_tip)
+bool CEvoDB::PrepareSnapshotPromotion(const uint256& snapshot_tip, std::vector<uint8_t> mn_id_translation)
 {
     LOCK(cs);
     if (!m_snapshot_generation) return false;
@@ -710,6 +710,7 @@ bool CEvoDB::PrepareSnapshotPromotion(const uint256& snapshot_tip)
     journal.generation = m_snapshot_generation->generation;
     journal.base = m_snapshot_generation->base;
     journal.tip = snapshot_tip;
+    journal.mn_id_translation = std::move(mn_id_translation);
     uint256 base_mn_list_hash;
     if (db->Read(EVODB_SNAPSHOT_MNLIST_HASH, base_mn_list_hash)) journal.base_mn_list_hash = base_mn_list_hash;
     EvoGenerationRecord record{*m_snapshot_generation};
@@ -770,6 +771,13 @@ bool CEvoDB::MergeGeneration(EvoPromotionJournal& journal)
             if (!db->ReadDataStream(raw_key, value)) return false;
             DataStream normal_value{};
             const bool in_normal{db->ReadDataStream(key, normal_value)};
+            if (!journal.mn_id_translation.empty() &&
+                (!m_mn_record_translation ||
+                 !m_mn_record_translation(MakeByteSpan(journal.mn_id_translation), MakeByteSpan(key), value))) {
+                LogPrintf("ERROR: %s: cannot carry the masternode ids of snapshot generation %u into NORMAL for key %s\n",
+                          __func__, journal.generation, HexStr(key));
+                return false;
+            }
             if (!in_normal || SameBytes(key, llmq_best_block_key)) {
                 batch.Write(key, Span{value});
             } else if (!SameBytes(normal_value, value)) {

@@ -713,6 +713,89 @@ BOOST_FIXTURE_TEST_CASE(populated_v4_golden_value, BasicTestingSetup)
     BOOST_CHECK_EQUAL(GetEvoSnapshotHash(snapshot).ToString(), Sha256Hex(assembled));
 }
 
+BOOST_FIXTURE_TEST_CASE(promotion_carries_masternode_ids_into_normal, BasicTestingSetup)
+{
+    // NORMAL numbered the base's masternodes 2, 5 and 7 of 10 registrations;
+    // the snapshot numbers them 0, 1 and 2 of 3.
+    const auto normal_base{MNList(H(90), 576, /*reverse=*/false)};
+    std::map<uint256, uint64_t> snapshot_ids;
+    normal_base.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) { snapshot_ids.emplace(dmn.proTxHash, 0); });
+    uint64_t rank{0};
+    for (auto& [_, id] : snapshot_ids) id = rank++;
+    const auto snapshot_base{
+        normal_base.Renumbered([&](const CDeterministicMN& dmn) { return snapshot_ids.at(dmn.proTxHash); }, 3)};
+
+    // Above the base one masternode is removed, one updated and one registered,
+    // under the next id each view's counter gives.
+    const uint256 removed{normal_base.GetMNByInternalId(2)->proTxHash};
+    const auto registered{MN(3, 9, MnType::Regular, ProTxVersion::LegacyBLS, 9)};
+    const auto next = [&](const CDeterministicMNList& base, uint64_t new_id) {
+        CDeterministicMNList list{base};
+        list.SetBlockHash(H(93));
+        list.SetHeight(577);
+        list.RemoveMN(removed);
+        std::vector<CDeterministicMNCPtr> evo_nodes;
+        list.ForEachMNShared(/*onlyValid=*/false, [&](const auto& dmn) {
+            if (dmn->nType == MnType::Evo) evo_nodes.push_back(dmn);
+        });
+        for (const auto& dmn : evo_nodes) {
+            auto state{std::make_shared<CDeterministicMNState>(*dmn->pdmnState)};
+            state->nPoSePenalty += 1;
+            list.UpdateMN(dmn->proTxHash, state);
+        }
+        list.AddMN(std::make_shared<CDeterministicMN>(*registered, new_id));
+        return list;
+    };
+    const auto snapshot_next{next(snapshot_base, 3)};
+    const auto normal_next{next(normal_base, 10)};
+
+    const auto list_key = [](const uint256& hash) { return std::make_pair(std::string{"dmn_S3"}, hash); };
+    const auto diff_key{std::make_pair(std::string{"dmn_D4"}, H(93))};
+    const fs::path path{m_args.GetDataDirBase() / "evodb_translated_mn_ids"};
+    {
+        LOCK(::cs_main);
+        CEvoDB db{util::DbWrapperParams{.path = path, .memory = false, .wipe = true}};
+        db.SetMNRecordTranslation(TranslateMNRecord);
+        {
+            auto tx = db.BeginTransaction(EvoDbIdentity::NORMAL);
+            db.Write(list_key(H(90)), normal_base);
+            db.WriteBestBlock(EvoDbIdentity::NORMAL, H(90));
+            tx->Commit();
+        }
+        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::NORMAL));
+        BOOST_REQUIRE(db.CreateSnapshotGeneration(H(90), 576));
+        {
+            auto tx = db.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+            db.WriteSeed(list_key(H(90)), snapshot_base);
+            db.Write(diff_key, snapshot_base.BuildDiff(snapshot_next));
+            db.Write(list_key(H(93)), snapshot_next);
+            db.WriteBestBlock(EvoDbIdentity::SNAPSHOT, H(93));
+            tx->Commit();
+        }
+        BOOST_REQUIRE(db.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        BOOST_REQUIRE(db.PublishSnapshotGeneration(evo::CanonicalMNListHash(normal_base)));
+        const auto table{MNIdTranslationTable(snapshot_base, normal_base)};
+        BOOST_REQUIRE(table);
+        BOOST_CHECK(!MNIdTranslationTable(snapshot_base, normal_next));
+        BOOST_REQUIRE(db.PrepareSnapshotPromotion(H(93), *table));
+        BOOST_REQUIRE(db.PromoteSnapshotMarkers(H(93)));
+    }
+    CEvoDB reopened{util::DbWrapperParams{.path = path, .memory = false, .wipe = false}};
+    BOOST_REQUIRE(reopened.LoadSnapshotGenerations());
+    CDeterministicMNListDiff diff;
+    BOOST_REQUIRE(reopened.Read(diff_key, diff));
+    BOOST_CHECK(SerializeHash(diff) == SerializeHash(normal_base.BuildDiff(normal_next)));
+    CDeterministicMNList list;
+    BOOST_REQUIRE(reopened.Read(list_key(H(93)), list));
+    BOOST_CHECK_EQUAL(list.GetTotalRegisteredCount(), 11U);
+    normal_next.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
+        const auto promoted{list.GetMN(dmn.proTxHash)};
+        BOOST_REQUIRE(promoted);
+        BOOST_CHECK_EQUAL(promoted->GetInternalId(), dmn.GetInternalId());
+    });
+    BOOST_CHECK(evo::CanonicalMNListHash(list) == evo::CanonicalMNListHash(normal_next));
+}
+
 BOOST_FIXTURE_TEST_CASE(canonical_mn_reader_rejects_order_and_counter, BasicTestingSetup)
 {
     BOOST_CHECK(evo::CanonicalMNListHash(CDeterministicMNList{}) ==

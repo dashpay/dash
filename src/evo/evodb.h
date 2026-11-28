@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -147,11 +148,15 @@ struct EvoPromotionJournal {
     EvoPromotionPhase phase{EvoPromotionPhase::PREPARED};
     //! Generation-relative key the merge resumes after; empty to start over.
     std::vector<uint8_t> cursor;
+    //! How the merge carries masternode internal ids into NORMAL's; see
+    //! CEvoDB::SetMNRecordTranslation. Empty to merge records unchanged.
+    std::vector<uint8_t> mn_id_translation;
 
     SERIALIZE_METHODS(EvoPromotionJournal, obj)
     {
         uint8_t phase{static_cast<uint8_t>(obj.phase)};
-        READWRITE(obj.schema_version, obj.generation, obj.base, obj.tip, obj.base_mn_list_hash, phase, obj.cursor);
+        READWRITE(obj.schema_version, obj.generation, obj.base, obj.tip, obj.base_mn_list_hash, phase, obj.cursor,
+                  obj.mn_id_translation);
         SER_READ(obj, obj.phase = static_cast<EvoPromotionPhase>(phase));
     }
 };
@@ -506,6 +511,18 @@ public:
         return true;
     }
 
+    //! Rewrite a promoted record `value` stored under `key` from the
+    //! generation's masternode internal ids into NORMAL's, per the journal's
+    //! translation table. Each node numbers masternodes by its own history,
+    //! and a snapshot generation numbers them as the snapshot did. Records it
+    //! does not know are left unchanged; false fails promotion.
+    using MNRecordTranslation = std::function<bool(Span<const std::byte> table, Span<const std::byte> key, DataStream& value)>;
+    void SetMNRecordTranslation(MNRecordTranslation translation) EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        LOCK(cs);
+        m_mn_record_translation = std::move(translation);
+    }
+
     template <typename K>
     bool Exists(const K& key) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
@@ -583,9 +600,11 @@ public:
     /** Abandon the bound generation of a snapshot whose activation failed. */
     bool AbandonSnapshotGeneration() EXCLUSIVE_LOCKS_REQUIRED(::cs_main, !cs);
 
-    /** Record the decision to promote the bound generation at `snapshot_tip`.
-     *  Must precede the first coins-directory rename. */
-    bool PrepareSnapshotPromotion(const uint256& snapshot_tip) EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    /** Record the decision to promote the bound generation at `snapshot_tip`,
+     *  merging its masternode records through `mn_id_translation`. Must
+     *  precede the first coins-directory rename. */
+    bool PrepareSnapshotPromotion(const uint256& snapshot_tip, std::vector<uint8_t> mn_id_translation = {})
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
     std::optional<EvoPromotionJournal> ReadPromotionJournal() const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /**
@@ -686,6 +705,7 @@ private:
     bool m_rejection_failpoint GUARDED_BY(cs){false};
     //! A revoked generation is still live on disk.
     bool m_revoked_generation GUARDED_BY(cs){false};
+    MNRecordTranslation m_mn_record_translation GUARDED_BY(cs);
     size_t m_merge_batch_size GUARDED_BY(cs){10000};
 };
 

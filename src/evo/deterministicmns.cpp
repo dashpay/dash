@@ -20,6 +20,7 @@
 #include <masternode/meta.h>
 #include <node/blockstorage.h>
 #include <stats/client.h>
+#include <streams.h>
 #include <uint256.h>
 #include <util/check.h>
 #include <util/helpers.h>
@@ -431,6 +432,16 @@ void CDeterministicMNList::ApplyDiffForSnapshot(const uint256& block_hash, int h
     nTotalRegisteredCount = total_registered_count;
 }
 
+CDeterministicMNList CDeterministicMNList::Renumbered(const std::function<uint64_t(const CDeterministicMN&)>& new_id,
+                                                     uint32_t total_registered_count) const
+{
+    CDeterministicMNList result{blockHash, nHeight, total_registered_count};
+    ForEachMNShared(/*onlyValid=*/false, [&](const CDeterministicMNCPtr& dmn) {
+        result.AddMN(std::make_shared<CDeterministicMN>(*dmn, new_id(*dmn)), /*fBumpTotalCount=*/false);
+    });
+    return result;
+}
+
 void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount)
 {
     assert(dmn != nullptr);
@@ -673,11 +684,100 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
     InvalidateSMLCache();
 }
 
+namespace {
+struct MNIdTranslation {
+    uint32_t snapshot_total{0};
+    uint32_t normal_total{0};
+    std::map<uint64_t, uint64_t> base_ids;
+
+    SERIALIZE_METHODS(MNIdTranslation, obj) { READWRITE(obj.snapshot_total, obj.normal_total, obj.base_ids); }
+
+    // The snapshot view numbers registrations above the base from its own
+    // counter on, and NORMAL would have numbered them from its own.
+    uint64_t Id(uint64_t id) const
+    {
+        if (id >= snapshot_total) return id - snapshot_total + normal_total;
+        const auto it{base_ids.find(id)};
+        if (it == base_ids.end()) {
+            throw std::runtime_error(strprintf("snapshot internal id %d is not a masternode of the base", id));
+        }
+        return it->second;
+    }
+
+    uint32_t Total(uint32_t total) const
+    {
+        if (total < snapshot_total || uint64_t{total} - snapshot_total + normal_total > std::numeric_limits<uint32_t>::max()) {
+            throw std::runtime_error(strprintf("snapshot registration counter %d is out of range", total));
+        }
+        return total - snapshot_total + normal_total;
+    }
+};
+
+bool HasKeyPrefix(Span<const std::byte> key, const std::string& prefix)
+{
+    DataStream tag{};
+    tag << prefix;
+    return key.size() >= tag.size() && std::equal(tag.begin(), tag.end(), key.begin());
+}
+} // namespace
+
+bool TranslateMNRecord(Span<const std::byte> table, Span<const std::byte> key, DataStream& value)
+{
+    const bool is_diff{HasKeyPrefix(key, DB_LIST_DIFF)};
+    if (table.empty() || (!is_diff && !HasKeyPrefix(key, DB_LIST_SNAPSHOT))) return true;
+    try {
+        MNIdTranslation translation;
+        DataStream{table} >> translation;
+        DataStream translated{};
+        if (is_diff) {
+            CDeterministicMNListDiff diff;
+            value >> diff;
+            CDeterministicMNListDiff result;
+            for (const auto& dmn : diff.addedMNs) {
+                result.addedMNs.push_back(std::make_shared<CDeterministicMN>(*dmn, translation.Id(dmn->GetInternalId())));
+            }
+            for (const auto& [id, state_diff] : diff.updatedMNs) result.updatedMNs.emplace(translation.Id(id), state_diff);
+            for (const uint64_t id : diff.removedMns) result.removedMns.emplace(translation.Id(id));
+            translated << result;
+        } else {
+            CDeterministicMNList list;
+            value >> list;
+            translated << list.Renumbered([&](const CDeterministicMN& dmn) { return translation.Id(dmn.GetInternalId()); },
+                                          translation.Total(list.GetTotalRegisteredCount()));
+        }
+        value = std::move(translated);
+    } catch (const std::exception& e) {
+        LogPrintf("ERROR: %s: %s\n", __func__, e.what());
+        return false;
+    }
+    return true;
+}
+
+std::optional<std::vector<uint8_t>> MNIdTranslationTable(const CDeterministicMNList& snapshot_base,
+                                                         const CDeterministicMNList& normal_base)
+{
+    MNIdTranslation translation{snapshot_base.GetTotalRegisteredCount(), normal_base.GetTotalRegisteredCount(), {}};
+    bool complete{snapshot_base.GetCounts().total() == normal_base.GetCounts().total()};
+    snapshot_base.ForEachMN(/*onlyValid=*/false, [&](const CDeterministicMN& dmn) {
+        const auto normal{normal_base.GetMN(dmn.proTxHash)};
+        if (!normal) {
+            complete = false;
+            return;
+        }
+        translation.base_ids.emplace(dmn.GetInternalId(), normal->GetInternalId());
+    });
+    if (!complete) return std::nullopt;
+    DataStream table{};
+    table << translation;
+    return std::vector<uint8_t>{UCharCast(table.data()), UCharCast(table.data() + table.size())};
+}
+
 CDeterministicMNManager::CDeterministicMNManager(CEvoDB& evoDb, CMasternodeMetaMan& mn_metaman) :
     m_evoDb{evoDb},
     m_mn_metaman{mn_metaman}
 {
     m_views.SetOwner(evoDb);
+    evoDb.SetMNRecordTranslation(TranslateMNRecord);
 }
 
 CDeterministicMNManager::~CDeterministicMNManager() = default;

@@ -7301,6 +7301,36 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
     const uint256 snapshot_tip = m_snapshot_chainstate->CoinsTip().GetBestBlock();
     CEvoDB& evo_db = m_snapshot_chainstate->m_evoDb;
 
+    // The snapshot chainstate numbers masternodes as the snapshot does, the
+    // background chainstate as this node's own history did. Promotion carries
+    // the snapshot's masternode records over into the background's numbering.
+    std::vector<uint8_t> mn_id_translation;
+    if (const CBlockIndex* base{m_snapshot_chainstate->SnapshotBase()};
+        base != nullptr && DeploymentActiveAt(*base, GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
+        auto& dmnman{m_snapshot_chainstate->m_special_tx.DeterministicMNManager()};
+        std::optional<std::vector<uint8_t>> table;
+        try {
+            CDeterministicMNList snapshot_list;
+            CDeterministicMNList normal_list;
+            {
+                const EvoViewScope snapshot_view{m_snapshot_chainstate->EvoView()};
+                snapshot_list = dmnman.GetListForBlock(base);
+            }
+            {
+                const EvoViewScope normal_view{m_ibd_chainstate->EvoView()};
+                normal_list = dmnman.GetListForBlock(base);
+            }
+            table = MNIdTranslationTable(snapshot_list, normal_list);
+        } catch (const std::exception& e) {
+            LogPrintf("[snapshot] cannot read the masternode lists at the snapshot base: %s\n", e.what());
+        }
+        if (!table) {
+            LogPrintf("[snapshot] failed to map the snapshot's masternode ids onto the background chainstate's\n");
+            return false;
+        }
+        mn_id_translation = std::move(*table);
+    }
+
     // Since we're going to be moving around the underlying leveldb filesystem content
     // for each chainstate, make sure that the chainstates (and their constituent
     // CoinsViews members) have been destructed first.
@@ -7311,7 +7341,7 @@ bool ChainstateManager::ValidatedSnapshotCleanup()
 
     // Journal the promotion before the first rename, so recovery can tell a
     // promotion from an interrupted invalid-snapshot cleanup.
-    if (!evo_db.PrepareSnapshotPromotion(snapshot_tip)) {
+    if (!evo_db.PrepareSnapshotPromotion(snapshot_tip, std::move(mn_id_translation))) {
         LogPrintf("[snapshot] failed to journal the snapshot EvoDB promotion\n");
         return false;
     }

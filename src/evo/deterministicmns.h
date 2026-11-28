@@ -26,6 +26,7 @@
 #include <functional>
 #include <limits>
 #include <numeric>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
@@ -68,6 +69,13 @@ public:
     {
         // only non-initial values
         assert(_internalId != std::numeric_limits<uint64_t>::max());
+    }
+    //! A copy of `other` under another internal id.
+    CDeterministicMN(const CDeterministicMN& other, uint64_t _internalId) :
+        CDeterministicMN{other}
+    {
+        assert(_internalId != std::numeric_limits<uint64_t>::max());
+        internalId = _internalId;
     }
     template <typename Stream>
     CDeterministicMN(deserialize_type, Stream& s) { s >> *this; }
@@ -435,6 +443,11 @@ public:
                               const CDeterministicMNListDiff& diff)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
 
+    /** This list with each masternode's internal id replaced by `new_id(dmn)`
+     *  and the registration counter by `total_registered_count`. */
+    [[nodiscard]] CDeterministicMNList Renumbered(const std::function<uint64_t(const CDeterministicMN&)>& new_id,
+                                                  uint32_t total_registered_count) const;
+
     void AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount = true) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
     void UpdateMN(const CDeterministicMN& oldDmn, const std::shared_ptr<const CDeterministicMNState>& pdmnState)
         EXCLUSIVE_LOCKS_REQUIRED(!m_cached_sml_mutex);
@@ -762,6 +775,16 @@ struct MNListUpdates
  *  this constant is what keeps such requests from penalizing the peer. */
 inline constexpr std::string_view BLOCK_DATA_UNAVAILABLE_SUFFIX{
     "is not available (pruned or below an unvalidated snapshot base)"};
+
+/** Translation table from the internal ids of a snapshot generation into
+ *  NORMAL's, for promotion: the ids the masternodes of the base list hold in
+ *  each view, and the counters both views had there. None if the two lists do
+ *  not hold the same masternodes. */
+std::optional<std::vector<uint8_t>> MNIdTranslationTable(const CDeterministicMNList& snapshot_base,
+                                                         const CDeterministicMNList& normal_base);
+
+//! CEvoDB::MNRecordTranslation for masternode list and list-diff records.
+bool TranslateMNRecord(Span<const std::byte> table, Span<const std::byte> key, DataStream& value);
 
 class CDeterministicMNManager
 {
