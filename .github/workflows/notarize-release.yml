@@ -1,0 +1,165 @@
+name: Notarize macOS release
+
+# Gatekeeper on current macOS refuses a downloaded app that Apple has not
+# notarized, even when it is properly signed. The macOS zips are signed outside
+# CI and uploaded to the release, so notarization is checked here: every
+# published release is held to "Notarized Developer ID" and submitted to Apple
+# if it isn't yet. Zips can't be stapled, so the release assets (and their
+# .asc signatures) are never modified; Gatekeeper finds the ticket online.
+#
+# Run it by hand on a draft release before publishing it. Publishing runs it
+# again, and a failure there means the release is not installable on macOS.
+# A release event runs the copy of this file in the tagged commit, so it must
+# be on the release branch before the tag is made.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, e.g. v24.0.2 (draft releases work too)
+        required: true
+
+# Draft releases are only visible to tokens with write access.
+permissions:
+  contents: write
+
+concurrency:
+  group: notarize-${{ github.event.release.tag_name || inputs.tag }}
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  TEAM_ID: 44RJ69WHFF
+
+jobs:
+  notarize:
+    name: Notarize macOS zips
+    runs-on: macos-15
+    # Holds the notary secrets; restrict it to protected branches and tags.
+    environment: macos-notarization
+    timeout-minutes: 150
+    steps:
+      - name: Download the macOS zips
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::Not a release tag: $RELEASE_TAG"
+            exit 1
+          fi
+          version="${RELEASE_TAG#v}"
+          mkdir -p "$RUNNER_TEMP/zips"
+          for arch in arm64 x86_64; do
+            gh release download "$RELEASE_TAG" -D "$RUNNER_TEMP/zips" \
+              -p "dashcore-${version}-${arch}-apple-darwin.zip"
+          done
+          ls -l "$RUNNER_TEMP/zips"
+
+      # Runner images ship with Gatekeeper assessments turned off.
+      - name: Enable Gatekeeper
+        run: |
+          sudo spctl --master-enable
+          spctl --status
+
+      - name: Notarize and verify
+        env:
+          NOTARY_API_KEY_BASE64: ${{ secrets.MACOS_NOTARY_API_KEY_BASE64 }}
+          NOTARY_API_KEY_ID: ${{ secrets.MACOS_NOTARY_API_KEY_ID }}
+          NOTARY_API_ISSUER_ID: ${{ secrets.MACOS_NOTARY_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          for name in NOTARY_API_KEY_BASE64 NOTARY_API_KEY_ID NOTARY_API_ISSUER_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret MACOS_${name} is not set"
+              exit 1
+            fi
+          done
+          key="$RUNNER_TEMP/notary_api_key.p8"
+          trap 'rm -f "$key"' EXIT
+          umask 077
+          printf '%s' "$NOTARY_API_KEY_BASE64" | base64 --decode > "$key"
+          notary=(--key "$key" --key-id "$NOTARY_API_KEY_ID" --issuer "$NOTARY_API_ISSUER_ID")
+
+          # Gatekeeper's source= verdict for the app, assessed as a quarantined
+          # fresh download so the online notarization ticket is consulted.
+          gatekeeper_source() {
+            local app="$1"
+            xattr -w com.apple.quarantine "0081;$(printf '%x' "$(date +%s)");Safari;" "$app"
+            local out
+            out="$(spctl -a -vvv -t exec "$app" 2>&1)" || true
+            echo "$out" >&2
+            sed -n 's/^source=//p' <<<"$out"
+          }
+
+          failed=0
+          for zip in "$RUNNER_TEMP"/zips/*.zip; do
+            name="$(basename "$zip")"
+            echo "::group::$name"
+            dir="$(mktemp -d)"
+            ditto -x -k "$zip" "$dir"
+            app="$dir/Dash-Qt.app"
+            codesign --verify --deep --strict "$app"
+            team="$(codesign -dv "$app" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+            if [ "$team" != "$TEAM_ID" ]; then
+              echo "::error::$name is signed by team '$team', expected $TEAM_ID"
+              exit 1
+            fi
+
+            source="$(gatekeeper_source "$app")"
+            if [ "$source" = "Notarized Developer ID" ]; then
+              echo "$name is already notarized"
+              echo "::endgroup::"
+              continue
+            fi
+
+            echo "$name: Gatekeeper reports source='$source'; submitting to Apple"
+            rc=0
+            result="$(xcrun notarytool submit "$zip" "${notary[@]}" --wait --timeout 1h --output-format json)" || rc=$?
+            echo "$result"
+            id="$(jq -r '.id // empty' <<<"$result" 2>/dev/null || true)"
+            status="$(jq -r '.status // empty' <<<"$result" 2>/dev/null || true)"
+            if [ -z "$id" ]; then
+              echo "::error::notarytool submit of $name failed (exit $rc)"
+              failed=1
+              echo "::endgroup::"
+              continue
+            fi
+            for attempt in 1 2 3 4 5; do
+              xcrun notarytool log "$id" "${notary[@]}" > "$dir/log.json" && break
+              sleep 15
+            done
+            cat "$dir/log.json" || true
+            if [ "$status" != "Accepted" ]; then
+              echo "::error::Apple did not accept $name (submission $id, status $status)"
+              failed=1
+              echo "::endgroup::"
+              continue
+            fi
+            if [ "$(jq -r .sha256 "$dir/log.json")" != "$(shasum -a 256 "$zip" | cut -d' ' -f1)" ]; then
+              echo "::error::Apple's log for $id does not match the bytes of $name"
+              failed=1
+              echo "::endgroup::"
+              continue
+            fi
+
+            # A fresh ticket can take a few minutes to reach Gatekeeper's online check.
+            for attempt in $(seq 1 20); do
+              rm -rf "$dir/check" && mkdir "$dir/check"
+              ditto -x -k "$zip" "$dir/check"
+              source="$(gatekeeper_source "$dir/check/Dash-Qt.app")"
+              [ "$source" = "Notarized Developer ID" ] && break
+              echo "Gatekeeper still reports source='$source' (attempt $attempt); waiting"
+              sleep 30
+            done
+            if [ "$source" = "Notarized Developer ID" ]; then
+              echo "$name is notarized (submission $id)"
+            else
+              echo "::error::Apple accepted $name ($id) but Gatekeeper still reports source='$source'"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "$failed"
