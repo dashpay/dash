@@ -70,6 +70,7 @@
 #include <node/peerman_args.h>
 #include <node/transaction.h>
 #include <node/sync_manager.h>
+#include <node/utxo_snapshot.h>
 #include <node/validation_cache_args.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
@@ -116,6 +117,7 @@
 #include <dsnotificationinterface.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtxman.h>
 #include <flat-database.h>
 #include <governance/governance.h>
@@ -483,6 +485,7 @@ void PrepareShutdown(NodeContext& node)
         node.llmq_ctx.reset();
         node.isman.reset();
         node.dmnman.reset();
+        node.evodb_for_dispatch = nullptr;
         node.evodb.reset();
     }
     for (const auto& client : node.chain_clients) {
@@ -661,8 +664,8 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-version", "Print version and exit", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 
     argsman.AddArg("-addressindex", strprintf("Maintain a full address index, used to query for the balance, txids and unspent outputs for addresses (default: %u)", DEFAULT_ADDRESSINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::INDEXING);
-    argsman.AddArg("-reindex", "Rebuild chain state and block index from the blk*.dat files on disk. This will also rebuild active optional indexes.", ArgsManager::ALLOW_ANY, OptionsCategory::INDEXING);
-    argsman.AddArg("-reindex-chainstate", "Rebuild chain state from the currently indexed blocks. When in pruning mode or if blocks on disk might be corrupted, use full -reindex instead.", ArgsManager::ALLOW_ANY, OptionsCategory::INDEXING);
+    argsman.AddArg("-reindex", "If enabled, wipe chain state and block index, and rebuild them from blk*.dat files on disk. Also wipe and rebuild other optional indexes that are active. If an assumeutxo snapshot was loaded, its chainstate will be wiped as well. The snapshot can then be reloaded via RPC.", ArgsManager::ALLOW_ANY, OptionsCategory::INDEXING);
+    argsman.AddArg("-reindex-chainstate", "If enabled, wipe chain state, and rebuild it from blk*.dat files on disk. If an assumeutxo snapshot was loaded, its chainstate will be wiped as well. The snapshot can then be reloaded via RPC.", ArgsManager::ALLOW_ANY, OptionsCategory::INDEXING);
     argsman.AddArg("-spentindex", strprintf("Maintain a full spent index, used to query the spending txid and input index for an outpoint (default: %u)", DEFAULT_SPENTINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::INDEXING);
     argsman.AddArg("-timestampindex", strprintf("Maintain a timestamp index for block hashes, used to query blocks hashes by a range of timestamps (default: %u)", DEFAULT_TIMESTAMPINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::INDEXING);
     argsman.AddArg("-txindex", strprintf("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)", DEFAULT_TXINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::INDEXING);
@@ -814,6 +817,7 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
 #endif
 
     argsman.AddArg("-checkblockindex", strprintf("Do a consistency check for the block tree, chainstate, and other validation data structures every <n> operations. Use 0 to disable. (default: %u, regtest: %u)", defaultChainParams->DefaultConsistencyChecks(), regtestChainParams->DefaultConsistencyChecks()), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
+    argsman.AddArg("-checkevobinding", strprintf("Fail every Evo database access that is not bound to a chainstate's view, as dual-chainstate operation does (default: %u, regtest: %u)", defaultChainParams->DefaultConsistencyChecks(), regtestChainParams->DefaultConsistencyChecks()), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-checkblocks=<n>", strprintf("How many blocks to check at startup (default: %u, 0 = all)", DEFAULT_CHECKBLOCKS), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-checklevel=<n>", strprintf("How thorough the block verification of -checkblocks is: %s (0-4, default: %u)", Join(CHECKLEVEL_DOC, ", "), DEFAULT_CHECKLEVEL), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-checkaddrman=<n>", strprintf("Run addrman consistency checks every <n> operations. Use 0 to disable. (default: %u)", DEFAULT_ADDRMAN_CONSISTENCY_CHECKS), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
@@ -1224,6 +1228,11 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     const CChainParams& chainparams = Params();
     // ********************************************************* Step 2: parameter interactions
 
+    // Snapshot authorizations are reviewed chain parameters on every other network.
+    if (args.IsArgSet("-assumeutxodata") && chainparams.GetChainType() != ChainType::REGTEST) {
+        return InitError(_("-assumeutxodata is only available on regtest."));
+    }
+
     // also see: InitParameterInteraction()
 
     // Error if network-specific options (-addnode, -connect, etc) are
@@ -1524,6 +1533,144 @@ bool AppInitInterfaces(NodeContext& node)
     return true;
 }
 
+void ReleaseChainstateLoadAttempt(NodeContext& node)
+{
+    // Validation events a failed attempt queued carry Evo view bindings to the
+    // databases released below, so they run first.
+    SyncWithValidationInterfaceQueue();
+    node.mempool.reset();
+    node.special_tx.reset();
+    node.llmq_ctx.reset();
+    node.isman.reset();
+    node.dmnman.reset();
+    node.evodb.reset();
+}
+
+void RunSchedulerTask(const NodeContext& node, const std::function<void()>& task)
+{
+    RunActiveEvoRound(node.evodb_for_dispatch.load(), "scheduler", task);
+}
+
+// The repair marker shares the EvoDB root transaction with the blocks connected during the
+// import, so persist it with a full flush that writes the coins DB first.
+static void CompleteEvoDbRepair(NodeContext& node)
+{
+    LOCK(::cs_main);
+    node.dmnman->CompleteRepair();
+    for (Chainstate* chainstate : node.chainman->GetAll()) {
+        if (chainstate->CanFlushToDisk()) {
+            chainstate->ForceFlushStateToDisk();
+        }
+    }
+}
+
+void FinishImportedStartup(NodeContext& node, const ArgsManager& args, bool skip_evodb_repair_on_reindex)
+{
+    // The startup tail serves the active chain, like any other dispatch.
+    const ActiveEvoViewScope evo_view{node.evodb.get(),
+                                      [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return node.chainman->ActiveTip(); }};
+
+    {
+        const CBlockIndex* tip{evo_view.Tip()};
+        const bool ibd = node.chainman->IsInitialBlockDownload();
+        if (node.active_ctx) {
+            // On masternodes, defer the full broadcast until after
+            // nodeman->Init() so that GetProTxHash() is available
+            // for quorum connection setup and skShare derivation.
+            // Only kick CDSNotificationInterface here (cached block
+            // height for DS/MN payments/budgets).
+            node.ds_notification_interface->InitializeCurrentBlockTip(tip, ibd);
+        } else {
+            // Non-masternode nodes (including observer-only): broadcast
+            // to all subscribers now; no proTxHash dependency.
+            GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
+        }
+    }
+
+    // Seed InstantSend tip-height cache; NetInstantSend receives future
+    // updates via CValidationInterface but misses InitializeCurrentBlockTip.
+    // TODO: move cache updates from NetInstantSend to g_ds_notification due to specific of Tip's processing
+    node.isman->CacheTipHeight(WITH_LOCK(::cs_main, return node.chainman->ActiveChain().Tip()));
+
+    if (skip_evodb_repair_on_reindex) {
+        LogPrintf("Skipping evodb repair during reindex\n");
+        CompleteEvoDbRepair(node); // Mark as repaired since we're rebuilding fresh
+    } else if (node.dmnman->IsRepaired() && !args.GetBoolArg("-forceevodbrepair", false)) {
+        LogPrintf("Masternode list diffs are already repaired\n");
+    } else {
+        const CBlockIndex* start_index;
+        const CBlockIndex* stop_index;
+        {
+            LOCK(cs_main);
+            const auto& consensus_params = Params().GetConsensus();
+            const CChain& chain{node.chainman->NormalEvoChain()};
+            start_index = chain[consensus_params.DIP0003Height];
+            stop_index = chain.Tip();
+        }
+
+        if (start_index && stop_index && start_index->nHeight < stop_index->nHeight) {
+            LogPrintf("Verifying and repairing masternode list diffs...\n");
+            const auto start{SteadyClock::now()};
+            // Create a callback that wraps CSpecialTxProcessor::BuildNewListFromBlock
+            auto build_list_func = [&node](const CBlock& block, const CBlockIndex* const pindexPrev,
+                                           const CDeterministicMNList& prevList, const CCoinsViewCache& view,
+                                           bool debugLogs, BlockValidationState& state,
+                                           CDeterministicMNList& mnListRet) -> bool {
+                const bool is_v24_active{DeploymentActiveAfter(pindexPrev, *node.chainman, Consensus::DEPLOYMENT_V24)};
+                return node.special_tx->RebuildListFromBlock(block, pindexPrev, is_v24_active, prevList, view,
+                                                             debugLogs, state, mnListRet);
+            };
+            auto result = node.dmnman->RecalculateAndRepairDiffs(node.chainman->m_blockman, start_index, stop_index,
+                                                                 build_list_func, true);
+
+            if (!result.verification_errors.empty()) {
+                LogPrintf("WARNING: Verification errors:\n%s\n", Join(result.verification_errors, "\n"));
+            }
+
+            if (!result.repair_errors.empty()) {
+                // Critical errors occurred - reindex required
+                LogPrintf("Failed to repair masternode list diffs. Database corruption detected. "
+                          "Please restart with -reindex to rebuild the database.\n"
+                          "Errors:\n%s\n",
+                          Join(result.repair_errors, "\n"));
+                StartShutdown();
+                return;
+            }
+            CompleteEvoDbRepair(node);
+            LogPrintf("Successfully repaired %d masternode list diffs, verified %d snapshots in %ds\n",
+                      result.diffs_recalculated, result.snapshots_verified,
+                      Ticks<std::chrono::seconds>(SteadyClock::now() - start));
+        }
+    }
+
+    {
+        // Get all UTXOs for each MN collateral in one go so that we can fill coin cache early
+        // and reduce further locking overhead for cs_main in other parts of code including GUI
+        LogPrintf("Filling coin cache with masternode UTXOs...\n");
+        LOCK(cs_main);
+        const auto start{SteadyClock::now()};
+        const auto mnList{node.dmnman->GetListAtChainTip()};
+        mnList.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
+            Coin coin;
+            GetUTXOCoin(node.chainman->ActiveChainstate(), dmn.collateralOutpoint, coin);
+        });
+        LogPrintf("Filling coin cache with masternode UTXOs: done in %dms\n",
+                  Ticks<std::chrono::milliseconds>(SteadyClock::now() - start));
+    }
+
+    if (node.active_ctx) {
+        node.active_ctx->nodeman->Init(WITH_LOCK(::cs_main, return node.chainman->ActiveTip()));
+        // Now that nodeman->Init has set proTxHash, fan out the
+        // startup tip to all CValidationInterface subscribers.
+        // The earlier call only kicked CDSNotificationInterface
+        // directly because the full broadcast (NetQuorum,
+        // ActiveContext) depends on a valid proTxHash.
+        const CBlockIndex* tip = WITH_LOCK(::cs_main, return node.chainman->ActiveTip());
+        const bool ibd = node.chainman->IsInitialBlockDownload();
+        GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
+    }
+}
+
 bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 {
     const ArgsManager& args = *Assert(node.args);
@@ -1583,6 +1730,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     assert(!node.scheduler);
     node.scheduler = std::make_unique<CScheduler>();
+    // Each scheduled round serves the active chain unless the task carries
+    // its own Evo view binding.
+    node.scheduler->SetTaskWrapper([&node](const CScheduler::Function& task) { RunSchedulerTask(node, task); });
 
     // Start the lightweight task scheduler thread
     node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { node.scheduler->serviceQueue(); });
@@ -2019,6 +2169,25 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7b: load block chain
 
+    // A snapshot chainstate, validated or not, stays in use until a restart
+    // promotes it, and neither chainstate can run with these options.
+    if (node::FindSnapshotChainstateDir(args.GetDataDirNet())) {
+        if (args.GetIntArg("-prune", 0)) {
+            return InitError(_("An assumeutxo snapshot chainstate is in use, which pruning would break. Restart without "
+                               "-prune until the snapshot has been validated and a restart has promoted it."));
+        }
+        if (node::LegacyIndexesEnabled(args)) {
+            return InitError(_("An assumeutxo snapshot chainstate is in use, which -addressindex, -spentindex and "
+                               "-timestampindex do not support. Restart without them until the snapshot has been "
+                               "validated and a restart has promoted it."));
+        }
+        if (args.IsArgSet("-masternodeblsprivkey")) {
+            return InitError(_("An assumeutxo snapshot chainstate is in use, which a masternode cannot run on. Restart "
+                               "without -masternodeblsprivkey until the snapshot has been validated and a restart has "
+                               "promoted it."));
+        }
+    }
+
     node.notifications = std::make_unique<KernelNotifications>(node.exit_status);
     ReadNotificationArgs(args, *node.notifications);
     fReindex = args.GetBoolArg("-reindex", false);
@@ -2085,22 +2254,21 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     for (bool fLoaded = false; !fLoaded && !ShutdownRequested();) {
         // On a retry iteration the previous instances still hold the on-disk
         // database locks, so release them before opening the databases again.
-        node.mempool.reset();
-        node.special_tx.reset();
-        node.llmq_ctx.reset();
-        node.isman.reset();
-        node.dmnman.reset();
-        node.evodb.reset();
+        ReleaseChainstateLoadAttempt(node);
         auto catch_exceptions = [](auto&& f) {
             try {
                 return f();
             } catch (const std::exception& e) {
                 LogPrintf("%s\n", e.what());
                 return std::make_tuple(node::ChainstateLoadStatus::FAILURE, _("Error opening block database"));
+            } catch (const evo::LocalStateError& e) {
+                LogPrintf("%s\n", e.what());
+                return std::make_tuple(node::ChainstateLoadStatus::FAILURE, _("Error opening block database"));
             }
         };
         auto [status, error] = catch_exceptions([&]() -> node::ChainstateLoadResult {
-            node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = args.GetDataDirNet(), .memory = false, .wipe = node::fReindex || fReindexChainState, .options = dash_db_options});
+            node.evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = args.GetDataDirNet(), .memory = false, .wipe = node::fReindex || fReindexChainState, .options = dash_db_options},
+                                                  args.GetBoolArg("-checkevobinding", chainparams.DefaultConsistencyChecks()));
             node.dmnman = std::make_unique<CDeterministicMNManager>(*node.evodb, *node.mn_metaman);
             node.isman = std::make_unique<llmq::CInstantSendManager>(*node.sporkman, util::DbWrapperParams{.path = args.GetDataDirNet(), .memory = false, .wipe = node::fReindex || fReindexChainState, .options = dash_db_options});
 
@@ -2112,6 +2280,26 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         node.chainman = std::make_unique<ChainstateManager>(node.kernel->interrupt, chainman_opts, blockman_opts);
         ChainstateManager& chainman = *node.chainman;
+
+        // This is defined and set here instead of inline in validation.h to avoid a hard
+        // dependency between validation and index/base, since the latter is not in
+        // libbitcoinkernel.
+        chainman.restart_indexes = [&node]() {
+            LogPrintf("[snapshot] restarting indexes\n");
+
+            // Drain the validation interface queue to ensure that the old indexes
+            // don't have any pending work.
+            SyncWithValidationInterfaceQueue();
+
+            LOCK(node.index_start_mutex);
+            for (auto* index : node.indexes) {
+                index->Interrupt();
+                index->Stop();
+                if (!(index->Init() && (!node.index_threads_started || index->StartBackgroundSync()))) {
+                    LogPrintf("[snapshot] WARNING failed to restart index %s on snapshot chain\n", index->GetName());
+                }
+            }
+        };
 
         node::ChainstateLoadOptions options;
         options.chainlocks = Assert(node.chainlocks.get());
@@ -2199,6 +2387,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
     }
 
+    // No load retry replaces the Evo database from here on.
+    node.evodb_for_dispatch = node.evodb.get();
+
     // As LoadBlockIndex can take several minutes, it's possible the user
     // requested to kill the GUI during the last operation. If so, exit.
     // As the program has not fully started yet, Shutdown() is possibly overkill.
@@ -2220,7 +2411,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // The index can't catch up once the node has pruned blocks it hasn't read, e.g. after upgrading a pruned
     // node, because a new index has to start from the genesis block. Starting it would fail with an init
     // error, so leave governance off instead.
-    if (WITH_LOCK(::cs_main, return gov_collateral_index->CanSync(chainman.ActiveChainstate()))) {
+    if (WITH_LOCK(::cs_main, return gov_collateral_index->CanSync(chainman.GetChainstateForIndexing()))) {
         node.gov_collateral_index = std::move(gov_collateral_index);
     } else if (is_governance_enabled) {
         is_governance_enabled = false;
@@ -2531,134 +2722,35 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     chainman.m_thread_load = std::thread(&util::TraceThread, "initload", [=, &args, &chainman, &node] {
         // ImportBlocks can switch fReindex from true to false, fetch its original state here to use later
         bool skip_evodb_repair_on_reindex = fReindex || fReindexChainState;
-        // The repair marker shares the EvoDB root transaction with the blocks connected during the
-        // import, so persist it with a full flush that writes the coins DB first.
-        const auto complete_repair = [&] {
-            LOCK(::cs_main);
-            node.dmnman->CompleteRepair();
-            for (Chainstate* chainstate : chainman.GetAll()) {
-                if (chainstate->CanFlushToDisk()) {
-                    chainstate->ForceFlushStateToDisk();
-                }
-            }
-        };
-        // Import blocks
-        ImportBlocks(chainman, vImportFiles);
-        if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
-            LogPrintf("Stopping after block import\n");
-            if (skip_evodb_repair_on_reindex) complete_repair(); // Dash: the reindex rebuilt EvoDB
-            StartShutdown();
-            return;
-        }
-
-        // Start indexes initial sync
-        if (!StartIndexBackgroundSync(node)) {
-            bilingual_str err_str = _("Failed to start indexes, shutting down..");
-            chainman.GetNotifications().fatalError(err_str.original, err_str);
-            return;
-        }
-
-        // Load mempool from disk
-        if (auto* pool{chainman.ActiveChainstate().GetMempool()}) {
-            LoadMempool(*pool, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{}, chainman.ActiveChainstate(), {});
-            pool->SetLoadTried(!ShutdownRequested());
-        }
-
-        {
-            const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
-            const bool ibd = chainman.IsInitialBlockDownload();
-            if (node.active_ctx) {
-                // On masternodes, defer the full broadcast until after
-                // nodeman->Init() so that GetProTxHash() is available
-                // for quorum connection setup and skShare derivation.
-                // Only kick CDSNotificationInterface here (cached block
-                // height for DS/MN payments/budgets).
-                node.ds_notification_interface->InitializeCurrentBlockTip(tip, ibd);
-            } else {
-                // Non-masternode nodes (including observer-only): broadcast
-                // to all subscribers now; no proTxHash dependency.
-                GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
-            }
-        }
-
-        // Seed InstantSend tip-height cache; NetInstantSend receives future
-        // updates via CValidationInterface but misses InitializeCurrentBlockTip.
-        // TODO: move cache updates from NetInstantSend to g_ds_notification due to specific of Tip's processing
-        node.isman->CacheTipHeight(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()));
-
-        if (skip_evodb_repair_on_reindex) {
-            LogPrintf("Skipping evodb repair during reindex\n");
-            complete_repair(); // Mark as repaired since we're rebuilding fresh
-        } else if (node.dmnman->IsRepaired() && !args.GetBoolArg("-forceevodbrepair", false)) {
-            LogPrintf("Masternode list diffs are already repaired\n");
-        } else {
-            const CBlockIndex* start_index;
-            const CBlockIndex* stop_index;
+        try {
             {
-                LOCK(cs_main);
-                const auto& consensus_params = Params().GetConsensus();
-                start_index = chainman.ActiveChain()[consensus_params.DIP0003Height];
-                stop_index = chainman.ActiveChain().Tip();
-            }
-
-            if (start_index && stop_index && start_index->nHeight < stop_index->nHeight) {
-                LogPrintf("Verifying and repairing masternode list diffs...\n");
-                const auto start{SteadyClock::now()};
-                // Create a callback that wraps CSpecialTxProcessor::BuildNewListFromBlock
-                auto build_list_func =
-                    [&node, &chainman](const CBlock& block, const CBlockIndex* const pindexPrev,
-                                       const CDeterministicMNList& prevList, const CCoinsViewCache& view, bool debugLogs,
-                                       BlockValidationState& state, CDeterministicMNList& mnListRet) -> bool {
-                    const bool is_v24_active{DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)};
-                    return node.special_tx->RebuildListFromBlock(block, pindexPrev, is_v24_active, prevList,
-                                                                               view, debugLogs, state, mnListRet);
-                };
-                auto result = node.dmnman->RecalculateAndRepairDiffs(chainman.m_blockman, start_index, stop_index, build_list_func, true);
-
-                if (!result.verification_errors.empty()) {
-                    LogPrintf("WARNING: Verification errors:\n%s\n", Join(result.verification_errors, "\n"));
-                }
-
-                if (!result.repair_errors.empty()) {
-                    // Critical errors occurred - reindex required
-                    LogPrintf("Failed to repair masternode list diffs. Database corruption detected. "
-                              "Please restart with -reindex to rebuild the database.\n"
-                              "Errors:\n%s\n",
-                              Join(result.repair_errors, "\n"));
+                const ActiveEvoViewScope evo_view{node.evodb.get()};
+                // Import blocks
+                ImportBlocks(chainman, vImportFiles);
+                if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
+                    LogPrintf("Stopping after block import\n");
+                    if (skip_evodb_repair_on_reindex) CompleteEvoDbRepair(node); // Dash: the reindex rebuilt EvoDB
                     StartShutdown();
                     return;
                 }
-                complete_repair();
-                LogPrintf("Successfully repaired %d masternode list diffs, verified %d snapshots in %ds\n",
-                          result.diffs_recalculated, result.snapshots_verified,
-                          Ticks<std::chrono::seconds>(SteadyClock::now() - start));
+
+                // Start indexes initial sync
+                if (!StartIndexBackgroundSync(node)) {
+                    bilingual_str err_str = _("Failed to start indexes, shutting down..");
+                    chainman.GetNotifications().fatalError(err_str.original, err_str);
+                    return;
+                }
+
+                // Load mempool from disk
+                if (auto* pool{chainman.ActiveChainstate().GetMempool()}) {
+                    LoadMempool(*pool, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{}, chainman.ActiveChainstate(), {});
+                    pool->SetLoadTried(!ShutdownRequested());
+                }
             }
-        }
-
-        {
-            // Get all UTXOs for each MN collateral in one go so that we can fill coin cache early
-            // and reduce further locking overhead for cs_main in other parts of code including GUI
-            LogPrintf("Filling coin cache with masternode UTXOs...\n");
-            LOCK(cs_main);
-            const auto start{SteadyClock::now()};
-            const auto mnList{node.dmnman->GetListAtChainTip()};
-            mnList.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
-                Coin coin;
-                GetUTXOCoin(chainman.ActiveChainstate(), dmn.collateralOutpoint, coin);
-            });
-            LogPrintf("Filling coin cache with masternode UTXOs: done in %dms\n", Ticks<std::chrono::milliseconds>(SteadyClock::now() - start));
-        }
-
-        if (node.active_ctx) {
-            node.active_ctx->nodeman->Init(WITH_LOCK(::cs_main, return chainman.ActiveTip()));
-            // Now that nodeman->Init has set proTxHash, fan out the
-            // startup tip to all CValidationInterface subscribers.
-            // The earlier call only kicked CDSNotificationInterface
-            // directly because the full broadcast (NetQuorum,
-            // ActiveContext) depends on a valid proTxHash.
-            const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
-            const bool ibd = chainman.IsInitialBlockDownload();
-            GetMainSignals().InitializeCurrentBlockTip(tip, ibd);
+            FinishImportedStartup(node, args, skip_evodb_repair_on_reindex);
+        } catch (const evo::LocalStateError& e) {
+            LogPrintf("ERROR: Evo state unavailable during startup: %s\n", e.what());
+            StartShutdown();
         }
     });
 #ifdef ENABLE_WALLET
@@ -2919,18 +3011,19 @@ bool StartIndexBackgroundSync(NodeContext& node)
     // indexes_start_block='nullptr' means "start from height 0".
     std::optional<const CBlockIndex*> indexes_start_block;
     std::string older_index_name;
-
     ChainstateManager& chainman = *Assert(node.chainman);
+    const Chainstate& chainstate = WITH_LOCK(::cs_main, return chainman.GetChainstateForIndexing());
+    const CChain& index_chain = chainstate.m_chain;
+
     for (auto index : node.indexes) {
         const IndexSummary& summary = index->GetSummary();
         if (summary.synced) continue;
 
         // Get the last common block between the index best block and the active chain
         LOCK(::cs_main);
-        const CChain& active_chain = chainman.ActiveChain();
         const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(summary.best_block_hash);
-        if (!active_chain.Contains(pindex)) {
-            pindex = active_chain.FindFork(pindex);
+        if (!index_chain.Contains(pindex)) {
+            pindex = index_chain.FindFork(pindex);
         }
 
         if (!indexes_start_block || !pindex || pindex->nHeight < indexes_start_block.value()->nHeight) {
@@ -2945,12 +3038,14 @@ bool StartIndexBackgroundSync(NodeContext& node)
         LOCK(::cs_main);
         const CBlockIndex* start_block = *indexes_start_block;
         if (!start_block) start_block = chainman.ActiveChain().Genesis();
-        if (!chainman.m_blockman.CheckBlockDataAvailability(*chainman.ActiveChain().Tip(), *Assert(start_block))) {
+        if (!chainman.m_blockman.CheckBlockDataAvailability(*index_chain.Tip(), *Assert(start_block))) {
             return InitError(strprintf(Untranslated("%s best block of the index goes beyond pruned data. Please disable the index or reindex (which will download the whole blockchain again)"), older_index_name));
         }
     }
 
     // Start threads
+    LOCK(node.index_start_mutex);
     for (auto index : node.indexes) if (!index->StartBackgroundSync()) return false;
+    node.index_threads_started = true;
     return true;
 }

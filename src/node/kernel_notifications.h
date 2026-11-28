@@ -36,6 +36,8 @@ public:
 
     void masternodeListChanged(const CDeterministicMNList& list, const CBlockIndex* index) override;
 
+    void evoStateWarningChanged() override;
+
     void flushError(const std::string& debug_message) override;
 
     void fatalError(const std::string& debug_message, const bilingual_str& user_message = {}) override;

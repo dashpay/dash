@@ -13,6 +13,11 @@
 struct bilingual_str;
 
 void SetMiscWarning(const bilingual_str& warning);
+/** Set or, with nullopt, clear the "snapshot state unavailable" warning of one
+ *  source (a stalled chainstate or a failing operation). These do not replace
+ *  the misc warning, and each lasts only while its source fails. Returns
+ *  whether the warnings changed. */
+bool SetEvoStateWarning(const std::string& source, const std::optional<bilingual_str>& warning);
 void SetfLargeWorkInvalidChainFound(bool flag);
 /** Pass std::nullopt to disable the warning */
 void SetMedianTimeOffsetWarning(std::optional<bilingual_str> warning);

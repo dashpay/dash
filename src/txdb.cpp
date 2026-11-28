@@ -170,6 +170,7 @@ public:
 
     bool Valid() const override;
     void Next() override;
+    bool HasError() const override { return pcursor->HasError(); }
 
 private:
     std::unique_ptr<CDBIterator> pcursor;

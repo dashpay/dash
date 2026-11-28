@@ -12,7 +12,11 @@
 
 #include <common/args.h>
 #include <common/system.h>
+#include <context.h>
+#include <evo/snapshot_types.h>
 #include <logging.h>
+#include <node/context.h>
+#include <validation.h>
 #include <rpc/util.h>
 #include <shutdown.h>
 #include <sync.h>
@@ -550,6 +554,8 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
     if (it != mapCommands.end()) {
         UniValue result;
         const JSONRPCRequest new_request{subcommand.empty() ? request : request.squashed() };
+        const auto* node{GetContext<node::NodeContext>(request.context)};
+        const ActiveEvoViewScope evo_view{node ? node->evodb.get() : nullptr};
         if (ExecuteCommands(it->second, new_request, result)) {
             return result;
         }
@@ -569,6 +575,9 @@ static bool ExecuteCommand(const CRPCCommand& command, const JSONRPCRequest& req
         }
     } catch (const UniValue::type_error& e) {
         throw JSONRPCError(RPC_TYPE_ERROR, e.what());
+    } catch (const evo::LocalStateError& e) {
+        // This node's Evo state is unavailable or misbound, not the request.
+        throw JSONRPCError(RPC_INTERNAL_ERROR, e.what());
     } catch (const std::exception& e) {
         throw JSONRPCError(RPC_MISC_ERROR, e.what());
     }
