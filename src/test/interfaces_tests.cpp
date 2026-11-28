@@ -6,8 +6,12 @@
 #include <chainlock/chainlock.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <evo/providertx.h>
+#include <evo/snapshot_types.h>
+#include <governance/governance.h>
+#include <governance/object.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
 #include <interfaces/chain.h>
@@ -24,19 +28,33 @@
 #include <tinyformat.h>
 #include <util/std23.h>
 #include <util/strencodings.h>
+#include <util/translation.h>
 #include <validation.h>
+#include <warnings.h>
 
 #include <algorithm>
 #include <chrono>
 #include <future>
 #include <map>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <variant>
+#include <vector>
 
 #include <boost/test/unit_test.hpp>
 
 using interfaces::FoundBlock;
+
+static bool WarningsContain(std::string_view text)
+{
+    for (const bilingual_str& warning : GetWarnings()) {
+        if (warning.original.find(text) != std::string::npos) return true;
+    }
+    return false;
+}
 
 BOOST_FIXTURE_TEST_SUITE(interfaces_tests, TestChain100Setup)
 
@@ -88,7 +106,7 @@ BOOST_AUTO_TEST_CASE(findBlock)
 BOOST_AUTO_TEST_CASE(providerTxCapabilities)
 {
     auto node{interfaces::MakeNode(m_node)};
-    const auto capabilities{node->evo().getProviderTxCapabilities()};
+    const auto capabilities{node->evo().getProviderTxCapabilities().value()};
     const uint16_t expected_version{
         WITH_LOCK(::cs_main, return DeploymentToProtxVersion(Assert(m_node.chainman)->ActiveChain().Tip(),
                                                              *Assert(m_node.chainman)))};
@@ -104,7 +122,9 @@ struct IPv4OptionalChainSetup : public TestChain100Setup {
 
 BOOST_FIXTURE_TEST_CASE(providerTxCapabilitiesIPv4Optional, IPv4OptionalChainSetup)
 {
-    BOOST_CHECK(interfaces::MakeNode(m_node)->evo().getProviderTxCapabilities().ipv4_optional);
+    const auto capabilities{interfaces::MakeNode(m_node)->evo().getProviderTxCapabilities()};
+    BOOST_REQUIRE(capabilities);
+    BOOST_CHECK(capabilities->ipv4_optional);
 }
 
 BOOST_AUTO_TEST_CASE(providerNetInfoValidationDoesNotWaitForChain)
@@ -129,6 +149,100 @@ BOOST_AUTO_TEST_CASE(providerNetInfoValidationDoesNotWaitForChain)
     holder.join();
     BOOST_CHECK(!lock_timed_out);
     BOOST_CHECK(!error);
+}
+
+// When this node cannot read its Evo state during dual operation, GUI-facing
+// operations report it through their own failure channel and the misc
+// warning; the error never reaches the caller.
+BOOST_AUTO_TEST_CASE(evo_state_unavailable_is_contained)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveChain().Tip())};
+    Assert(m_node.dmnman)->UpdatedBlockTip(tip);
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    const auto list_unavailable{
+        [](const CBlockIndex*) { throw BlockDataUnavailableError("masternode list unavailable"); }};
+
+    // Without a snapshot, the list can be missing only because block data was
+    // pruned, and the warning says so.
+    {
+        const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
+        Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(list_unavailable);
+        BOOST_CHECK(!node->evo().getListAtChainTip().first);
+        Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(nullptr);
+        consensus.DIP0003Height = dip3_height;
+        BOOST_CHECK(WarningsContain("Block data was pruned; restart with -reindex"));
+        SetMiscWarning(Untranslated(""));
+
+        // Any other failure names neither pruning nor a snapshot. The warning
+        // is raised once per operation and view in a process, so this uses an
+        // operation no other test makes unavailable in this view.
+        consensus.DIP0003Height = 1;
+        Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(
+            [](const CBlockIndex*) { throw BlockDataReadError("masternode list unreadable"); });
+        const interfaces::ProviderNetInfo net_info{.core_p2p = {strprintf("1.2.3.4:%d", Params().GetDefaultPort())}, .platform_p2p = {}, .platform_https = {}};
+        BOOST_CHECK(std::holds_alternative<interfaces::ProviderTxError>(node->evo().findProviderNetInfoInUse(
+            net_info, MnType::Regular, ProTxVersion::BasicBLS, /*ipv4_optional=*/false)));
+        Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(nullptr);
+        consensus.DIP0003Height = dip3_height;
+        BOOST_CHECK(
+            WarningsContain("Evo state unavailable: findProviderNetInfoInUse could not read it. See debug.log"));
+        BOOST_CHECK(!WarningsContain("Snapshot") && !WarningsContain("pruned"));
+        SetMiscWarning(Untranslated(""));
+    }
+
+    BOOST_REQUIRE(evodb.CreateSnapshotGeneration(tip->GetBlockHash(), tip->nHeight));
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(std::nullopt));
+
+    // With DIP3 counted from genesis the tip's masternode list must be read
+    // from EvoDB, and that read fails as unavailable.
+    const int dip3_height{std::exchange(consensus.DIP0003Height, 1)};
+    Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(list_unavailable);
+    interfaces::GOV::GovernanceInfo info;
+    BOOST_CHECK_NO_THROW(info = node->gov().getGovernanceInfo());
+    BOOST_CHECK(!info.fundingthreshold.has_value());
+    BOOST_CHECK_EQUAL(info.superblockcycle, Params().GetConsensus().nSuperblockCycle);
+    BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
+    BOOST_CHECK(WarningsContain("Snapshot state unavailable"));
+    // Polling the same operation again does not raise the warning again.
+    SetMiscWarning(Untranslated(""));
+    BOOST_CHECK(!node->gov().getGovernanceInfo().fundingthreshold.has_value());
+    BOOST_CHECK(!WarningsContain("Snapshot state unavailable"));
+
+    std::optional<std::vector<COutPoint>> collaterals{std::vector<COutPoint>{}};
+    BOOST_CHECK_NO_THROW(collaterals = m_node.chain->listMNCollaterials({}));
+    BOOST_CHECK(!collaterals.has_value());
+
+    // An endpoint the masternode list cannot be checked against is not reported free.
+    const interfaces::ProviderNetInfo net_info{.core_p2p = {strprintf("1.2.3.4:%d", Params().GetDefaultPort())}, .platform_p2p = {}, .platform_https = {}};
+    const auto find_in_use{[&] {
+        return node->evo().findProviderNetInfoInUse(net_info, MnType::Regular, ProTxVersion::BasicBLS,
+                                                    /*ipv4_optional=*/false);
+    }};
+    interfaces::ProviderTxResult<std::optional<std::string>> in_use{std::optional<std::string>{}};
+    BOOST_CHECK_NO_THROW(in_use = find_in_use());
+    BOOST_CHECK(std::holds_alternative<interfaces::ProviderTxError>(in_use));
+
+    // The current votes on a known object depend on the masternode list too.
+    m_node.govman = std::make_unique<CGovernanceManager>(m_args.GetDataDirNet(), *m_node.mn_metaman, *m_node.chainman,
+                                                         *m_node.sbman, *m_node.dmnman, *m_node.mn_sync,
+                                                         /*collateral=*/nullptr);
+    const CGovernanceObject proposal{uint256(), /*nRevisionIn=*/1, GetTime(), GetRandHash(), /*strDataHexIn=*/{}};
+    m_node.govman->AddGovernanceObjectForTesting(proposal);
+    std::optional<std::vector<CGovernanceVote>> votes{std::vector<CGovernanceVote>{}};
+    BOOST_CHECK_NO_THROW(votes = node->gov().getCurrentVotes(proposal.GetHash()));
+    BOOST_CHECK(!votes.has_value());
+
+    Assert(m_node.dmnman)->SetListSnapshotMissHookForTesting(nullptr);
+    consensus.DIP0003Height = dip3_height;
+
+    // Once the list can be read again, the endpoint is checked, and it is free.
+    in_use = find_in_use();
+    BOOST_REQUIRE(std::holds_alternative<std::optional<std::string>>(in_use));
+    BOOST_CHECK(!std::get<std::optional<std::string>>(in_use).has_value());
+    SetMiscWarning(Untranslated(""));
 }
 
 BOOST_AUTO_TEST_CASE(providerNetInfoValidation)
@@ -541,6 +655,86 @@ BOOST_AUTO_TEST_CASE(getPlatformQuorum)
         db_tx->Commit();
     }
     check("commitment record missing", type, block_60, tip, UNAVAILABLE);
+}
+
+// In a snapshot view, a quorum missing from the commitments mined above the
+// base may still have been mined at or below it. An unmined hash is invalid
+// only once the eligible window lies above the base, and only under an
+// anchoring ChainLock; a quorum mined below the height never is. A node with
+// no Evo state to read cannot tell at all.
+BOOST_AUTO_TEST_CASE(getPlatformQuorum_snapshot_view)
+{
+    auto node{interfaces::MakeNode(m_node)};
+    auto& llmq{node->llmq()};
+    CEvoDB& evodb{*Assert(m_node.evodb)};
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    const auto& params{llmq::testutils::GetLLMQParams(platform_type)};
+    const uint8_t type{std23::to_underlying(platform_type)};
+    constexpr auto FOUND{PlatformQuorumStatus::FOUND};
+    constexpr auto INVALID{PlatformQuorumStatus::INVALID};
+    constexpr auto UNAVAILABLE{PlatformQuorumStatus::UNAVAILABLE};
+    // With DIP3 active at the base, quorums can have been mined at or below it.
+    auto& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct Dip3HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~Dip3HeightRestore() { params.DIP0003Height = height; }
+    } dip3_restore{consensus, std::exchange(consensus.DIP0003Height, 1)};
+
+    // The quorum based at 40 was mined below the snapshot base at 50, where
+    // only NORMAL holds it; the snapshot view holds the ones based at 60, 70,
+    // 80 and 90, each mined one block later.
+    std::map<int, uint256> hashes;
+    const auto write_commitment{[&](int base) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        const CChain& active{m_node.chainman->ActiveChain()};
+        const auto qc{llmq::testutils::CreateValidCommitment(params, active[base]->GetBlockHash())};
+        llmq::testutils::WriteMinedCommitment(evodb, qc, active[base + 1]->GetBlockHash(),
+                                              /*mined_height=*/base + 1, /*quorum_height=*/base);
+        hashes.emplace(base, qc.quorumHash);
+    }};
+    {
+        LOCK(::cs_main);
+        auto db_tx{evodb.BeginTransaction()};
+        write_commitment(40);
+        db_tx->Commit();
+        const CBlockIndex* base{m_node.chainman->ActiveChain()[50]};
+        BOOST_REQUIRE(evodb.CreateSnapshotGeneration(base->GetBlockHash(), base->nHeight));
+    }
+    BOOST_REQUIRE(
+        evodb.PublishSnapshotGeneration(std::nullopt));
+    evodb.SetDefaultIdentity(EvoDbIdentity::SNAPSHOT);
+    {
+        LOCK(::cs_main);
+        auto db_tx{evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        for (const int base : {60, 70, 80, 90}) write_commitment(base);
+        db_tx->Commit();
+    }
+    const uint256 unknown{InsecureRand256()};
+
+    CheckPlatformQuorum(llmq, "window above the base", type, hashes.at(90), 100, FOUND);
+    CheckPlatformQuorum(llmq, "absent, no ChainLock", type, unknown, 100, UNAVAILABLE);
+
+    RecordChainLock(*m_node.chainlocks, 100, WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()));
+    CheckPlatformQuorum(llmq, "absent, window above the base", type, unknown, 100, INVALID);
+    // A window reaching the base cannot be read in full, so not even a quorum
+    // in it is answered.
+    CheckPlatformQuorum(llmq, "window reaching the base", type, hashes.at(70), 75, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "absent, window reaching the base", type, unknown, 75, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "mined below the base", type, hashes.at(40), 55, UNAVAILABLE);
+    CheckPlatformQuorum(llmq, "mined below the base, out of the window", type, hashes.at(40), 100, UNAVAILABLE);
+    // A caller bound to a view other than the active chain's gets no answer
+    // about the active chain.
+    {
+        const EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        CheckPlatformQuorum(llmq, "bound to another view", type, hashes.at(90), 100, UNAVAILABLE);
+    }
+
+    {
+        auto evodb_owner{std::move(m_node.evodb)};
+        CheckPlatformQuorum(llmq, "no Evo database", type, hashes.at(90), 100, UNAVAILABLE);
+        m_node.evodb = std::move(evodb_owner);
+    }
+    m_node.chainlocks->ResetChainlock();
 }
 
 // getInstantSendLock returns the network-serialized islock for a locked txid, and an empty vector

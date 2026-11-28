@@ -6,6 +6,7 @@
 
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <llmq/commitment.h>
 #include <llmq/utils.h>
@@ -80,14 +81,20 @@ static bool SerializedEqual(const T& lhs, const T& rhs)
            std::equal(lhs_stream.begin(), lhs_stream.end(), rhs_stream.begin());
 }
 
-CQuorumBlockProcessor::CQuorumBlockProcessor(ChainstateManager& chainman, CDeterministicMNManager& dmnman, CEvoDB& evoDb,
-                                             CQuorumSnapshotManager& qsnapman, int8_t bls_threads) :
+CQuorumBlockProcessor::CQuorumBlockProcessor(ChainstateManager& chainman, CDeterministicMNManager& dmnman,
+                                             CEvoDB& evoDb, CQuorumSnapshotManager& qsnapman, int8_t bls_threads) :
     m_chainman{chainman},
     m_dmnman{dmnman},
     m_evoDb{evoDb},
-    m_qsnapman{qsnapman}
+    m_qsnapman{qsnapman},
+    mapMinedCommitmentBlockCache{[&consensus = chainman.GetConsensus()] {
+        PerLlmqTypeCache<uint256> cache;
+        cache.Init(consensus);
+        return cache;
+    }}
 {
-    mapMinedCommitmentBlockCache.Init(m_chainman.GetConsensus());
+    mapMinedCommitmentBlockCache.SetOwner(evoDb);
+    m_qc_hashes.SetOwner(evoDb);
     LogPrintf("BLS verification uses %d additional threads\n", bls_threads);
     m_bls_queue.StartWorkerThreads(bls_threads);
 }
@@ -450,7 +457,10 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
     // invalidation should not depend on that.
     DropQcHashesCache();
 
-    WITH_LOCK(minableCommitmentsCs, mapMinedCommitmentBlockCache.erase(qc.llmqType, qc.quorumHash));
+    {
+        const EvoViewToken view{m_evoDb.CurrentView()};
+        WITH_LOCK(minableCommitmentsCs, mapMinedCommitmentBlockCache.For(view).erase(qc.llmqType, qc.quorumHash));
+    }
 
     LogPrint(BCLog::LLMQ, "%s -- processed commitment from block. type=%d, quorumIndex=%d, quorumHash=%s\n", __func__,
              std23::to_underlying(qc.llmqType), qc.quorumIndex, quorumHash.ToString());
@@ -461,17 +471,16 @@ bool CQuorumBlockProcessor::ProcessCommitment(Chainstate& chainstate, int nHeigh
 void CQuorumBlockProcessor::DropQcHashesCache()
 {
     LOCK(m_qc_hashes_cache_mutex);
-    m_quorums_cached.clear();
-    m_qc_hashes_cached.clear();
-    m_qc_indexed_hashes_cached.clear();
-    m_qc_hashes_lru.clear();
+    m_qc_hashes.Clear();
 }
 
 std::optional<std::pair<QcHashMap, QcIndexedHashMap>> CQuorumBlockProcessor::GetQcHashes(const CBlockIndex* pindexPrev) const
 {
     auto quorums = GetMinedAndActiveCommitmentsUntilBlock(pindexPrev);
+    const EvoViewToken view{m_evoDb.CurrentView()};
 
     LOCK(m_qc_hashes_cache_mutex);
+    auto& [m_quorums_cached, m_qc_hashes_lru, m_qc_hashes_cached, m_qc_indexed_hashes_cached] = m_qc_hashes.For(view);
     if (quorums == m_quorums_cached) {
         return std::make_pair(m_qc_hashes_cached, m_qc_indexed_hashes_cached);
     }
@@ -550,7 +559,8 @@ bool CQuorumBlockProcessor::UndoBlock(const Chainstate& chainstate, const CBlock
         // Only once this commitment's state change is complete; see ProcessCommitment.
         DropQcHashesCache();
 
-        WITH_LOCK(minableCommitmentsCs, mapMinedCommitmentBlockCache.erase(qc.llmqType, qc.quorumHash));
+        const EvoViewToken view{m_evoDb.CurrentView()};
+        WITH_LOCK(minableCommitmentsCs, mapMinedCommitmentBlockCache.For(view).erase(qc.llmqType, qc.quorumHash));
 
         // if a reorg happened, we should allow to mine this commitment later
         AddMineableCommitment(qc);
@@ -677,6 +687,45 @@ uint256 CQuorumBlockProcessor::GetQuorumBlockHash(const Consensus::LLMQParams& l
     return pindex->GetBlockHash();
 }
 
+//! Whether `view` is a snapshot view lacking quorum history: it holds the
+//! commitments mined above its base and none at or below it, where DIP3 may
+//! already have let quorums be mined.
+static bool LacksQuorumHistory(const EvoViewToken& view, const Consensus::Params& consensus)
+{
+    return view.identity == EvoDbIdentity::SNAPSHOT && view.base_height >= consensus.DIP0003Height;
+}
+
+//! Whether a height-index scan from `pindex` reaches history such a view
+//! lacks: a commitment of `llmqType` may have been mined at a height up to
+//! both `pindex` and the base. None can be below DIP3 or in genesis. A
+//! deployment-gated type stays enabled once enabled, and the types DIP0024
+//! retires are enabled from DIP3 on, so a type enabled at neither end of that
+//! range has none in it.
+//! Evaluated before taking the EvoDB lock: deployment state may read EvoDB.
+static bool ScanNeedsMissingHistory(const ChainstateManager& chainman, const EvoViewToken& view,
+                                    Consensus::LLMQType llmqType, const CBlockIndex* pindex)
+{
+    const auto& consensus{chainman.GetConsensus()};
+    if (!LacksQuorumHistory(view, consensus)) return false;
+    const int first_minable_height{std::max(1, consensus.DIP0003Height)};
+    const int last_missing_height{std::min(pindex->nHeight, view.base_height)};
+    if (last_missing_height < first_minable_height) return false;
+    const CBlockIndex* last_missing{pindex->GetAncestor(last_missing_height)};
+    if (chainman.IsQuorumTypeEnabled(llmqType, last_missing->pprev)) return true;
+    const CBlockIndex* first_minable{pindex->GetAncestor(first_minable_height)};
+    return chainman.IsQuorumTypeEnabled(llmqType, first_minable->pprev);
+}
+
+//! A short scan that needs the missing history has an unknown result, not a
+//! short one.
+static void RequireSatisfiedScan(bool needs_missing_history, const char* func, Consensus::LLMQType llmqType)
+{
+    if (!needs_missing_history) return;
+    throw BlockDataUnavailableError(
+        strprintf("%s: commitments of LLMQ type %d at or below the snapshot base are not available", func,
+                  std23::to_underlying(llmqType)));
+}
+
 bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
     LOCK(::cs_main);
@@ -690,9 +739,10 @@ bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, con
 
     uint256 mined_block_hash;
     bool cached;
+    const EvoViewToken view{m_evoDb.CurrentView()};
     {
         LOCK(minableCommitmentsCs);
-        cached = mapMinedCommitmentBlockCache.get(llmqType, quorumHash, mined_block_hash);
+        cached = mapMinedCommitmentBlockCache.For(view).get(llmqType, quorumHash, mined_block_hash);
     }
     if (!cached) {
         mined_block_hash = GetMinedCommitment(llmqType, quorumHash).second;
@@ -700,7 +750,16 @@ bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, con
         // outside ProcessCommitment's normal cache-invalidation path.
         if (!mined_block_hash.IsNull()) {
             LOCK(minableCommitmentsCs);
-            mapMinedCommitmentBlockCache.insert(llmqType, quorumHash, mined_block_hash);
+            mapMinedCommitmentBlockCache.For(view).insert(llmqType, quorumHash, mined_block_hash);
+        } else if (LacksQuorumHistory(view, m_chainman.GetConsensus())) {
+            // A quorum based at or below the base may have been mined there, in
+            // history the view lacks: the miss does not mean it never was.
+            const CBlockIndex* quorum_base{m_chainman.m_blockman.LookupBlockIndex(quorumHash)};
+            if (quorum_base != nullptr && quorum_base->nHeight <= view.base_height) {
+                throw BlockDataUnavailableError(
+                    strprintf("%s: commitment for quorum %s at or below the snapshot base is not available", __func__,
+                              quorumHash.ToString()));
+            }
         }
     }
 
@@ -723,6 +782,8 @@ std::pair<CFinalCommitment, uint256> CQuorumBlockProcessor::GetMinedCommitment(C
 std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindex, size_t maxCount) const
 {
     AssertLockNotHeld(m_evoDb.cs);
+    const bool needs_missing_history{
+        ScanNeedsMissingHistory(m_chainman, m_evoDb.CurrentView(), llmqType, pindex)};
     LOCK(m_evoDb.cs);
 
     auto dbIt = m_evoDb.GetCurTransaction().NewIteratorUniquePtr();
@@ -761,12 +822,19 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilB
         dbIt->Next();
     }
 
+    if (ret.size() < maxCount) RequireSatisfiedScan(needs_missing_history, __func__, llmqType);
     return ret;
 }
 
 std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitmentsByQuorumIndexUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, int quorumIndex, size_t cycle) const
 {
     AssertLockNotHeld(m_evoDb.cs);
+    const bool needs_missing_history{
+        ScanNeedsMissingHistory(m_chainman, m_evoDb.CurrentView(), llmqType, pindex)};
+    const auto not_found{[&]() -> std::optional<const CBlockIndex*> {
+        RequireSatisfiedScan(needs_missing_history, "GetLastMinedCommitmentsByQuorumIndexUntilBlock", llmqType);
+        return std::nullopt;
+    }};
     LOCK(m_evoDb.cs);
 
     auto dbIt = m_evoDb.GetCurTransaction().NewIteratorUniquePtr();
@@ -782,19 +850,19 @@ std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitments
         decltype(firstKey) curKey;
         int quorumHeight;
         if (!dbIt->GetKey(curKey) || curKey >= lastKey) {
-            return std::nullopt;
+            return not_found();
         }
         if (std::get<0>(curKey) != DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT_Q_INDEXED || std::get<1>(curKey) != llmqType) {
-            return std::nullopt;
+            return not_found();
         }
 
         if (uint32_t nMinedHeight = std::numeric_limits<uint32_t>::max() - be32toh_internal(std::get<3>(curKey));
                 nMinedHeight > static_cast<uint32_t>(pindex->nHeight)) {
-            return std::nullopt;
+            return not_found();
         }
 
         if (!dbIt->GetValue(quorumHeight)) {
-            return std::nullopt;
+            return not_found();
         }
 
         const auto* pQuorumBaseBlockIndex = pindex->GetAncestor(quorumHeight);
@@ -809,7 +877,7 @@ std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitments
         dbIt->Next();
     }
 
-    return std::nullopt;
+    return not_found();
 }
 
 std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitmentsPerQuorumIndexUntilBlock(
