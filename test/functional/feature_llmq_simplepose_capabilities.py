@@ -26,6 +26,9 @@ from test_framework.util import assert_equal, force_finish_mnsync
 MIN_MASTERNODE_PROTO_VERSION = 70242
 
 NON_SIGNER_MSG = "recent commitments it was a valid member of"
+OWN_AT_RISK_MSG = "unsigned since its last signed one; check its DKG participation"
+OWN_VOTED_BAD_MSG = "member of; other members vote it bad"
+SIGNING_HISTORY_WINDOW = 4032
 
 
 class MasternodePeer(P2PInterface):
@@ -204,31 +207,66 @@ class LLMQSimplePoSeCapabilitiesTest(SimplePoSeMixin, DashTestFramework):
         node = mn.get_node(self)
         observer = self.mninfo[1].get_node(self)
 
-        self.log.info("A masternode that never signs commitments is banned")
+        self.log.info("A masternode that never signs commitments is warned, then banned")
         node.quorum('dkgsimerror', 'commit-omit-all-types', 100)
         rounds = 0
-        with observer.assert_debug_log([f"{mn.proTxHash} signed only"]):
+        histories = []
+        with observer.assert_debug_log([f"{mn.proTxHash} signed only"]), \
+             node.assert_debug_log([OWN_AT_RISK_MSG, OWN_VOTED_BAD_MSG]):
             while rounds < 20 and not check_banned(self.nodes[0], mn):
                 rounds += 1
                 self.log.info(f"Round {rounds} without a premature commitment")
-                self.mine_quorum_omitting_commitment()
+                q = self.mine_quorum_omitting_commitment(on_dkg_start=lambda: histories.append(self.signing_history(mn)))
+                if rounds == 1:
+                    self.check_signed(mn, q, False)
         assert check_banned(self.nodes[0], mn)
+        assert_equal((histories[0]['validCommitments'], histories[0]['atRisk'], histories[0]['votedBad']), (0, False, False))
+        for history in histories:
+            assert_equal(history['signedCommitments'], 0)
+            assert_equal(history['recentUnsigned'], history['validCommitments'])
+        assert any(h['atRisk'] and not h['votedBad'] for h in histories)
+        assert_equal((histories[-1]['atRisk'], histories[-1]['votedBad']), (False, True))
 
         self.log.info("After a revival the old history does not count, and missing one commitment is not punished")
         self.repair_masternodes(False)
+        assert_equal(self.signing_history(mn)['validCommitments'], 0)
         with observer.assert_debug_log([], unexpected_msgs=[NON_SIGNER_MSG]):
             self.mine_quorum_omitting_commitment()
             node.quorum('dkgsimerror', 'commit-omit-all-types', 0)
             for _ in range(2):
                 self.reset_probe_timeouts()
-                self.mine_quorum()
+                q = self.mine_quorum()
         assert not check_punished(self.nodes[0], mn)
         assert not check_banned(self.nodes[0], mn)
+        self.check_signed(mn, q, True)
+        history = self.signing_history(mn)
+        assert history['signedCommitments'] > 0
+        assert_equal((history['recentUnsigned'], history['atRisk'], history['votedBad']), (0, False, False))
 
-    def mine_quorum_omitting_commitment(self):
+    def mine_quorum_omitting_commitment(self, on_dkg_start=None):
         self.reset_probe_timeouts()
         members = len([m for m in self.mninfo if not check_banned(self.nodes[0], m)])
-        self.mine_quorum_less_checks(members, self.mninfo, expected_commitments=members - 1)
+        return self.mine_quorum_less_checks(members, self.mninfo, expected_commitments=members - 1, on_dkg_start=on_dkg_start)
+
+    def signing_history(self, mn: MasternodeInfo):
+        node = mn.get_node(self)
+        # A masternode revived a moment ago reports no history until it has seen its own revival
+        self.wait_until(lambda: 'signingHistory' in node.masternode('status'))
+        history = node.masternode('status')['signingHistory']
+        tip = self.nodes[0].getblockcount()
+        assert_equal(history['gatheringHeight'], tip - tip % 24)
+        assert_equal(history['window'], SIGNING_HISTORY_WINDOW)
+        state = self.nodes[0].protx('info', mn.proTxHash)['state']
+        assert_equal(history['countedSince'], max(state['registeredHeight'], state['PoSeRevivedHeight']))
+        return history
+
+    def check_signed(self, mn: MasternodeInfo, quorum_hash, signed):
+        members = self.nodes[0].quorum('info', 100, quorum_hash)['members']
+        member = next(m for m in members if m['proTxHash'] == mn.proTxHash)
+        assert_equal((member['valid'], member['signed']), (True, signed))
+        quorums = self.nodes[0].quorum('memberof', mn.proTxHash)
+        quorum = next(q for q in quorums if q['type'] == 'llmq_test' and q['quorumHash'] == quorum_hash)
+        assert_equal((quorum['isValidMember'], quorum['isSigner']), (True, signed))
 
 
 if __name__ == '__main__':
