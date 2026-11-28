@@ -19,6 +19,7 @@
 
 #include <gsl/pointers.h>
 #include <immer/map.hpp>
+#include <immer/set.hpp>
 
 #include <algorithm>
 #include <limits>
@@ -142,6 +143,7 @@ public:
     using MnMap = immer::map<uint256, CDeterministicMNCPtr, ImmerHasher>;
     using MnInternalIdMap = immer::map<uint64_t, uint256>;
     using MnUniquePropertyMap = immer::map<uint256, std::pair<uint256, uint32_t>, ImmerHasher>;
+    using MnHashSet = immer::set<uint256, ImmerHasher>;
 
     struct Counts {
         size_t m_total_evo{0};
@@ -165,6 +167,14 @@ private:
     // map of unique properties like address and keys
     // we keep track of this as checking for duplicates would otherwise be painfully slow
     MnUniquePropertyMap mnUniquePropertyMap;
+
+    // Derived from mnMap by AddMN, UpdateMN and RemoveMN: masternodes whose registration is not
+    // confirmed yet, non-banned masternodes carrying a PoSe penalty, and masternodes with
+    // consecutive payments. The per-block confirmation, penalty decay and payment counter
+    // reset walk only these instead of the whole list.
+    MnHashSet m_unconfirmed;
+    MnHashSet m_penalized;
+    MnHashSet m_consecutively_paid;
 
     // This SML could be null
     // This cache is used to improve performance and meant to be reused
@@ -199,7 +209,10 @@ public:
         nTotalRegisteredCount(other.nTotalRegisteredCount),
         mnMap(other.mnMap),
         mnInternalIdMap(other.mnInternalIdMap),
-        mnUniquePropertyMap(other.mnUniquePropertyMap)
+        mnUniquePropertyMap(other.mnUniquePropertyMap),
+        m_unconfirmed(other.m_unconfirmed),
+        m_penalized(other.m_penalized),
+        m_consecutively_paid(other.m_consecutively_paid)
     {
         LOCK(other.m_cached_sml_mutex);
         m_cached_sml = other.m_cached_sml;
@@ -216,6 +229,9 @@ public:
             mnMap = other.mnMap;
             mnInternalIdMap = other.mnInternalIdMap;
             mnUniquePropertyMap = other.mnUniquePropertyMap;
+            m_unconfirmed = other.m_unconfirmed;
+            m_penalized = other.m_penalized;
+            m_consecutively_paid = other.m_consecutively_paid;
 
             LOCK2(m_cached_sml_mutex, other.m_cached_sml_mutex);
             m_cached_sml = other.m_cached_sml;
@@ -263,6 +279,9 @@ public:
         mnMap = MnMap();
         mnUniquePropertyMap = MnUniquePropertyMap();
         mnInternalIdMap = MnInternalIdMap();
+        m_unconfirmed = MnHashSet();
+        m_penalized = MnHashSet();
+        m_consecutively_paid = MnHashSet();
         InvalidateSMLCache();
     }
 
@@ -324,6 +343,24 @@ public:
             if (!onlyValid || !p.second->pdmnState->IsBanned()) {
                 cb(p.second);
             }
+        }
+    }
+
+    /**
+     * Masternodes with a positive nConsecutivePayments.
+     */
+    [[nodiscard]] std::vector<CDeterministicMNCPtr> GetConsecutivelyPaidMNs() const;
+
+    /**
+     * Execute a callback on every masternode whose registration is not confirmed yet.
+     */
+    template <typename Callback>
+    void ForEachUnconfirmedMN(Callback&& cb) const
+    {
+        for (const auto& proTxHash : m_unconfirmed) {
+            const auto* dmn = mnMap.find(proTxHash);
+            assert(dmn != nullptr);
+            cb(**dmn);
         }
     }
 

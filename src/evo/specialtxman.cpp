@@ -350,11 +350,7 @@ CDeterministicMNList CSpecialTxProcessor::BeginListForBlock(gsl::not_null<const 
     // we iterate the prevList here and update the newList
     // this is only valid as long these have not diverged at this point, which is the case as long as we don't add
     // code above this loop that modifies newList
-    prevList.ForEachMN(/*onlyValid=*/false, [&pindexPrev, &newList, this](const auto& dmn) {
-        if (!dmn.pdmnState->confirmedHash.IsNull()) {
-            // already confirmed
-            return;
-        }
+    prevList.ForEachUnconfirmedMN([&pindexPrev, &newList, this](const auto& dmn) {
         // this works on the previous block, so confirmation will happen one block after nMasternodeMinimumConfirmations
         // has been reached, but the block hash will then point to the block at nMasternodeMinimumConfirmations
         int nConfirmations = pindexPrev->nHeight - dmn.pdmnState->nRegisteredHeight;
@@ -806,19 +802,17 @@ bool CSpecialTxProcessor::FinishListForBlock(const CBlock& block, gsl::not_null<
     }
 
     // reset nConsecutivePayments on non-paid EvoNodes
-    auto newList2 = newList;
-    newList2.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
-        if (dmn.nType != MnType::Evo) return;
-        if (payee != nullptr && dmn.proTxHash == payee->proTxHash && !isMNRewardReallocation) return;
-        if (dmn.pdmnState->nConsecutivePayments == 0) return;
+    for (const auto& dmn : newList.GetConsecutivelyPaidMNs()) {
+        if (dmn->nType != MnType::Evo) continue;
+        if (payee != nullptr && dmn->proTxHash == payee->proTxHash && !isMNRewardReallocation) continue;
         if (debugLogs) {
             LogPrint(BCLog::MNPAYMENTS, "FinishListForBlock -- MN %s, reset nConsecutivePayments %d->0\n",
-                     dmn.proTxHash.ToString(), dmn.pdmnState->nConsecutivePayments);
+                     dmn->proTxHash.ToString(), dmn->pdmnState->nConsecutivePayments);
         }
-        auto newState = std::make_shared<CDeterministicMNState>(*dmn.pdmnState);
+        auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
         newState->nConsecutivePayments = 0;
-        newList.UpdateMN(dmn.proTxHash, newState);
-    });
+        newList.UpdateMN(dmn->proTxHash, newState);
+    }
 
     mnListRet = newList;
 
