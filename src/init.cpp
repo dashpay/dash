@@ -116,6 +116,7 @@
 #include <dsnotificationinterface.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtxman.h>
 #include <flat-database.h>
 #include <governance/governance.h>
@@ -2095,6 +2096,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             try {
                 return f();
             } catch (const std::exception& e) {
+                LogPrintf("%s\n", e.what());
+                return std::make_tuple(node::ChainstateLoadStatus::FAILURE, _("Error opening block database"));
+            } catch (const evo::LocalStateError& e) {
                 LogPrintf("%s\n", e.what());
                 return std::make_tuple(node::ChainstateLoadStatus::FAILURE, _("Error opening block database"));
             }

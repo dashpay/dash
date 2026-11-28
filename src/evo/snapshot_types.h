@@ -1,0 +1,62 @@
+// Copyright (c) 2026 The Dash Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#ifndef BITCOIN_EVO_SNAPSHOT_TYPES_H
+#define BITCOIN_EVO_SNAPSHOT_TYPES_H
+
+#include <string>
+#include <utility>
+
+namespace evo {
+
+/** Base of the errors that describe this node's own Evo state rather than the
+ *  block, transaction or peer being processed. It deliberately does not derive
+ *  from std::exception, so no generic catch can turn it into consensus
+ *  invalidity or a peer penalty: only the sites that catch it by name classify
+ *  it. */
+class LocalStateError
+{
+public:
+    explicit LocalStateError(std::string message) : m_message{std::move(message)} {}
+    virtual ~LocalStateError() = default;
+    const char* what() const noexcept { return m_message.c_str(); }
+
+private:
+    std::string m_message;
+};
+
+} // namespace evo
+
+/** Thrown when Evo state for a block cannot be reconstructed because the data
+ *  is not on this node yet (pruned, or below an unvalidated snapshot base, or
+ *  pending in another chainstate's unflushed EvoDB overlay). Distinct from the
+ *  plain std::runtime_error that CDeterministicMNList::ApplyDiff raises for
+ *  genuine local corruption, which must never be swallowed. Messages about a
+ *  masternode list carry BLOCK_DATA_UNAVAILABLE_SUFFIX, matched by
+ *  IsBlockDataUnavailableError(). */
+class BlockDataUnavailableError : public evo::LocalStateError
+{
+public:
+    using evo::LocalStateError::LocalStateError;
+};
+
+/** A block body this node has (BLOCK_HAVE_DATA) could not be read back to
+ *  derive Evo state: local disk corruption or I/O failure. Like a block that
+ *  ConnectTip cannot read, it stops the node; it is never the block's or a
+ *  peer's fault. */
+class BlockDataReadError : public evo::LocalStateError
+{
+public:
+    using evo::LocalStateError::LocalStateError;
+};
+
+/** An Evo read, write or cache lookup was not bound to the view of the
+ *  chainstate it serves, or was bound to a conflicting or stale view. */
+class EvoViewBindingError : public evo::LocalStateError
+{
+public:
+    using evo::LocalStateError::LocalStateError;
+};
+
+#endif // BITCOIN_EVO_SNAPSHOT_TYPES_H
