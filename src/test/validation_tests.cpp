@@ -50,6 +50,29 @@ BOOST_AUTO_TEST_CASE(test_assumeutxo)
     const auto out210 = *params->AssumeutxoForHeight(200);
     BOOST_CHECK_EQUAL(out210.hash_serialized.ToString(), "16e00a64db4fa48dd989dce86d8677f41797d52044e5fc86021aa88cc22b665b");
     BOOST_CHECK_EQUAL(out210.nChainTx, 201U);
+
+    const auto check_pin = [&](ChainType chain, int height, const std::string& blockhash, const std::string& utxo_hash,
+                               const std::string& evo_hash, unsigned int chain_tx) {
+        const auto net_params = CreateChainParams(*m_node.args, chain);
+        BOOST_CHECK_EQUAL(net_params->Assumeutxo().size(), 1U);
+        const auto by_height = net_params->AssumeutxoForHeight(height);
+        BOOST_REQUIRE(by_height);
+        BOOST_CHECK_EQUAL(by_height->blockhash.ToString(), blockhash);
+        BOOST_CHECK_EQUAL(by_height->hash_serialized.ToString(), utxo_hash);
+        BOOST_CHECK_EQUAL(by_height->evo_hash.ToString(), evo_hash);
+        BOOST_CHECK_EQUAL(by_height->nChainTx, chain_tx);
+        const auto by_hash = net_params->AssumeutxoForBlockhash(uint256S(blockhash));
+        BOOST_REQUIRE(by_hash);
+        BOOST_CHECK_EQUAL(by_hash->height, height);
+        BOOST_CHECK(!net_params->AssumeutxoForHeight(height - 1));
+        BOOST_CHECK(!net_params->AssumeutxoForHeight(height + 1));
+    };
+    check_pin(ChainType::MAIN, 2579482, "000000000000001cfbe4751211d7e753bab093e5d63de1fa947cf20714a0e727",
+              "9f04690bf3ef7a4917eace719ac558cd6896a8bd22e905a74f19d76ce83d5811",
+              "5fe390df978e8e5ac259e02a0b0690a6e3a757f45177025cf5f4d864e59ebc6e", 71739012U);
+    check_pin(ChainType::TESTNET, 1599687, "0000006e4b85a1f38f3224ead2865de8e7f29d98229b58b00a1b1bedab624872",
+              "4ba6fb243e38624fac1f2f434027b381c3cdf900f3da981e996d113be148d772",
+              "574ddf5486e18f81998b2a49a37b7ba9562ac4e134d14a7225bdd04b0c1b4afd", 9019675U);
 }
 
 BOOST_AUTO_TEST_CASE(utxo_set_hash_commits_coin_height_and_coinbase)

@@ -362,7 +362,13 @@ public:
         };
 
         m_assumeutxo_data = {
-            // TODO to be specified in a future patch.
+            {
+                .height = 2579482,
+                .hash_serialized = AssumeutxoHash{uint256S("0x9f04690bf3ef7a4917eace719ac558cd6896a8bd22e905a74f19d76ce83d5811")},
+                .evo_hash = EvoSnapshotHash{uint256S("0x5fe390df978e8e5ac259e02a0b0690a6e3a757f45177025cf5f4d864e59ebc6e")},
+                .nChainTx = 71739012,
+                .blockhash = uint256S("0x000000000000001cfbe4751211d7e753bab093e5d63de1fa947cf20714a0e727"),
+            },
         };
 
         // getchaintxstats 17280 000000000000000346a1804da4832b0b69dd9a7f96b14c7cb54585a9ac6ae98f
@@ -547,7 +553,13 @@ public:
         };
 
         m_assumeutxo_data = {
-            // TODO to be specified in a future patch.
+            {
+                .height = 1599687,
+                .hash_serialized = AssumeutxoHash{uint256S("0x4ba6fb243e38624fac1f2f434027b381c3cdf900f3da981e996d113be148d772")},
+                .evo_hash = EvoSnapshotHash{uint256S("0x574ddf5486e18f81998b2a49a37b7ba9562ac4e134d14a7225bdd04b0c1b4afd")},
+                .nChainTx = 9019675,
+                .blockhash = uint256S("0x0000006e4b85a1f38f3224ead2865de8e7f29d98229b58b00a1b1bedab624872"),
+            },
         };
 
         // getchaintxstats 17280 000000116cd3c11d44c88cbc0a26804bd277a5d790f684ec3a8aaa820690318c
