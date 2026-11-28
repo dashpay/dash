@@ -28,7 +28,7 @@ Platform | Data directory path
 ---------|--------------------
 Linux    | `$HOME/.dashcore/`
 macOS    | `$HOME/Library/Application Support/DashCore/`
-Windows  | `%APPDATA%\DashCore\` <sup>[\[1\]](#note1)</sup>
+Windows  | `%LOCALAPPDATA%\DashCore\` <sup>[\[1\]](#note1)</sup>
 
 2. A custom data directory path can be specified with the `-datadir` option.
 

@@ -23,7 +23,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -156,9 +155,9 @@ void initialize()
 #if defined(PROVIDE_FUZZ_MAIN_FUNCTION)
 static bool read_stdin(std::vector<uint8_t>& data)
 {
-    uint8_t buffer[1024];
-    ssize_t length = 0;
-    while ((length = read(STDIN_FILENO, buffer, 1024)) > 0) {
+    std::istream::char_type buffer[1024];
+    std::streamsize length;
+    while ((std::cin.read(buffer, 1024), length = std::cin.gcount()) > 0) {
         data.insert(data.end(), buffer, buffer + length);
     }
     return length == 0;

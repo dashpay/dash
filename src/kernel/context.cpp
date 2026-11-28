@@ -11,8 +11,8 @@
 #include <pubkey.h>
 #include <random.h>
 
+#include <mutex>
 #include <string>
-
 
 namespace kernel {
 Context* g_context;
@@ -21,10 +21,13 @@ Context::Context()
 {
     assert(!g_context);
     g_context = this;
-    SapphireAutoDetect();
-    std::string sha256_algo = SHA256AutoDetect();
-    LogPrintf("Using the '%s' SHA256 implementation\n", sha256_algo);
-    RandomInit();
+    static std::once_flag globals_initialized{};
+    std::call_once(globals_initialized, []() {
+        SapphireAutoDetect();
+        std::string sha256_algo = SHA256AutoDetect();
+        LogInfo("Using the '%s' SHA256 implementation\n", sha256_algo);
+        RandomInit();
+    });
     ECC_Start();
 }
 

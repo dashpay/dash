@@ -1,16 +1,17 @@
 Release Process
 ====================
 
-* [ ] Update translations, see [translation_process.md](https://github.com/dashpay/dash/blob/develop/doc/translation_process.md#synchronising-translations).
 * [ ] Update manpages (after rebuilding the binaries), see [gen-manpages.py](https://github.com/dashpay/dash/blob/develop/contrib/devtools/README.md#gen-manpagespy).
-* [ ] Update dash.conf and commit, see [gen-dash-conf.sh](https://github.com/dashpay/dash/blob/develop/contrib/devtools/README.md#gen-dash-confsh).
+* [ ] Update dash.conf and commit changes if they exist, see [gen-dash-conf.sh](https://github.com/dashpay/dash/blob/develop/contrib/devtools/README.md#gen-dash-confsh).
 
 Before every minor and major release:
 
 * [ ] Review ["Needs backport" labels](https://github.com/dashpay/dash/labels?q=backport).
 * [ ] Update DIPs with any changes introduced by this release (see [this pull request](https://github.com/dashpay/dips/pull/142) for an example)
 * [ ] Update version in `CMakeLists.txt` (don't forget to set `CLIENT_VERSION_IS_RELEASE` to `true`)
-* [ ] Write release notes (see below). To clear the release notes: `cp doc/release-notes-empty-template.md doc/release-notes.md`
+* [ ] Write release notes (see below) in doc/release-notes.md. If necessary,
+  archive the previous release notes as doc/release-notes/dash/release-notes-${VERSION}.md.
+  To clear the release notes: `cp doc/release-notes-empty-template.md doc/release-notes.md`
 * [ ] Update flatpak [metainfo file](contrib/flatpak/org.dash.dash-core.metainfo.xml) with latest release tag and estimated release date
 * [ ] Update the following variables in [`src/kernel/chainparams.cpp`](/src/kernel/chainparams.cpp) for mainnet and testnet:
   - `nMinimumChainWork` with the "chainwork" value of RPC `getblockheader` using the same height as that selected for the previous step.
@@ -28,6 +29,7 @@ Before every minor and major release:
 
 Before every major release:
 
+* [ ] Update translations, see [translation_process.md](https://github.com/dashpay/dash/blob/develop/doc/translation_process.md#synchronising-translations).
 * [ ] Update hardcoded [seeds](/contrib/seeds/README.md), see [this pull request](https://github.com/dashpay/dash/pull/5914) for an example.
 * [ ] Update the following variables in [`src/kernel/chainparams.cpp`](/src/kernel/chainparams.cpp) for mainnet and testnet:
   - `m_assumed_blockchain_size` and `m_assumed_chain_state_size` with the current size plus some overhead (see
@@ -135,6 +137,8 @@ Then open a Pull Request to the [guix.sigs repository](https://github.com/dashpa
 
 ### macOS codesigner only: Create detached macOS signatures (assuming [signapple](https://github.com/achow101/signapple/) is installed and up to date with master branch)
 
+In the `guix-build-${VERSION}/output/x86_64-apple-darwin` and `guix-build-${VERSION}/output/arm64-apple-darwin` directories:
+
 * Transfer `dashcore-osx-unsigned.tar.gz` to macOS for signing
 * Extract and sign:
 
@@ -148,6 +152,8 @@ Then open a Pull Request to the [guix.sigs repository](https://github.com/dashpa
 
 ### Windows codesigner only: Create detached Windows signatures
 
+In the `guix-build-${VERSION}/output/x86_64-w64-mingw32` directory:
+
 * Extract and sign:
 
     ```sh
@@ -160,16 +166,19 @@ Then open a Pull Request to the [guix.sigs repository](https://github.com/dashpa
 
 ### Windows and macOS codesigners only: test code signatures
 It is advised to test that the code signature attaches properly prior to tagging by performing the `guix-codesign` step.
-However if this is done, once the release has been tagged in the dash-detached-sigs repo, the `guix-codesign` step must be performed again in order for the guix attestation to be valid when compared against the attestations of non-codesigner builds.
+However if this is done, once the release has been tagged in the dash-detached-sigs repo, the `guix-codesign` step must be performed again in order for the guix attestation to be valid when compared against the attestations of non-codesigner builds. The directories created by `guix-codesign` will need to be cleared prior to running `guix-codesign` again.
 
 ### Windows and macOS codesigners only: Commit the detached codesign payloads
 
 ```sh
 pushd ~/dash-detached-sigs
-# checkout the appropriate branch for this release series
+# checkout the appropriate branch for this release series (it must already exist)
 git checkout "v${VERSION}"
-rm -rf *
+# if you are the macOS codesigner
+rm -rf osx
 tar xf signature-osx.tar.gz
+# if you are the windows codesigner
+rm -rf win
 tar xf signature-win.tar.gz
 git add -A
 git commit -m "add detached sigs for win/osx for ${VERSION}"
@@ -202,7 +211,7 @@ Then open a Pull Request to the [guix.sigs repository](https://github.com/dashpa
 
 ## After 3 or more people have guix-built and their results match
 
-* [ ] Each signer clearsigns the `SHA256SUMS` of the uploaded files (`gpg --clearsign SHA256SUMS`); combine the results into one `SHA256SUMS.asc`: the signed text once, followed by every signer's signature block
+* [ ] Each signer clearsigns the `SHA256SUMS` of the uploaded files (`gpg --clearsign SHA256SUMS`); after verifying signatures, combine the results into one `SHA256SUMS.asc`: the signed text once, followed by every signer's signature block
 * [ ] GPG sign each download / binary
 * [ ] Upload zips and installers, as well as `SHA256SUMS.asc` from last step, to GitHub as GitHub draft release.
     1. The contents of each `./dash/guix-build-${VERSION}/output/${HOST}/` directory, except for
@@ -225,7 +234,7 @@ Then open a Pull Request to the [guix.sigs repository](https://github.com/dashpa
 
     2. The `SHA256SUMS` file
 
-    3. The `SHA256SUMS.asc` combined signature file you just created
+    3. The `SHA256SUMS.asc` combined signature file you just created.
 * [ ] Validate `SHA256SUMS.asc` and all binaries attached to GitHub draft release are correct
 * [ ] Notarize macOS binaries
 * [ ] Publish release on GitHub

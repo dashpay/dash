@@ -734,12 +734,19 @@ std::string HelpMessageOpt(const std::string &option, const std::string &message
 
 fs::path GetDefaultDataDir()
 {
-    // Windows: C:\Users\Username\AppData\Roaming\DashCore
+    // Windows:
+    //   old: C:\Users\Username\AppData\Roaming\DashCore
+    //   new: C:\Users\Username\AppData\Local\DashCore
     // macOS: ~/Library/Application Support/DashCore
     // Unix-like: ~/.dashcore
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "DashCore";
+    // Check for existence of datadir in old location and keep it there
+    fs::path legacy_path = GetSpecialFolderPath(CSIDL_APPDATA) / "DashCore";
+    if (fs::exists(legacy_path)) return legacy_path;
+
+    // Otherwise, fresh installs can start in the new, "proper" location
+    return GetSpecialFolderPath(CSIDL_LOCAL_APPDATA) / "DashCore";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
