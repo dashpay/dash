@@ -8,4 +8,4 @@ Updated RPCs
   the background. Mainnet accepts the snapshot at height 2579482 and testnet the one
   at height 1599687. Pruned nodes, masternodes and nodes with `-addressindex`,
   `-spentindex` or `-timestampindex` refuse to load a snapshot. See
-  `doc/design/assumeutxo.md`. (#pins)
+  `doc/design/assumeutxo.md`. (#8276)
