@@ -6646,6 +6646,45 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
     return true;
 }
 
+void ChainstateManager::InvalidateSnapshot(int snapshot_tip_height, int snapshot_base_height)
+{
+    bilingual_str user_error = strprintf(_(
+        "%s failed to validate the -assumeutxo snapshot state. "
+        "This indicates a hardware problem, or a bug in the software, or a "
+        "bad software modification that allowed an invalid snapshot to be "
+        "loaded. As a result of this, the node will shut down and stop using any "
+        "state that was built on the snapshot, resetting the chain height "
+        "from %d to %d. On the next "
+        "restart, the node will resume syncing from %d "
+        "without using any snapshot data. "
+        "Please report this incident to %s, including how you obtained the snapshot. "
+        "The invalid snapshot chainstate will be left on disk in case it is "
+        "helpful in diagnosing the issue that caused this error."),
+        PACKAGE_NAME, snapshot_tip_height, snapshot_base_height, snapshot_base_height, PACKAGE_BUGREPORT
+    );
+
+    LogPrintf("[snapshot] !!! %s\n", user_error.original);
+    LogPrintf("[snapshot] deleting snapshot, reverting to validated chain, and stopping node\n");
+
+    m_active_chainstate = m_ibd_chainstate.get();
+    // Hand the mempool back so the again-active background chainstate owns
+    // it for the remainder of this (shutting-down) run.
+    m_ibd_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
+    m_snapshot_chainstate->m_mempool = nullptr;
+    m_snapshot_chainstate->m_disabled = true;
+    assert(!this->IsUsable(m_snapshot_chainstate.get()));
+    assert(this->IsUsable(m_ibd_chainstate.get()));
+
+    auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
+    if (!rename_result) {
+        user_error += Untranslated("\n") + util::ErrorString(rename_result);
+    } else if (!m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers()) {
+        LogPrintf("[snapshot] failed to remove invalid snapshot EvoDB markers\n");
+    }
+
+    GetNotifications().fatalError(user_error.original, user_error);
+}
+
 // Currently, this function holds cs_main for its duration, which could be for
 // multiple minutes due to the ComputeUTXOStats call. This hold is necessary
 // because we need to avoid advancing the background validation chainstate
@@ -6709,41 +6748,7 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation()
     }
 
     auto handle_invalid_snapshot = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-        bilingual_str user_error = strprintf(_(
-            "%s failed to validate the -assumeutxo snapshot state. "
-            "This indicates a hardware problem, or a bug in the software, or a "
-            "bad software modification that allowed an invalid snapshot to be "
-            "loaded. As a result of this, the node will shut down and stop using any "
-            "state that was built on the snapshot, resetting the chain height "
-            "from %d to %d. On the next "
-            "restart, the node will resume syncing from %d "
-            "without using any snapshot data. "
-            "Please report this incident to %s, including how you obtained the snapshot. "
-            "The invalid snapshot chainstate will be left on disk in case it is "
-            "helpful in diagnosing the issue that caused this error."),
-            PACKAGE_NAME, snapshot_tip_height, snapshot_base_height, snapshot_base_height, PACKAGE_BUGREPORT
-        );
-
-        LogPrintf("[snapshot] !!! %s\n", user_error.original);
-        LogPrintf("[snapshot] deleting snapshot, reverting to validated chain, and stopping node\n");
-
-        m_active_chainstate = m_ibd_chainstate.get();
-        // Hand the mempool back so the again-active background chainstate owns
-        // it for the remainder of this (shutting-down) run.
-        m_ibd_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
-        m_snapshot_chainstate->m_mempool = nullptr;
-        m_snapshot_chainstate->m_disabled = true;
-        assert(!this->IsUsable(m_snapshot_chainstate.get()));
-        assert(this->IsUsable(m_ibd_chainstate.get()));
-
-        auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
-        if (!rename_result) {
-            user_error += Untranslated("\n") + util::ErrorString(rename_result);
-        } else if (!m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers()) {
-            LogPrintf("[snapshot] failed to remove invalid snapshot EvoDB markers\n");
-        }
-
-        GetNotifications().fatalError(user_error.original, user_error);
+        InvalidateSnapshot(snapshot_tip_height, snapshot_base_height);
     };
 
     if (index_new.GetBlockHash() != snapshot_blockhash) {

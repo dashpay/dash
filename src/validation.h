@@ -1132,6 +1132,10 @@ public:
     //! Otherwise, revert to using the ibd chainstate and shutdown.
     SnapshotCompletionResult MaybeCompleteSnapshotValidation() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
+    //! Revert to the background chainstate, invalidate the snapshot chainstate
+    //! on disk and shut down.
+    void InvalidateSnapshot(int snapshot_tip_height, int snapshot_base_height) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
     //! The most-work chain.
     Chainstate& ActiveChainstate() const;
     CChain& ActiveChain() const EXCLUSIVE_LOCKS_REQUIRED(GetMutex()) { return ActiveChainstate().m_chain; }
