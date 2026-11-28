@@ -159,8 +159,9 @@ public:
 
 /**
  * An object of this class represents a quorum which was mined on-chain (through a quorum commitment)
- * It at least contains information about the members and the quorum public key which is needed to verify recovered
- * signatures from this quorum.
+ * It at least contains the quorum public key which is needed to verify recovered signatures from this quorum, and
+ * its members unless this node cannot compute them exactly (the work block's score modifier needs a block body it
+ * pruned); Members() then raises BlockDataUnavailableError instead of returning a guess.
  *
  * In case the local node is a member of the same quorum and successfully participated in the DKG, the quorum object
  * will also contain the secret key share and the quorum verification vector. The quorum vvec is then used to recover
@@ -175,9 +176,9 @@ public:
     const CFinalCommitmentPtr qc;
     const CBlockIndex* m_quorum_base_block_index;
     const uint256 minedBlockHash;
-    const std::vector<CDeterministicMNCPtr> members;
 
 private:
+    const std::optional<std::vector<CDeterministicMNCPtr>> m_members;
     // Recovery of public key shares is very slow, so we start a background thread that pre-populates a cache so that
     // the public key shares are ready when needed later
     mutable CBLSWorkerCache blsCache;
@@ -191,6 +192,9 @@ private:
 public:
     CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker,
             CFinalCommitmentPtr _qc, const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash, Span<CDeterministicMNCPtr> _members);
+    //! A quorum known from its commitment only, without its members.
+    CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker, CFinalCommitmentPtr _qc,
+            const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash);
 
     ~CQuorum();
 
@@ -209,6 +213,9 @@ public:
         LOCK(cs_vvec_shShare);
         return quorumVvec;
     }
+    bool HasMembers() const { return m_members.has_value(); }
+    //! The members; BlockDataUnavailableError for a quorum known by its key only.
+    const std::vector<CDeterministicMNCPtr>& Members() const;
     bool IsMember(const uint256& proTxHash) const;
     bool IsValidMember(const uint256& proTxHash) const;
     int GetMemberIndex(const uint256& proTxHash) const;

@@ -84,6 +84,7 @@
 
 #include <coinjoin/options.h>
 #include <evo/assetlocktx.h>
+#include <evo/dmn_types.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 #include <governance/vote.h>
@@ -1650,15 +1651,25 @@ void CWallet::blockConnected(const interfaces::BlockInfo& block)
     // needed by MarkConflicted.
     SetLastBlockProcessedInMem(block.height, block.hash);
 
+    // Only built for work that writes to the wallet.
+    std::optional<WalletBatch> batch;
+    // Classify the unspent outputs the masternode list was not available for.
+    // They stay recorded until LockProTxCoins() releases them, which also
+    // invalidates the CoinJoin tallies that left them out.
+    std::erase_if(m_unclassified_protx_coins, [&](const COutPoint& output) { return setWalletUTXO.count(output) == 0; });
+    if (!m_unclassified_protx_coins.empty()) {
+        LockProTxCoins(std::set<COutPoint>{m_unclassified_protx_coins}, &batch.emplace(GetDatabase()));
+    }
+
     // No need to scan block if it was created before the wallet birthday.
     // Uses chain max time and twice the grace period to adjust time for block time variability.
     if (block.chain_time_max < m_birth_time.load() - (TIMESTAMP_WINDOW * 2)) return;
 
     // Scan block
-    WalletBatch batch(GetDatabase());
+    if (!batch) batch.emplace(GetDatabase());
     bool wallet_updated = false;
     for (size_t index = 0; index < block.data->vtx.size(); index++) {
-        wallet_updated |= SyncTransaction(block.data->vtx[index], TxStateConfirmed{block.hash, block.height, static_cast<int>(index)}, batch);
+        wallet_updated |= SyncTransaction(block.data->vtx[index], TxStateConfirmed{block.hash, block.height, static_cast<int>(index)}, *batch);
         transactionRemovedFromMempool(block.data->vtx[index], MemPoolRemovalReason::BLOCK);
     }
 
@@ -3075,6 +3086,12 @@ bool CWallet::UnlockAllCoins()
     return success;
 }
 
+bool CWallet::IsUnclassifiedProTxCoin(const COutPoint& output) const
+{
+    AssertLockHeld(cs_wallet);
+    return m_unclassified_protx_coins.count(output) > 0;
+}
+
 bool CWallet::IsLockedCoin(const COutPoint& output) const
 {
     AssertLockHeld(cs_wallet);
@@ -3087,9 +3104,9 @@ const std::set<COutPoint>& CWallet::ListLockedCoins() const
     return setLockedCoins;
 }
 
-std::vector<COutPoint> CWallet::ListProTxCoins() const { return ListProTxCoins(setWalletUTXO); }
+std::optional<std::vector<COutPoint>> CWallet::ListProTxCoins() const { return ListProTxCoins(setWalletUTXO); }
 
-std::vector<COutPoint> CWallet::ListProTxCoins(const std::set<COutPoint>& utxos) const
+std::optional<std::vector<COutPoint>> CWallet::ListProTxCoins(const std::set<COutPoint>& utxos) const
 {
     AssertLockHeld(cs_wallet);
 
@@ -3108,7 +3125,32 @@ std::vector<COutPoint> CWallet::ListProTxCoins(const std::set<COutPoint>& utxos)
 void CWallet::LockProTxCoins(const std::set<COutPoint>& utxos, WalletBatch* batch)
 {
     AssertLockHeld(cs_wallet);
-    for (const auto& utxo : ListProTxCoins(utxos)) {
+    const auto protx_coins{ListProTxCoins(utxos)};
+    if (!protx_coins) {
+        std::vector<COutPoint> withheld;
+        for (const auto& utxo : utxos) {
+            const auto it{mapWallet.find(utxo.hash)};
+            if (it != mapWallet.end() && utxo.n < it->second.tx->vout.size() &&
+                dmn_types::IsCollateralAmount(it->second.tx->vout[utxo.n].nValue)) {
+                withheld.push_back(utxo);
+            }
+        }
+        size_t newly_withheld{0};
+        for (const auto& utxo : withheld) {
+            if (!m_unclassified_protx_coins.insert(utxo).second) continue;
+            RecalculateMixedCredit(utxo.hash);
+            ++newly_withheld;
+        }
+        if (newly_withheld > 0) {
+            WalletLogPrintf("Masternode list not available, withholding %d outputs from automatic spending until it is\n",
+                            newly_withheld);
+        }
+        return;
+    }
+    for (const auto& utxo : utxos) {
+        if (m_unclassified_protx_coins.erase(utxo)) RecalculateMixedCredit(utxo.hash);
+    }
+    for (const auto& utxo : *protx_coins) {
         LockCoin(utxo, batch);
     }
 }

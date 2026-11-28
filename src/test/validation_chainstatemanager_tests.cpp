@@ -2,40 +2,95 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
+#include <arith_uint256.h>
+#include <banman.h>
+#include <chainlock/chainlock.h>
 #include <chainparams.h>
+#include <compat/endian.h>
+#include <consensus/merkle.h>
 #include <consensus/validation.h>
+#include <evo/assetlocktx.h>
+#include <evo/cbtx.h>
+#include <evo/creditpool.h>
 #include <evo/deterministicmns.h>
+#include <evo/mnhftx.h>
+#include <evo/netinfo.h>
+#include <evo/providertx.h>
+#include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <governance/superblock.h>
+#include <init.h>
+#include <interfaces/mining.h>
+#include <kernel/context.h>
 #include <kernel/disconnected_transactions.h>
+#include <key.h>
+#include <logging.h>
+#include <masternode/meta.h>
+#include <net.h>
+#include <net_processing.h>
+#include <netmessagemaker.h>
 #include <node/chainstate.h>
+#include <node/interface_ui.h>
 #include <node/kernel_notifications.h>
 #include <node/utxo_snapshot.h>
+#include <pow.h>
+#include <protocol.h>
 #include <random.h>
 #include <rpc/blockchain.h>
+#include <rpc/protocol.h>
+#include <rpc/server.h>
+#include <rpc/server_util.h>
+#include <streams.h>
 #include <sync.h>
+#include <test/util/bls.h>
 #include <test/util/chainstate.h>
+#include <test/util/llmq_tests.h>
 #include <test/util/logging.h>
+#include <test/util/masternode.h>
+#include <test/util/net.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
 #include <uint256.h>
+#include <util/strencodings.h>
+#include <util/string.h>
+#include <util/time.h>
+#include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
+#include <versionbits.h>
+#include <warnings.h>
 
+#include <active/dkgsessionhandler.h>
+#include <active/masternode.h>
+#include <bls/bls.h>
 #include <evo/evodb.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
+#include <llmq/debug.h>
+#include <llmq/dkgsessionmgr.h>
+#include <llmq/net_signing.h>
 #include <llmq/quorumsman.h>
+#include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
+#include <llmq/snapshot.h>
+#include <llmq/utils.h>
 #include <node/blockstorage.h>
 
 #include <tinyformat.h>
 
+#include <algorithm>
+#include <chrono>
+#include <functional>
+#include <future>
+#include <optional>
+#include <string>
+#include <type_traits>
 #include <vector>
 
+#include <boost/signals2/connection.hpp>
 #include <boost/test/unit_test.hpp>
 
 using node::BlockManager;
@@ -44,14 +99,113 @@ using node::SnapshotMetadata;
 
 namespace {
 
-void SeedSnapshotMarker(CEvoDB& evodb, const uint256& hash)
+//! Point the snapshot generation's best-block marker at `hash`, first
+//! publishing a generation based at `hash` if none is live.
+void SeedSnapshotMarker(CEvoDB& evodb, const uint256& hash, int base_height = -1)
 {
     LOCK(::cs_main);
+    if (!evodb.GetSnapshotGeneration()) {
+        BOOST_REQUIRE(evodb.CreateSnapshotGeneration(hash, base_height));
+        BOOST_REQUIRE(evodb.PublishSnapshotGeneration(std::nullopt));
+    }
     auto tx = evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
     evodb.WriteBestBlock(EvoDbIdentity::SNAPSHOT, hash);
     tx->Commit();
     BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
 }
+
+CBLSSecretKey MakeOperatorKey()
+{
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    return sk;
+}
+
+//! A DKG phase handler that no phase thread or block tip drives, so its phase stays Idle
+struct TestDKGHandler {
+    CActiveMasternodeManager mn_activeman;
+    llmq::CDKGDebugManager dkgdbgman;
+    llmq::CDKGSessionManager qdkgsman;
+    llmq::ActiveDKGSessionHandler handler;
+
+    TestDKGHandler(node::NodeContext& node, ChainstateManager& chainman, const fs::path& datadir) :
+        mn_activeman{*node.connman, *node.dmnman, MakeOperatorKey()},
+        dkgdbgman{*node.dmnman, *node.llmq_ctx->qsnapman, chainman},
+        qdkgsman{*node.dmnman, *node.llmq_ctx->qsnapman, chainman, *node.sporkman,
+                 util::DbWrapperParams{.path = datadir, .memory = true, .wipe = true}},
+        handler(*node.llmq_ctx->bls_worker, *node.dmnman, *node.mn_metaman, dkgdbgman, qdkgsman,
+                *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qsnapman, mn_activeman, chainman,
+                *node.sporkman, Params().GetConsensus().llmqs.front(), /*quorums_watch=*/false, /*quorums_idx=*/0)
+    {
+    }
+
+    //! Ends a wait that a failed check left running, so the test fails instead of hanging
+    ~TestDKGHandler() { handler.RequestStop(); }
+};
+
+//! The regtest assumeutxo fixture predates DIP3. Activate DIP3 from height 1
+//! for the lifetime of this guard, so the cold EvoDB holds no MN-list history
+//! for blocks that now count as DIP3-active.
+class ScopedDIP3FromGenesis
+{
+    Consensus::Params& m_params{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    const int m_old_height{m_params.DIP0003Height};
+
+public:
+    ScopedDIP3FromGenesis() { m_params.DIP0003Height = 1; }
+    ~ScopedDIP3FromGenesis() { m_params.DIP0003Height = m_old_height; }
+};
+
+//! Turn a pre-DIP3 template into one whose coinbase is a CbTx, as required
+//! once DIP3 is active, and solve it again.
+CBlock MakeCbTxBlock(CBlock block, int height, CCbTx::Version version = CCbTx::Version::MERKLE_ROOT_QUORUMS)
+{
+    CCbTx cbtx;
+    cbtx.nVersion = version;
+    cbtx.nHeight = height;
+    CMutableTransaction coinbase{*block.vtx[0]};
+    coinbase.nVersion = CTransaction::SPECIAL_VERSION;
+    coinbase.nType = TRANSACTION_COINBASE;
+    SetTxPayload(coinbase, cbtx);
+    block.vtx[0] = MakeTransactionRef(std::move(coinbase));
+    block.hashMerkleRoot = BlockMerkleRoot(block);
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
+        ++block.nNonce;
+    return block;
+}
+
+//! Counts the masternode-list changes validation announces.
+class MnListChangeCounter final : public CValidationInterface
+{
+public:
+    int changes{0};
+
+protected:
+    void NotifyMasternodeListChanged(bool, const CDeterministicMNList&, const CDeterministicMNListDiff&) override
+    {
+        ++changes;
+    }
+};
+
+//! The validation result announced for one block.
+class BlockCheckedCatcher final : public CValidationInterface
+{
+public:
+    explicit BlockCheckedCatcher(const uint256& hash) :
+        m_hash{hash}
+    {
+    }
+    std::optional<BlockValidationState> state{};
+
+protected:
+    void BlockChecked(const CBlock& block, const BlockValidationState& checked) override
+    {
+        if (block.GetHash() == m_hash) state = checked;
+    }
+
+private:
+    const uint256 m_hash{};
+};
 
 } // namespace
 
@@ -220,9 +374,9 @@ struct SnapshotTestSetup : TestChain100Setup {
     // Note that this means the tests run considerably slower than in-memory DB
     // tests, but we can't otherwise test this functionality since it relies on
     // destructive filesystem operations.
-    SnapshotTestSetup() : TestChain100Setup{
+    explicit SnapshotTestSetup(const std::vector<const char*>& extra_args = {}) : TestChain100Setup{
                               ChainType::REGTEST,
-                              {},
+                              extra_args,
                               /*coins_db_in_memory=*/false,
                               /*block_tree_db_in_memory=*/false,
                               /*dash_dbs_in_memory=*/false,
@@ -468,12 +622,1142 @@ struct SnapshotTestSetup : TestChain100Setup {
         }
         return *Assert(m_node.chainman);
     }
+
+    //! Execute an RPC command the way the RPC server dispatches it.
+    UniValue CallRPC(const std::string& method, const UniValue& params = UniValue{UniValue::VARR})
+    {
+        JSONRPCRequest request;
+        request.context = CoreContext{m_node};
+        request.strMethod = method;
+        request.params = params;
+        if (RPCIsInWarmup(nullptr)) SetRPCWarmupFinished();
+        return tableRPC.execute(request);
+    }
+
+    //! Load the chainstates like startup does, reporting failure instead of
+    //! asserting success.
+    node::ChainstateLoadResult TryLoadChainstate()
+    {
+        MakeDashChainContexts(/*llmq_dbs_wipe=*/false);
+        return node::LoadChainstate(*Assert(m_node.chainman), m_cache_sizes, ChainstateLoadOptionsForTest(),
+                                    *m_node.evodb, *m_node.dmnman, *m_node.special_tx);
+    }
+
+    //! What the snapshot chainstate built past DIP3 activation, by hash: the
+    //! block index is reloaded across restarts.
+    struct SnapshotChainPastDip3 {
+        uint256 protx_hash;
+        uint256 protx_block;
+        uint256 period_block; //!< at a multiple of DISK_SNAPSHOT_PERIOD
+        uint256 tip;
+    };
+
+    //! Extend the active snapshot chain past DIP3 and V20 activation (432) and
+    //! the first disk-snapshot period (576), registering a masternode on the
+    //! way. Block connection then writes real MN-list diffs (dmn_D4), a full
+    //! list and a credit pool (dmn_S3, cpm_S) under the snapshot generation.
+    SnapshotChainPastDip3 MineSnapshotChainPastDip3()
+    {
+        ChainstateManager& chainman{*Assert(m_node.chainman)};
+        const auto mine_to{[&](int height) {
+            while (WITH_LOCK(::cs_main, return chainman.ActiveHeight()) < height)
+                mineBlocks(1);
+        }};
+        const int dip3_height{Params().GetConsensus().DIP0003Height};
+        mine_to(dip3_height);
+
+        auto utxos{BuildSimpleUtxoMap(m_coinbase_txns)};
+        CKey owner_key;
+        CBLSSecretKey operator_key;
+        const auto protx{
+            CreateProRegTx(chainman, utxos, /*port=*/1, GenerateRandomAddress(), coinbaseKey, owner_key, operator_key)};
+        const CBlock protx_block{CreateAndProcessBlock({protx}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()))};
+        BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.ActiveTip()->GetBlockHash()), protx_block.GetHash());
+
+        // DISK_SNAPSHOT_PERIOD of both the MN-list and credit-pool managers.
+        constexpr int period{576};
+        mine_to(period + 1);
+        LOCK(::cs_main);
+        return {protx.GetHash(), protx_block.GetHash(), chainman.ActiveChain()[period]->GetBlockHash(),
+                chainman.ActiveTip()->GetBlockHash()};
+    }
+
+    //! Both evodb RPCs refuse a range whose stop block the background chain,
+    //! which owns the NORMAL records, does not hold yet, whether the active
+    //! block is named by its height or by its hash.
+    void CheckEvoDbRefusesStopAboveBackground(int stop_height)
+    {
+        const uint256 active_hash{
+            WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveChain()[stop_height]->GetBlockHash())};
+        for (const char* mode : {"verify", "repair"}) {
+            const auto refuses{[&](const UniValue& stop, int code, const std::string& message) {
+                UniValue params{UniValue::VARR};
+                params.push_back(mode);
+                params.push_back(1);
+                params.push_back(stop);
+                BOOST_CHECK_EXCEPTION(CallRPC("evodb", params), UniValue, [&](const UniValue& error) {
+                    return error["code"].getInt<int>() == code && error["message"].get_str() == message;
+                });
+            }};
+            refuses(stop_height, RPC_MISC_ERROR,
+                    strprintf("stopBlock must be a block hash or chain height and not %d", stop_height));
+            refuses(active_hash.GetHex(), RPC_INVALID_PARAMETER, "Stop block not found in background validation chain");
+        }
+    }
 };
+
+//! Evo records the snapshot chainstate writes for one of its blocks above the
+//! base: a full MN list and a mined quorum commitment.
+struct SnapshotViewRecords {
+    static constexpr auto LLMQ_TYPE{Consensus::LLMQType::LLMQ_TEST};
+
+    //! Block hash, not index: the block index is reloaded across restarts.
+    uint256 block_hash;
+    uint256 quorum_hash;
+    CDeterministicMNList list;
+
+    // These keys mirror DB_LIST_SNAPSHOT in evo/deterministicmns.cpp and
+    // DB_MINED_COMMITMENT in llmq/blockprocessor.cpp (file-local there).
+    auto ListKey() const { return std::make_pair(std::string{"dmn_S3"}, block_hash); }
+    auto CommitmentKey() const { return std::make_pair(std::string{"q_mc"}, std::make_pair(LLMQ_TYPE, quorum_hash)); }
+
+    static SnapshotViewRecords Write(CEvoDB& evodb, const CBlockIndex* block) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+    {
+        SnapshotViewRecords records{block->GetBlockHash(), GetRandHash(),
+                                    CDeterministicMNList{block->GetBlockHash(), block->nHeight, 1}};
+        {
+            auto tx = evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+            evodb.Write(records.ListKey(), records.list);
+            const llmq::CFinalCommitment qc{Params().GetLLMQ(LLMQ_TYPE).value(), records.quorum_hash};
+            evodb.Write(records.CommitmentKey(), std::make_pair(qc, block->GetBlockHash()));
+            tx->Commit();
+        }
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true));
+        return records;
+    }
+
+    //! Which of these records the NORMAL view reads, directly and through
+    //! the commitment consumer.
+    std::pair<bool, bool> ReadByNormal(node::NodeContext& node) const
+    {
+        LOCK(::cs_main);
+        CEvoDB& evodb{*node.evodb};
+        EvoViewScope normal{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        CDeterministicMNList stored_list;
+        const bool list_read{evodb.Read(ListKey(), stored_list)};
+        return {list_read, node.llmq_ctx->quorum_block_processor->HasMinedCommitment(LLMQ_TYPE, quorum_hash,
+                                                                                     node.chainman->ActiveChain())};
+    }
+
+    //! Whether the MN-list manager, under NORMAL with DIP3 active, serves the
+    //! stored list for the block rather than building its own. Needs a
+    //! single chainstate: dual operation refuses to bootstrap a missing list.
+    bool ListServedByNormal(node::NodeContext& node) const
+    {
+        LOCK(::cs_main);
+        EvoViewScope normal{node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+        ScopedDIP3FromGenesis dip3_active;
+        const CBlockIndex* block{Assert(node.chainman->m_blockman.LookupBlockIndex(block_hash))};
+        return SerializeHash(node.dmnman->GetListForBlock(block)) == SerializeHash(list);
+    }
+};
+
+//! The snapshot chainstate's own Evo state, built by real block connection
+//! past DIP3, stays in its generation: NORMAL never reads it, through EvoDB or
+//! any partitioned cache, and rebuilds everything itself once the snapshot is
+//! rejected.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_evo_state_past_dip3, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    ChainstateManager* chainman{Assert(m_node.chainman.get())};
+
+    // Positive control for the background-suppression checks elsewhere: the
+    // active chainstate announces the list change its ProRegTx block makes.
+    MnListChangeCounter events;
+    RegisterValidationInterface(&events);
+    int ui_mn_list_changed{0};
+    auto ui_connection{uiInterface.NotifyMasternodeListChanged_connect(
+        [&](const CDeterministicMNList&, const CBlockIndex*) { ++ui_mn_list_changed; })};
+    const auto chain{MineSnapshotChainPastDip3()};
+    SyncWithValidationInterfaceQueue();
+    ui_connection.disconnect();
+    UnregisterValidationInterface(&events);
+    BOOST_CHECK_GE(events.changes, 1);
+    BOOST_CHECK_GE(ui_mn_list_changed, 1);
+
+    // These keys mirror DB_LIST_DIFF and DB_LIST_SNAPSHOT in
+    // evo/deterministicmns.cpp, DB_CREDITPOOL_SNAPSHOT in evo/creditpool.cpp
+    // and DB_SIGNALS_v2 in evo/mnhftx.cpp (file-local there).
+    const auto diff_key{std::make_pair(std::string{"dmn_D4"}, chain.protx_block)};
+    const auto list_key{std::make_pair(std::string{"dmn_S3"}, chain.period_block)};
+    const auto pool_key{std::make_pair(std::string{"cpm_S"}, chain.period_block)};
+    const auto signals_key{std::make_pair(std::string{"mnhf_s2"}, chain.tip)};
+
+    CEvoDB& evodb{*m_node.evodb};
+    CCreditPool snapshot_pool;
+    {
+        LOCK(::cs_main);
+        EvoViewScope snapshot_view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+        CDeterministicMNListDiff diff;
+        CDeterministicMNList list;
+        BOOST_CHECK(evodb.Read(diff_key, diff));
+        BOOST_REQUIRE(evodb.Read(list_key, list));
+        BOOST_CHECK(list.HasMN(chain.protx_hash));
+        BOOST_CHECK(evodb.Read(pool_key, snapshot_pool));
+    }
+    {
+        LOCK(::cs_main);
+        EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        CDeterministicMNListDiff diff;
+        CDeterministicMNList list;
+        CCreditPool pool;
+        BOOST_CHECK(!evodb.Read(diff_key, diff));
+        BOOST_CHECK(!evodb.Read(list_key, list));
+        BOOST_CHECK(!evodb.Read(pool_key, pool));
+    }
+    CheckEvoDbRefusesStopAboveBackground(576);
+
+    // Snapshot-only state that NORMAL must not see even once the snapshot
+    // view has warmed its caches with it: a credit pool and a V24 EHF signal
+    // the blocks never carried. A deployment window short enough for the
+    // signal to start V24 by the tip makes the signal observable through
+    // versionbits.
+    CCreditPool tampered_pool{snapshot_pool};
+    tampered_pool.locked += COIN;
+    {
+        LOCK(::cs_main);
+        auto tx{evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        evodb.Write(pool_key, tampered_pool);
+        evodb.Write(signals_key,
+                    CMNHFManager::Signals{{Params().GetConsensus().vDeployments[Consensus::DEPLOYMENT_V24].bit, 500}});
+        tx->Commit();
+    }
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true)));
+    auto& v24{const_cast<Consensus::Params&>(Params().GetConsensus()).vDeployments[Consensus::DEPLOYMENT_V24]};
+    struct V24Restore {
+        Consensus::BIP9Deployment& deployment;
+        const Consensus::BIP9Deployment saved{deployment};
+        ~V24Restore() { deployment = saved; }
+    } v24_restore{v24};
+    v24.nWindowSize = 10;
+    v24.nThresholdStart = v24.nThresholdMin = 1;
+    // Drop every partition of every view cache, as a restart would, so the
+    // snapshot view reads the records back.
+    {
+        const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}};
+    }
+
+    CCreditPoolManager& cpoolman{*m_node.special_tx->m_cpoolman};
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* period_block{chainman->m_blockman.LookupBlockIndex(chain.period_block)};
+        const CBlockIndex* protx_block{chainman->m_blockman.LookupBlockIndex(chain.protx_block)};
+        const CBlockIndex* tip{chainman->m_blockman.LookupBlockIndex(chain.tip)};
+        const auto v24_state{[&] {
+            return chainman->m_versionbitscache.State(tip, chainman->GetConsensus(), Consensus::DEPLOYMENT_V24);
+        }};
+        {
+            EvoViewScope snapshot_view{evodb.ViewFor(EvoDbIdentity::SNAPSHOT)};
+            BOOST_CHECK(m_node.dmnman->GetListForBlock(protx_block).HasMN(chain.protx_hash));
+            BOOST_CHECK_EQUAL(cpoolman.GetCreditPool(period_block).locked, tampered_pool.locked);
+            BOOST_CHECK(v24_state() == ThresholdState::STARTED);
+        }
+        EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        // NORMAL has no MN-list history above the base yet: it cannot use the
+        // snapshot's and fails as unavailable.
+        BOOST_CHECK_THROW(m_node.dmnman->GetListForBlock(protx_block), BlockDataUnavailableError);
+        // EHF signals come only from connecting a block, which NORMAL has not
+        // done here, so it can derive neither them nor the credit pool that
+        // depends on them: both are missing, never the snapshot's. Whatever it
+        // derives before that is discarded.
+        const auto discard{evodb.BeginTransaction(EvoDbIdentity::NORMAL)};
+        BOOST_CHECK_THROW(cpoolman.GetCreditPool(period_block), EvoDbMissingStateError);
+        BOOST_CHECK_THROW(v24_state(), EvoDbMissingStateError);
+    }
+
+    // Reject the snapshot and restart on the background chainstate alone. It
+    // connects the blocks the snapshot chainstate connected, building its own
+    // MN list, diffs and credit pool, without reading or tripping over any of
+    // the snapshot generation's records.
+    m_node.notifications->m_shutdown_on_fatal_error = false;
+    BOOST_REQUIRE(chainman->HandleSnapshotStateMismatch("test rejection"));
+    BOOST_CHECK(!evodb.GetSnapshotGeneration());
+    chainman = &this->SimulateNodeRestart();
+    BOOST_REQUIRE(std::get<0>(this->TryLoadChainstate()) == node::ChainstateLoadStatus::SUCCESS);
+    BOOST_REQUIRE(WITH_LOCK(::cs_main, return !chainman->IsSnapshotActive()));
+    BlockValidationState state;
+    BOOST_REQUIRE(chainman->ActiveChainstate().ActivateBestChain(state));
+    BOOST_CHECK(!m_node.kernel->interrupt);
+    {
+        LOCK(::cs_main);
+        BOOST_REQUIRE_EQUAL(chainman->ActiveTip()->GetBlockHash(), chain.tip);
+        EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        CDeterministicMNListDiff diff;
+        CDeterministicMNList list;
+        CCreditPool pool;
+        BOOST_CHECK(evodb.Read(diff_key, diff));
+        BOOST_REQUIRE(evodb.Read(list_key, list));
+        BOOST_CHECK(list.HasMN(chain.protx_hash));
+        BOOST_REQUIRE(evodb.Read(pool_key, pool));
+        BOOST_CHECK_EQUAL(pool.locked, snapshot_pool.locked);
+        BOOST_CHECK(chainman->m_versionbitscache.State(chainman->ActiveTip(), chainman->GetConsensus(),
+                                                       Consensus::DEPLOYMENT_V24) == ThresholdState::DEFINED);
+    }
+}
+
+//! Completing background validation leaves the NORMAL records at the base
+//! until promotion, so the startup repair and the evodb RPCs stay on the
+//! disabled background chain rather than the snapshot chain above it.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_repair_after_completion, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    ChainstateManager& chainman{*Assert(m_node.chainman)};
+    MineSnapshotChainPastDip3();
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.MaybeCompleteSnapshotValidation()),
+                        SnapshotCompletionResult::SUCCESS);
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.GetAll().size()), 1U);
+
+    CheckEvoDbRefusesStopAboveBackground(576);
+
+    m_args.ForceSetArg("-forceevodbrepair", "1");
+    BOOST_CHECK_NO_THROW(FinishImportedStartup(m_node, m_args, /*skip_evodb_repair_on_reindex=*/false));
+    BOOST_CHECK(!m_node.kernel->interrupt);
+    m_node.kernel->interrupt.reset();
+}
 
 //! Test basic snapshot activation.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_activate_snapshot, SnapshotTestSetup)
 {
+    auto [background_chainstate, snapshot_chainstate] = this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+
+    // Evo-derived caches are partitioned by view: state warmed under the
+    // snapshot view at blocks the background chainstate also reaches is never
+    // served to NORMAL lookups, which must derive their own.
+    {
+        LOCK(::cs_main);
+        ScopedDIP3FromGenesis dip3_active;
+        const auto llmq_type{Consensus::LLMQType::LLMQ_TEST};
+        const CBlockIndex* list_block{background_chainstate->m_chain[100]};
+        const CBlockIndex* quorum_base{background_chainstate->m_chain[96]};
+        const llmq::UtilParameters util_params{*m_node.dmnman, *m_node.llmq_ctx->qsnapman, chainman, quorum_base};
+        auto& qblockman{*m_node.llmq_ctx->quorum_block_processor};
+        const uint256 quorum_hash{GetRandHash()};
+        {
+            EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+            m_node.dmnman->SetListForBlockForTesting(
+                CDeterministicMNList{list_block->GetBlockHash(), list_block->nHeight, 1});
+            m_node.dmnman->SetListForBlockForTesting(
+                CDeterministicMNList{quorum_base->GetBlockHash(), quorum_base->nHeight, 0});
+            llmq::utils::GetAllQuorumMembers(llmq_type, util_params);
+            {
+                auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT);
+                const llmq::CFinalCommitment qc{Params().GetLLMQ(llmq_type).value(), quorum_hash};
+                m_node.evodb->Write(std::make_pair(std::string{"q_mc"}, std::make_pair(llmq_type, quorum_hash)),
+                                    std::make_pair(qc, list_block->GetBlockHash()));
+                tx->Commit();
+            }
+            BOOST_REQUIRE(qblockman.HasMinedCommitment(llmq_type, quorum_hash, snapshot_chainstate->m_chain));
+        }
+
+        EvoViewScope normal_view{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+        std::vector<const CBlockIndex*> list_misses;
+        m_node.dmnman->SetListSnapshotMissHookForTesting(
+            [&](const CBlockIndex* pindex) { list_misses.push_back(pindex); });
+        // NORMAL has no MN-list history for these blocks, so deriving its own
+        // lists fails as unavailable rather than reusing the snapshot's.
+        BOOST_CHECK_THROW(m_node.dmnman->GetListForBlock(list_block), BlockDataUnavailableError);
+        BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(llmq_type, util_params), BlockDataUnavailableError);
+        BOOST_CHECK(list_misses == (std::vector<const CBlockIndex*>{list_block, quorum_base}));
+        BOOST_CHECK(!qblockman.HasMinedCommitment(llmq_type, quorum_hash, snapshot_chainstate->m_chain));
+        m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
+    }
+}
+
+//! A snapshot chainstate on a cold EvoDB, which never derived the MN lists
+//! below the snapshot base. While a test holds a ScopedDIP3FromGenesis, DIP3
+//! is active at the base, so a block that needs one of those lists stalls the
+//! chainstate on its own Evo state.
+struct EvoStallTestSetup : SnapshotTestSetup {
+    const std::tuple<Chainstate*, Chainstate*> m_chainstates{SetupSnapshot()};
+    Chainstate& m_background_cs{*std::get<0>(m_chainstates)};
+    Chainstate& m_snapshot_cs{*std::get<1>(m_chainstates)};
+
+    CBlockIndex* SnapshotTip() const { return WITH_LOCK(::cs_main, return m_snapshot_cs.m_chain.Tip()); }
+
+    //! A CbTx block on `parent` at `height`, built from `block_template`.
+    static std::shared_ptr<const CBlock> ChildOf(const CBlock& block_template, const CBlock& parent, int height,
+                                                 CCbTx::Version version = CCbTx::Version::MERKLE_ROOT_QUORUMS)
+    {
+        CBlock child{block_template};
+        child.hashPrevBlock = parent.GetHash();
+        CMutableTransaction coinbase{*child.vtx[0]};
+        coinbase.vin[0].scriptSig = CScript{} << height << CScriptNum{1};
+        child.vtx[0] = MakeTransactionRef(std::move(coinbase));
+        return std::make_shared<const CBlock>(MakeCbTxBlock(child, height, version));
+    }
+};
+
+//! A block that stalls after its masternode list was derived leaves no list
+//! for itself in its view's cache: the list's diff was rolled back with the
+//! block's Evo transaction, and the block never connected.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_stall_after_mn_list_evicts_it, SnapshotTestSetup)
+{
+    auto [background_chainstate, snapshot_chainstate] = this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    // Stay outside every regtest LLMQ mining window, so the block needs no
+    // quorum commitment.
+    while (WITH_LOCK(::cs_main, return (snapshot_chainstate->m_chain.Height() + 1) % 24) < 21) {
+        mineBlocks(1);
+    }
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip())};
+    const CBlock template_block{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), *snapshot_chainstate)};
+
+    // With DIP3 counted from genesis the block derives its list from its
+    // parent's, given here, and then needs the quorum history the snapshot
+    // does not carry.
+    ScopedDIP3FromGenesis dip3_active;
+    {
+        LOCK(::cs_main);
+        const EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        m_node.dmnman->SetListForBlockForTesting(CDeterministicMNList{tip->GetBlockHash(), tip->nHeight, 0});
+    }
+    const auto block{std::make_shared<const CBlock>(MakeCbTxBlock(template_block, tip->nHeight + 1))};
+    {
+        ASSERT_DEBUG_LOG("GetMinedCommitmentsUntilBlock");
+        BOOST_CHECK(!chainman.ProcessNewBlock(block, /*force_processing=*/true, /*new_block=*/nullptr));
+    }
+
+    LOCK(::cs_main);
+    const CBlockIndex* stalled{chainman.m_blockman.LookupBlockIndex(block->GetHash())};
+    BOOST_REQUIRE(stalled);
+    BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), tip);
+    BOOST_CHECK_EQUAL(stalled->nStatus & BLOCK_FAILED_MASK, 0U);
+    const EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+    const auto heights{m_node.dmnman->CachedListHeightsForTesting()};
+    BOOST_CHECK(std::find(heights.begin(), heights.end(), stalled->nHeight) == heights.end());
+    BOOST_CHECK_THROW(m_node.dmnman->GetListForBlock(stalled), BlockDataUnavailableError);
+}
+
+//! V19 activates above the snapshot base, so the background chainstate
+//! connects blocks from before v19 and the snapshot chainstate from after it.
+struct SnapshotAcrossV19Setup : SnapshotTestSetup {
+    SnapshotAcrossV19Setup() : SnapshotTestSetup{{"-testactivationheight=v19@115"}} {}
+};
+
+//! A snapshot rejected while its chainstate connects a block hands the active
+//! role to the background chainstate for good and stops the node.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_rejection_mid_connect_activates_background, SnapshotAcrossV19Setup)
+{
+    auto [background_chainstate, snapshot_chainstate] = this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    const auto evo_chain{
+        [&](EvoDbIdentity identity) { return WITH_LOCK(::cs_main, return chainman.EvoChain(identity)); }};
+    // Each view's Evo indexes describe its own chainstate's chain.
+    BOOST_CHECK(evo_chain(EvoDbIdentity::NORMAL) == &background_chainstate->m_chain);
+    BOOST_CHECK(evo_chain(EvoDbIdentity::SNAPSHOT) == &snapshot_chainstate->m_chain);
+    mineBlocks(6);
+    const CBlockIndex* snapshot_tip{WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip())};
+    const CBlock block{MakeCbTxBlock(
+        CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), *snapshot_chainstate), snapshot_tip->nHeight + 1)};
+
+    // The block's MN-list lookup finds the snapshot state inconsistent.
+    std::optional<ScopedDIP3FromGenesis> dip3_active{std::in_place};
+    m_node.dmnman->SetListSnapshotMissHookForTesting([&](const CBlockIndex*) {
+        if (!dip3_active) return;
+        dip3_active.reset();
+        throw evo::SnapshotStateMismatchError("test mismatch");
+    });
+    BOOST_REQUIRE_EQUAL(m_node.exit_status.load(), EXIT_SUCCESS);
+    chainman.ProcessNewBlock(std::make_shared<const CBlock>(block), /*force_processing=*/true, /*new_block=*/nullptr);
+    m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
+    BOOST_REQUIRE(!dip3_active);
+
+    BOOST_CHECK_EQUAL(m_node.exit_status.load(), EXIT_FAILURE);
+    BOOST_CHECK_EQUAL(&chainman.ActiveChainstate(), background_chainstate);
+    // No chainstate reads the rejected snapshot's view any more.
+    BOOST_CHECK(evo_chain(EvoDbIdentity::NORMAL) == &background_chainstate->m_chain);
+    BOOST_CHECK(!evo_chain(EvoDbIdentity::SNAPSHOT));
+    m_node.kernel->interrupt.reset();
+    SetMiscWarning(Untranslated(""));
+}
+
+//! A snapshot rejected in the step that first disconnected one of its blocks
+//! drops that block's queued transactions with the mempool it handed back.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_rejection_after_disconnect, EvoStallTestSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    // The tip is above the base, and the blocks of the branch replacing it
+    // are outside every regtest LLMQ mining window.
+    do {
+        mineBlocks(1);
+    } while (WITH_LOCK(::cs_main, return (m_snapshot_cs.m_chain.Height() + 1) % 24) < 22);
+    const CBlockIndex* snapshot_tip{SnapshotTip()};
+    const CBlock block_template{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), m_snapshot_cs)};
+    CBlock parent;
+    BOOST_REQUIRE(chainman.m_blockman.ReadBlockFromDisk(parent, *snapshot_tip->pprev));
+    // A branch from below the tip with more work: reorganizing onto it
+    // disconnects the tip before it connects the branch.
+    const auto sibling{ChildOf(block_template, parent, snapshot_tip->nHeight)};
+    const auto branch_tip{ChildOf(block_template, *sibling, snapshot_tip->nHeight + 1)};
+
+    // Connecting the sibling, the MN-list lookup finds the snapshot state
+    // inconsistent.
+    std::optional<ScopedDIP3FromGenesis> dip3_active{std::in_place};
+    m_node.dmnman->SetListSnapshotMissHookForTesting([&](const CBlockIndex*) {
+        if (!dip3_active || m_snapshot_cs.m_chain.Tip() == snapshot_tip) return;
+        dip3_active.reset();
+        throw evo::SnapshotStateMismatchError("test mismatch");
+    });
+    chainman.ProcessNewBlock(sibling, /*force_processing=*/true, /*new_block=*/nullptr);
+    BOOST_REQUIRE(dip3_active);
+    chainman.ProcessNewBlock(branch_tip, /*force_processing=*/true, /*new_block=*/nullptr);
+    m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
+    BOOST_REQUIRE(!dip3_active);
+
+    BOOST_CHECK_EQUAL(m_node.exit_status.load(), EXIT_FAILURE);
+    BOOST_CHECK_EQUAL(&chainman.ActiveChainstate(), &m_background_cs);
+    m_node.kernel->interrupt.reset();
+}
+
+//! A historical block body this node does not have is local state, not
+//! invalidity: a snapshot chainstate that has to rebuild the credit pool or the
+//! EHF signals from it stalls, and the block it was connecting stays valid.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, EvoStallTestSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    Chainstate* background_chainstate{&m_background_cs};
+    Chainstate* snapshot_chainstate{&m_snapshot_cs};
+    CBlockIndex* tip{SnapshotTip()};
+    const CBlock template_block{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), *snapshot_chainstate)};
+    // Prune the tip's body.
+    const uint32_t tip_status{WITH_LOCK(::cs_main, return tip->nStatus)};
+    {
+        LOCK(::cs_main);
+        chainman.m_blockman.m_have_pruned = true;
+        tip->nStatus &= ~(BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO);
+    }
+
+    // With V20 active, the next block needs the credit pool at the tip, which
+    // the snapshot view has to rebuild from the bodies.
+    ScopedDIP3FromGenesis dip3_active;
+    Consensus::Params& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct V20HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~V20HeightRestore() { params.V20Height = height; }
+    } v20_restore{consensus, std::exchange(consensus.V20Height, 1)};
+    const auto block{std::make_shared<const CBlock>(
+        MakeCbTxBlock(template_block, tip->nHeight + 1, CCbTx::Version::CLSIG_AND_BALANCE))};
+    // Submitting it announces the stall as a local error, which submitblock
+    // reports instead of an inconclusive result, and blames no peer.
+    const auto checked{std::make_shared<BlockCheckedCatcher>(block->GetHash())};
+    RegisterSharedValidationInterface(checked);
+    DataStream block_stream{};
+    block_stream << *block;
+    UniValue submit_params{UniValue::VARR};
+    submit_params.push_back(HexStr(block_stream));
+    m_node.mining = interfaces::MakeMining(m_node);
+    BOOST_CHECK_EXCEPTION(CallRPC("submitblock", submit_params), UniValue, [](const UniValue& error) {
+        return error["code"].getValStr() == ToString(RPC_VERIFY_ERROR) &&
+               error["message"].get_str() == "evo-local-unavailable";
+    });
+    UnregisterSharedValidationInterface(checked);
+    BOOST_REQUIRE(checked->state);
+    BOOST_CHECK(IsLocalEvoStateError(*checked->state));
+    BlockValidationState state;
+    BOOST_CHECK(!snapshot_chainstate->ActivateBestChain(state, block));
+    BOOST_CHECK(IsLocalEvoStateError(state));
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* index{chainman.m_blockman.LookupBlockIndex(block->GetHash())};
+        BOOST_REQUIRE(index);
+        BOOST_CHECK_EQUAL(index->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), tip);
+    }
+    BOOST_CHECK(!m_node.kernel->interrupt);
+
+    // A tip body this node has but cannot read is not the block's fault
+    // either: checking the block stops the node, as a block ConnectTip cannot
+    // read does.
+    {
+        LOCK(::cs_main);
+        const uint32_t pruned_status{tip->nStatus};
+        const int tip_file{tip->nFile};
+        tip->nStatus = tip_status;
+        tip->nFile = 999999;
+        BlockValidationState read_state;
+        BOOST_CHECK(!TestBlockValidity(read_state, *m_node.chainlocks, *m_node.evodb, Params(), *snapshot_chainstate,
+                                       *block, tip, /*fCheckPOW=*/true, /*fCheckMerkleRoot=*/true));
+        BOOST_CHECK(read_state.IsError());
+        BOOST_CHECK(!IsLocalEvoStateError(read_state));
+        BOOST_CHECK_EQUAL(tip->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK(m_node.kernel->interrupt);
+        m_node.kernel->interrupt.reset();
+        tip->nFile = tip_file;
+        tip->nStatus = pruned_status;
+    }
+    // Processing a sibling that needs it stops the node the same way, and
+    // leaves the sibling valid.
+    {
+        CBlock sibling_template{template_block};
+        ++sibling_template.nTime;
+        const auto sibling{std::make_shared<const CBlock>(
+            MakeCbTxBlock(sibling_template, tip->nHeight + 1, CCbTx::Version::CLSIG_AND_BALANCE))};
+        const auto [pruned_status, tip_file]{WITH_LOCK(::cs_main, return std::make_pair(tip->nStatus, tip->nFile))};
+        WITH_LOCK(::cs_main, tip->nStatus = tip_status; tip->nFile = 999999);
+        BOOST_CHECK(!chainman.ProcessNewBlock(sibling, /*force_processing=*/true, /*new_block=*/nullptr));
+        LOCK(::cs_main);
+        const CBlockIndex* sibling_index{chainman.m_blockman.LookupBlockIndex(sibling->GetHash())};
+        BOOST_REQUIRE(sibling_index);
+        BOOST_CHECK_EQUAL(sibling_index->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), tip);
+        BOOST_CHECK(m_node.kernel->interrupt);
+        m_node.kernel->interrupt.reset();
+        tip->nFile = tip_file;
+        tip->nStatus = pruned_status;
+    }
+
+    // An asset unlock checked against the credit pool at the tip, rebuilt from
+    // its pruned body, is not rejected either: its acceptance ends in an error.
+    {
+        CMutableTransaction unlock_tx;
+        unlock_tx.nVersion = CTransaction::SPECIAL_VERSION;
+        unlock_tx.nType = TRANSACTION_ASSET_UNLOCK;
+        unlock_tx.vout.emplace_back(COIN, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        SetTxPayload(unlock_tx, CAssetUnlockPayload{CAssetUnlockPayload::INITIAL_VERSION, /*index=*/1, /*fee=*/1000,
+                                                    static_cast<uint32_t>(tip->nHeight), uint256::ONE, CBLSSignature{}});
+        const MempoolAcceptResult result{
+            WITH_LOCK(::cs_main, return chainman.ProcessTransaction(MakeTransactionRef(std::move(unlock_tx))))};
+        BOOST_CHECK(result.m_result_type == MempoolAcceptResult::ResultType::INVALID);
+        BOOST_CHECK(result.m_state.IsError());
+    }
+
+    // The block above the snapshot base checks its coinbase ChainLock against
+    // the base's, whose body a snapshot node does not have: it cannot tell a
+    // missing ChainLock from an unreadable one.
+    {
+        LOCK(::cs_main);
+        const int snapshot_base_height{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT).base_height};
+        CBlockIndex* snapshot_base{snapshot_chainstate->m_chain[snapshot_base_height]};
+        const uint32_t snapshot_base_status{snapshot_base->nStatus};
+        // The background chainstate accepting the base's coinbase ChainLock
+        // remembers it for its own view only.
+        {
+            EvoViewScope normal_view{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+            CBLSSecretKey key;
+            key.MakeNewKey();
+            const CBLSSignature sig{key.Sign(uint256::ONE)};
+            BOOST_REQUIRE(m_node.chainlocks->UpdateBestChainlock(
+                GetRandHash(), chainlock::ChainLockSig{snapshot_base_height - 1, uint256::ONE, sig}, nullptr));
+            CCbTx base_cbtx;
+            base_cbtx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
+            base_cbtx.nHeight = snapshot_base_height;
+            base_cbtx.bestCLSignature.Set(sig);
+            BlockValidationState base_state;
+            BOOST_CHECK(CheckCbTxBestChainlock(base_cbtx, snapshot_base, consensus, background_chainstate->m_chain,
+                                               *m_node.llmq_ctx->qman, *m_node.chainlocks, *m_node.special_tx, base_state));
+            m_node.chainlocks->ResetChainlock();
+        }
+        snapshot_base->nStatus &= ~(BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO);
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        CCbTx cbtx;
+        cbtx.nVersion = CCbTx::Version::CLSIG_AND_BALANCE;
+        cbtx.nHeight = snapshot_base_height + 1;
+        BlockValidationState cl_state;
+        BOOST_CHECK_THROW(CheckCbTxBestChainlock(cbtx, snapshot_chainstate->m_chain[snapshot_base_height + 1],
+                                                 consensus, snapshot_chainstate->m_chain, *m_node.llmq_ctx->qman,
+                                                 *m_node.chainlocks, *m_node.special_tx, cl_state),
+                          BlockDataUnavailableError);
+        // The quorum modifier of a work block at or below the base reads the
+        // same coinbase through the same lookup.
+        BOOST_CHECK_THROW(GetNonNullCoinbaseChainlock(m_node.chainman->m_blockman, snapshot_base), BlockDataUnavailableError);
+        snapshot_base->nStatus = snapshot_base_status;
+        // With the body there, the coinbase is read.
+        BOOST_CHECK_NO_THROW(GetNonNullCoinbaseChainlock(m_node.chainman->m_blockman, snapshot_base));
+    }
+
+    // A provider transaction whose own check cannot read the tip's masternode
+    // list, while the deployment state is readable, is refused with the same
+    // local error, alone or in a package.
+    {
+        const auto& funding{m_coinbase_txns[1]};
+        CProUpServTx payload;
+        payload.nVersion = ProTxVersionForNextBlock(chainman);
+        payload.netInfo = NetInfoInterface::MakeNetInfo(payload.nVersion);
+        payload.proTxHash = uint256::ONE;
+        BOOST_REQUIRE_EQUAL(payload.netInfo->AddEntry(NetInfoPurpose::CORE_P2P, "1.1.1.1:42"), NetInfoStatus::Success);
+        CMutableTransaction parent;
+        parent.nVersion = CTransaction::SPECIAL_VERSION;
+        parent.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
+        parent.vin.emplace_back(funding->GetHash(), 0);
+        parent.vout.emplace_back(10 * COIN, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        payload.inputsHash = CalcTxInputsHash(CTransaction{parent});
+        SetTxPayload(parent, payload);
+        SignTransaction(parent, {{parent.vin[0].prevout, Coin{funding->vout[0], /*nHeightIn=*/2, /*fCoinBaseIn=*/true}}},
+                        coinbaseKey);
+        const CMutableTransaction child{CreateValidMempoolTransaction(
+            MakeTransactionRef(parent), 0, tip->nHeight + 1, coinbaseKey,
+            GetScriptForRawPubKey(coinbaseKey.GetPubKey()), CAmount(9 * COIN), /*submit=*/false)};
+
+        UniValue single{UniValue::VARR};
+        single.push_back(EncodeHexTx(CTransaction{parent}));
+        UniValue single_params{UniValue::VARR};
+        single_params.push_back(single);
+        const UniValue tested_single{CallRPC("testmempoolaccept", single_params)};
+        BOOST_REQUIRE_EQUAL(tested_single.size(), 1U);
+        BOOST_CHECK(!tested_single[0]["allowed"].get_bool());
+        const std::string reason{tested_single[0]["reject-reason"].get_str()};
+        BOOST_CHECK_MESSAGE(reason.starts_with("evo-local-unavailable: ") &&
+                                reason.find("masternode list") != std::string::npos,
+                            reason);
+
+        UniValue rawtxs{UniValue::VARR};
+        rawtxs.push_back(EncodeHexTx(CTransaction{parent}));
+        rawtxs.push_back(EncodeHexTx(CTransaction{child}));
+        UniValue package_params{UniValue::VARR};
+        package_params.push_back(rawtxs);
+        const UniValue tested{CallRPC("testmempoolaccept", package_params)};
+        BOOST_REQUIRE_EQUAL(tested.size(), 2U);
+        for (const UniValue& tx_result : tested.getValues()) {
+            BOOST_CHECK_EQUAL(tx_result["package-error"].getValStr(), "evo-local-unavailable");
+            BOOST_CHECK(tx_result["allowed"].isNull());
+        }
+        BOOST_CHECK_EXCEPTION(CallRPC("submitpackage", package_params), UniValue, [](const UniValue& error) {
+            return error["code"].getInt<int>() == RPC_TRANSACTION_ERROR &&
+                   error["message"].get_str() == "evo-local-unavailable";
+        });
+        BOOST_CHECK_EQUAL(WITH_LOCK(m_node.mempool->cs, return m_node.mempool->size()), 0U);
+    }
+
+    // Mempool acceptance that needs the EHF signals at the tip, which the
+    // snapshot view lacks, ends in an error instead of throwing, and drops the
+    // coins it loaded like any failure.
+    {
+        const auto& funding{m_coinbase_txns[50]};
+        const CMutableTransaction spend{CreateValidMempoolTransaction(funding, 0, 51, coinbaseKey,
+                                                                      GetScriptForRawPubKey(coinbaseKey.GetPubKey()),
+                                                                      CAmount(1 * COIN), /*submit=*/false)};
+        const COutPoint input{funding->GetHash(), 0};
+        // Drop every cached deployment state and EHF signal, as a restart would.
+        {
+            const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}};
+        }
+        LOCK(::cs_main);
+        chainman.m_versionbitscache.Clear();
+        snapshot_chainstate->CoinsTip().Uncache(input);
+        BOOST_REQUIRE(!snapshot_chainstate->CoinsTip().HaveCoinInCache(input));
+        std::optional<MempoolAcceptResult> result;
+        BOOST_CHECK_NO_THROW(result.emplace(AcceptToMemoryPool(*snapshot_chainstate, MakeTransactionRef(spend), GetTime(),
+                                                               /*bypass_limits=*/false, /*test_accept=*/false)));
+        BOOST_REQUIRE(result);
+        BOOST_CHECK(result->m_result_type == MempoolAcceptResult::ResultType::INVALID);
+        BOOST_CHECK(result->m_state.IsError());
+        BOOST_CHECK(!snapshot_chainstate->CoinsTip().HaveCoinInCache(input));
+    }
+
+    // A package this node cannot judge either is refused with a mempool error,
+    // which testmempoolaccept and submitpackage both report.
+    {
+        const CMutableTransaction parent{CreateValidMempoolTransaction(
+            m_coinbase_txns[52], 0, 53, coinbaseKey, GetScriptForRawPubKey(coinbaseKey.GetPubKey()),
+            CAmount(10 * COIN), /*submit=*/false)};
+        const CMutableTransaction child{CreateValidMempoolTransaction(
+            MakeTransactionRef(parent), 0, tip->nHeight + 1, coinbaseKey,
+            GetScriptForRawPubKey(coinbaseKey.GetPubKey()), CAmount(9 * COIN), /*submit=*/false)};
+        const auto drop_cached_signals{[&] {
+            { const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}}; }
+            WITH_LOCK(::cs_main, chainman.m_versionbitscache.Clear());
+        }};
+        UniValue rawtxs{UniValue::VARR};
+        rawtxs.push_back(EncodeHexTx(CTransaction{parent}));
+        rawtxs.push_back(EncodeHexTx(CTransaction{child}));
+        UniValue package_params{UniValue::VARR};
+        package_params.push_back(rawtxs);
+
+        drop_cached_signals();
+        const UniValue tested{CallRPC("testmempoolaccept", package_params)};
+        BOOST_REQUIRE_EQUAL(tested.size(), 2U);
+        for (const UniValue& tx_result : tested.getValues()) {
+            BOOST_CHECK_EQUAL(tx_result["package-error"].get_str(), "evo-local-unavailable");
+            BOOST_CHECK(tx_result["allowed"].isNull());
+        }
+
+        drop_cached_signals();
+        BOOST_CHECK_EXCEPTION(CallRPC("submitpackage", package_params), UniValue, [](const UniValue& error) {
+            return error["code"].getInt<int>() == RPC_TRANSACTION_ERROR &&
+                   error["message"].get_str() == "evo-local-unavailable";
+        });
+        BOOST_CHECK_EQUAL(WITH_LOCK(m_node.mempool->cs, return m_node.mempool->size()), 0U);
+    }
+
+    // Startup's EHF signal update at the active snapshot tip cannot rebuild them
+    // from its pruned body either: it leaves them unavailable, so loading can
+    // go on, and leaves the snapshot view clean for the next flush.
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK(m_node.special_tx->m_mnhfman->ForceSignalDBUpdate(snapshot_chainstate->EvoView(), tip));
+        BOOST_CHECK(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK(!m_node.evodb->Exists(std::make_pair(std::string{"mnhf_s2"}, tip->GetBlockHash())));
+    }
+    // NORMAL lacks block data only when it was pruned: startup fails, as it
+    // did before snapshots.
+    {
+        LOCK(::cs_main);
+        CBlockIndex* base{background_chainstate->m_chain.Tip()};
+        const uint32_t base_status{base->nStatus};
+        base->nStatus &= ~(BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO);
+        {
+            ASSERT_DEBUG_LOG("cannot rebuild the EHF signals at block " + base->GetBlockHash().ToString());
+            BOOST_CHECK(!m_node.special_tx->m_mnhfman->ForceSignalDBUpdate(background_chainstate->EvoView(), base));
+        }
+        base->nStatus = base_status;
+    }
+
+    // Checking a child's EHF signals never rebuilds those of the block it
+    // extends, which was never connected: the snapshot view lacks them.
+    const auto child{ChildOf(template_block, *block, tip->nHeight + 2, CCbTx::Version::CLSIG_AND_BALANCE)};
+    chainman.ProcessNewBlock(child, /*force_processing=*/true, /*new_block=*/nullptr);
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* child_index{chainman.m_blockman.LookupBlockIndex(child->GetHash())};
+        BOOST_REQUIRE(child_index);
+        const EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BlockValidationState mnhf_state;
+        BOOST_CHECK_THROW(m_node.special_tx->m_mnhfman->ProcessBlock(*child, child_index, /*fJustCheck=*/true, mnhf_state),
+                          BlockDataUnavailableError);
+    }
+    {
+        LOCK(::cs_main);
+        tip->nStatus = tip_status;
+        chainman.m_blockman.m_have_pruned = false;
+    }
+
+    // A lookup never rebuilds the EHF signals, even with the bodies back and
+    // inside a block-scoped transaction: those at the tip, never stored while
+    // V20 was inactive, stay unavailable to the snapshot view, and nothing is
+    // written.
+    const auto signals_key{std::make_pair(std::string{"mnhf_s2"}, tip->GetBlockHash())};
+    {
+        // Opening an EvoDB drops every cached signal, as a restart would.
+        const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}};
+    }
+    {
+        LOCK(::cs_main);
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        {
+            auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+            BOOST_CHECK_THROW(m_node.special_tx->m_mnhfman->GetSignalsStage(tip), BlockDataUnavailableError);
+            tx->Commit();
+        }
+        BOOST_CHECK(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+        BOOST_CHECK(!m_node.evodb->Exists(signals_key));
+    }
+}
+
+//! A peer's turn in the message handler is bound to the active Evo view and
+//! contains this node's local Evo errors, starting with the GETDATA requests
+//! that backpressure left queued, which resume before any message is read.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_peer_turn_is_bound, SnapshotTestSetup)
+{
     this->SetupSnapshot();
+    // Dash message handlers run on every message the peer manager does not
+    // handle itself; recovered signatures are handled as the node does.
+    BOOST_REQUIRE(m_node.mn_metaman->LoadCache(/*load_cache=*/false));
+    m_node.peerman->AddExtraHandler(std::make_unique<llmq::NetSigning>(m_node.peerman.get(), *m_node.llmq_ctx->sigman,
+                                                                       /*shares_manager=*/nullptr, *m_node.sporkman));
+    auto& connman{static_cast<ConnmanTestMsg&>(*m_node.connman)};
+    PeerManager& peerman{*Assert(m_node.peerman)};
+    const CEvoDB& evodb{*m_node.evodb};
+    LOCK(NetEventsInterface::g_msgproc_mutex);
+    in_addr peer_in_addr{};
+    peer_in_addr.s_addr = htonl(0x01020304);
+    CNode peer{/*id=*/0,
+               /*sock=*/nullptr,
+               CAddress{CService{peer_in_addr, Params().GetDefaultPort()}, NODE_NETWORK},
+               /*nKeyedNetGroupIn=*/0,
+               /*nLocalHostNonceIn=*/0,
+               CAddress{},
+               /*addrNameIn=*/"",
+               ConnectionType::OUTBOUND_FULL_RELAY,
+               /*inbound_onion=*/false};
+    {
+        // The helper reads messages outside the message handler.
+        const ActiveEvoViewScope evo_view{&evodb};
+        connman.Handshake(peer, /*successfully_connected=*/true, ServiceFlags(NODE_NETWORK), ServiceFlags(NODE_NETWORK),
+                          PROTOCOL_VERSION, /*relay_txs=*/true);
+    }
+    const auto sent{[&](const std::string& msg_type) {
+        LOCK(peer.cs_vSend);
+        return std::ranges::count_if(peer.vSendMsg, [&](const auto& msg) { return msg.m_type == msg_type; });
+    }};
+    const auto not_found{[&] {
+        LOCK(peer.cs_vSend);
+        std::vector<CInv> invs;
+        for (const auto& msg : peer.vSendMsg) {
+            if (msg.m_type != NetMsgType::NOTFOUND) continue;
+            DataStream stream{msg.data};
+            std::vector<CInv> msg_invs;
+            stream >> msg_invs;
+            invs.insert(invs.end(), msg_invs.begin(), msg_invs.end());
+        }
+        return invs;
+    }};
+
+    // A recovered signature this node holds, requested while the send buffer
+    // is full.
+    const auto llmq_type{Consensus::LLMQType::LLMQ_TEST};
+    const uint256 quorum_hash{GetRandHash()};
+    const uint256 id{GetRandHash()};
+    const uint256 msg_hash{GetRandHash()};
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    const auto rec_sig{
+        std::make_shared<const llmq::CRecoveredSig>(llmq_type, quorum_hash, id, msg_hash,
+                                                    key.Sign(llmq::SignHash{llmq_type, quorum_hash, id, msg_hash}.Get()))};
+    BOOST_REQUIRE(m_node.llmq_ctx->sigman->ProcessRecoveredSig(rec_sig));
+    const CInv rec_sig_inv{MSG_QUORUM_RECOVERED_SIG, rec_sig->GetHash()};
+    const auto request_while_paused{
+        [&](const std::vector<CInv>& invs) EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+            DataStream getdata{};
+            getdata << invs;
+            std::atomic<bool> interrupt{false};
+            peer.fPauseSend = true;
+            peerman.ProcessMessage(peer, NetMsgType::GETDATA, getdata, GetTime<std::chrono::microseconds>(), interrupt);
+            peer.fPauseSend = false;
+        }};
+
+    // Resumed, the request is answered from the active view: its quorum is
+    // not active there.
+    request_while_paused({rec_sig_inv});
+    BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, peer, /*send=*/true));
+    BOOST_CHECK(not_found() == std::vector<CInv>{rec_sig_inv});
+
+    // When the active view cannot answer, the turn ends with the request
+    // reported missing, like a missing transaction requested ahead of it;
+    // neither is served again. The requests after it, and then the peer's next
+    // message, are served on its next turn.
+    {
+        ScopedDIP3FromGenesis dip3_active;
+        const CInv missing_tx{MSG_TX, GetRandHash()};
+        const CInv later_tx{MSG_TX, GetRandHash()};
+        request_while_paused({missing_tx, rec_sig_inv, later_tx});
+        BOOST_CHECK(connman.ReceiveMsgFrom(peer, NetMsg::Make(NetMsgType::PING, uint64_t{1})));
+        BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, peer, /*send=*/true));
+        BOOST_CHECK(not_found() == (std::vector<CInv>{rec_sig_inv, missing_tx, rec_sig_inv}));
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 0);
+        // Each turn's replies leave the send buffer before the next one.
+        for (const std::vector<CInv>& expected : {std::vector<CInv>{later_tx}, std::vector<CInv>{}}) {
+            connman.FlushSendBuffer(peer);
+            peer.fPauseSend = false;
+            BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, peer, /*send=*/true));
+            BOOST_CHECK(not_found() == expected);
+        }
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 1);
+
+        // A message whose handler cannot read this node's Evo state is dropped
+        // like any other message that fails: the peer is not punished, and its
+        // next message is processed on its next turn.
+        const auto next_turn{[&]() EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+            connman.FlushSendBuffer(peer);
+            peer.fPauseSend = false;
+            bool more_work{false};
+            BOOST_CHECK_NO_THROW(more_work = connman.ServicePeer(evodb, peer, /*send=*/true));
+            return more_work;
+        }};
+        BOOST_CHECK(connman.ReceiveMsgFrom(peer, NetMsg::Make(NetMsgType::QSIGREC, *rec_sig)));
+        BOOST_CHECK(connman.ReceiveMsgFrom(peer, NetMsg::Make(NetMsgType::PING, uint64_t{2})));
+        {
+            ASSERT_DEBUG_LOG("ProcessMessages(qsigrec, 193 bytes): Exception 'GetMinedCommitmentsUntilBlock");
+            // The queued PING is still reported as work for this peer.
+            BOOST_CHECK(next_turn());
+        }
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 0);
+        next_turn();
+        BOOST_CHECK_EQUAL(sent(NetMsgType::PONG), 1);
+        BOOST_CHECK(!m_node.banman->IsDiscouraged(peer.addr));
+
+        // A turn whose queued requests end early still sends: a peer due to be
+        // discouraged cannot keep its connection by queueing such requests.
+        peerman.UnitTestMisbehaving(peer.GetId(), DISCOURAGEMENT_THRESHOLD);
+        request_while_paused({rec_sig_inv});
+        next_turn();
+        BOOST_CHECK(m_node.banman->IsDiscouraged(peer.addr));
+    }
+    peerman.FinalizeNode(peer);
+
+    // A relayed transaction this node cannot judge is not remembered as
+    // rejected: announced again it is requested again, and a child spending it
+    // stays an orphan that fetches it.
+    {
+        Consensus::Params& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+        struct V20HeightRestore {
+            Consensus::Params& params;
+            const int height;
+            ~V20HeightRestore() { params.V20Height = height; }
+        } v20_restore{consensus, std::exchange(consensus.V20Height, 1)};
+        auto& chainman{static_cast<TestChainstateManager&>(*m_node.chainman)};
+        const bool was_in_ibd{chainman.IsInitialBlockDownload()};
+        if (was_in_ibd) chainman.JumpOutOfIbd();
+        in_addr relay_in_addr{};
+        relay_in_addr.s_addr = htonl(0x01020305);
+        CNode relay_peer{/*id=*/1,
+                         /*sock=*/nullptr,
+                         CAddress{CService{relay_in_addr, Params().GetDefaultPort()}, NODE_NETWORK},
+                         /*nKeyedNetGroupIn=*/1,
+                         /*nLocalHostNonceIn=*/0,
+                         CAddress{},
+                         /*addrNameIn=*/"",
+                         ConnectionType::OUTBOUND_FULL_RELAY,
+                         /*inbound_onion=*/false};
+        {
+            const ActiveEvoViewScope evo_view{&evodb};
+            connman.Handshake(relay_peer, /*successfully_connected=*/true, ServiceFlags(NODE_NETWORK),
+                              ServiceFlags(NODE_NETWORK), PROTOCOL_VERSION, /*relay_txs=*/true);
+        }
+        const auto turn{[&](std::optional<CSerializedNetMsg> msg = std::nullopt)
+                            EXCLUSIVE_LOCKS_REQUIRED(NetEventsInterface::g_msgproc_mutex) {
+            connman.FlushSendBuffer(relay_peer);
+            relay_peer.fPauseSend = false;
+            if (msg) BOOST_CHECK(connman.ReceiveMsgFrom(relay_peer, std::move(*msg)));
+            BOOST_CHECK_NO_THROW(connman.ServicePeer(evodb, relay_peer, /*send=*/true));
+        }};
+        const auto announce{[&](const CMutableTransaction& tx) {
+            return NetMsg::Make(NetMsgType::INV, std::vector<CInv>{CInv{MSG_TX, tx.GetHash()}});
+        }};
+        const auto requested{[&] {
+            LOCK(relay_peer.cs_vSend);
+            std::vector<CInv> invs;
+            for (const auto& msg : relay_peer.vSendMsg) {
+                if (msg.m_type != NetMsgType::GETDATA) continue;
+                DataStream stream{msg.data};
+                std::vector<CInv> msg_invs;
+                stream >> msg_invs;
+                invs.insert(invs.end(), msg_invs.begin(), msg_invs.end());
+            }
+            return invs;
+        }};
+        const auto in_mempool{[&](const CMutableTransaction& tx) { return m_node.mempool->exists(tx.GetHash()); }};
+        const auto spend_pair{[&](size_t coinbase_index) {
+            const CMutableTransaction parent{CreateValidMempoolTransaction(
+                m_coinbase_txns[coinbase_index], 0, coinbase_index + 1, coinbaseKey,
+                GetScriptForRawPubKey(coinbaseKey.GetPubKey()), CAmount(10 * COIN), /*submit=*/false)};
+            const CMutableTransaction child{CreateValidMempoolTransaction(
+                MakeTransactionRef(parent), 0, WITH_LOCK(::cs_main, return chainman.ActiveHeight()) + 1, coinbaseKey,
+                GetScriptForRawPubKey(coinbaseKey.GetPubKey()), CAmount(9 * COIN), /*submit=*/false)};
+            return std::make_pair(parent, child);
+        }};
+
+        // An orphan reconsidered once this node lost the EHF signals it needs.
+        const auto [judged_parent, unjudged_orphan]{spend_pair(54)};
+        turn(NetMsg::Make(NetMsgType::TX, unjudged_orphan));
+        turn(NetMsg::Make(NetMsgType::TX, judged_parent));
+        BOOST_REQUIRE(in_mempool(judged_parent));
+        {
+            // Opening an EvoDB drops every cached signal, as a restart would.
+            const CEvoDB unrelated{util::DbWrapperParams{.path = {}, .memory = true, .wipe = true}};
+        }
+        WITH_LOCK(::cs_main, chainman.m_versionbitscache.Clear());
+        {
+            ASSERT_DEBUG_LOG("evo-local-unavailable");
+            turn();
+        }
+        BOOST_CHECK(!in_mempool(unjudged_orphan));
+        turn(announce(unjudged_orphan));
+        BOOST_CHECK(requested() == std::vector<CInv>{CInv(MSG_TX, unjudged_orphan.GetHash())});
+
+        // A transaction it cannot judge on arrival, and a child spending it.
+        const auto [unjudged_parent, child]{spend_pair(56)};
+        {
+            ASSERT_DEBUG_LOG("evo-local-unavailable");
+            turn(NetMsg::Make(NetMsgType::TX, unjudged_parent));
+        }
+        BOOST_CHECK(!in_mempool(unjudged_parent));
+        turn(announce(unjudged_parent));
+        BOOST_CHECK(requested() == std::vector<CInv>{CInv(MSG_TX, unjudged_parent.GetHash())});
+        turn(NetMsg::Make(NetMsgType::TX, unjudged_parent));
+        BOOST_CHECK(!in_mempool(unjudged_parent));
+        turn(NetMsg::Make(NetMsgType::TX, child));
+        BOOST_CHECK(requested() == std::vector<CInv>{CInv(MSG_DSTX, unjudged_parent.GetHash())});
+
+        BOOST_CHECK(!m_node.banman->IsDiscouraged(relay_peer.addr));
+        peerman.FinalizeNode(relay_peer);
+        if (was_in_ibd) chainman.ResetIbd();
+    }
+}
+
+//! A recovered signature whose quorum this node cannot check is dropped on its
+//! own: the signatures dequeued with it are still verified, and it can be
+//! fetched again.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_recovered_sig_batch_survives_an_unchecked_quorum, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    // Quorums are based at the first three DKG cycles above the snapshot base
+    // and mined in their cycles' windows. The scan runs from the start of the
+    // next cycle's window, which reaches all of them.
+    const int dkg_interval{llmq::testutils::GetLLMQParams(Consensus::LLMQType::LLMQ_TEST).dkgInterval};
+    const int first_cycle{(WITH_LOCK(::cs_main, return m_node.chainman->ActiveHeight()) / dkg_interval + 1) * dkg_interval};
+    const int scan_height{first_cycle + 3 * dkg_interval +
+                          llmq::testutils::GetLLMQParams(Consensus::LLMQType::LLMQ_TEST).dkgMiningWindowStart};
+    mineBlocks(scan_height - WITH_LOCK(::cs_main, return m_node.chainman->ActiveHeight()));
+    llmq::CSigningManager& sigman{*m_node.llmq_ctx->sigman};
+    llmq::NetSigning net_signing{m_node.peerman.get(), sigman, /*shares_manager=*/nullptr, *m_node.sporkman};
+    const auto add_quorum{[&](Consensus::LLMQType type, int cycle, const CBLSSecretKey& key) {
+        const auto& params{llmq::testutils::GetLLMQParams(type)};
+        const int height{first_cycle + cycle * dkg_interval};
+        BOOST_REQUIRE(!params.useRotation && height % params.dkgInterval == 0);
+        const int mined_height{height + params.dkgMiningWindowStart};
+        LOCK(::cs_main);
+        const CChain& chain{m_node.chainman->ActiveChain()};
+        auto qc{llmq::testutils::CreateValidCommitment(params, chain[height]->GetBlockHash())};
+        qc.quorumPublicKey = key.GetPublicKey();
+        llmq::testutils::WriteMinedCommitment(*m_node.evodb, qc, chain[mined_height]->GetBlockHash(), mined_height,
+                                              height);
+        return qc.quorumHash;
+    }};
+    const auto make_sig{[](Consensus::LLMQType type, const uint256& quorum_hash, const CBLSSecretKey& key) {
+        const uint256 id{GetRandHash()};
+        const uint256 msg_hash{GetRandHash()};
+        return std::make_shared<llmq::CRecoveredSig>(type, quorum_hash, id, msg_hash,
+                                                     key.Sign(llmq::SignHash{type, quorum_hash, id, msg_hash}.Get()));
+    }};
+    const auto stored{[&](const llmq::CRecoveredSig& sig) {
+        return sigman.HasRecoveredSig(sig.getLlmqType(), sig.getId(), sig.getMsgHash());
+    }};
+
+    // LLMQ_TEST has all the active quorums a scan asks for above the base;
+    // LLMQ_TEST_PLATFORM has fewer, so its scan reaches below the base.
+    CBLSSecretKey key;
+    key.MakeNewKey();
+    uint256 checked_quorum;
+    for (int cycle = 0; cycle < 3; ++cycle) {
+        checked_quorum = add_quorum(Consensus::LLMQType::LLMQ_TEST, cycle, key);
+    }
+    const auto checked{make_sig(Consensus::LLMQType::LLMQ_TEST, checked_quorum, key)};
+    const auto unchecked{make_sig(Consensus::LLMQType::LLMQ_TEST_PLATFORM,
+                                  add_quorum(Consensus::LLMQType::LLMQ_TEST_PLATFORM, /*cycle=*/2, key), key)};
+    {
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        for (const auto& sig : {checked, unchecked}) {
+            BOOST_REQUIRE(llmq::IsQuorumActive(sig->getLlmqType(), *m_node.llmq_ctx->qman, sig->getQuorumHash()));
+        }
+        sigman.VerifyAndProcessRecoveredSig(/*from=*/1, checked);
+        sigman.VerifyAndProcessRecoveredSig(/*from=*/2, unchecked);
+    }
+
+    // Past admission, the snapshot view stops holding the history below its
+    // base that LLMQ_TEST_PLATFORM's scan needs.
+    ScopedDIP3FromGenesis dip3_active;
+    {
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        bool more_work{true};
+        BOOST_CHECK_NO_THROW(more_work = net_signing.ProcessPendingRecoveredSigs());
+        BOOST_CHECK(!more_work);
+    }
+    BOOST_CHECK(stored(*checked));
+    BOOST_CHECK(!stored(*unchecked));
+    BOOST_CHECK(!sigman.AlreadyHave(CInv{MSG_QUORUM_RECOVERED_SIG, unchecked->GetHash()}));
 }
 
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_reconsider_block_candidates, SnapshotTestSetup)
@@ -669,7 +1953,28 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init, SnapshotTestSetup)
     // Test that simulating a shutdown (resetting ChainstateManager) and then performing
     // chainstate reinitializing successfully cleans up the background-validation
     // chainstate data, and we end up with a single chainstate that is at tip.
-    ChainstateManager& chainman_restarted = this->SimulateNodeRestart();
+    this->SimulateNodeRestart();
+
+    // Startup refuses a published generation whose height disagrees with its
+    // base block, in either direction.
+    const EvoGenerationRecord published{*Assert(m_node.evodb->GetSnapshotGeneration())};
+    const auto write_record{[&](const EvoGenerationRecord& record) {
+        LOCK(::cs_main);
+        EvoViewScope normal_view{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+        BOOST_REQUIRE(
+            m_node.evodb->WriteImmediate(std::make_pair(EVODB_GENERATION_RECORD, record.generation), record));
+    }};
+    for (const int base_height : {published.base_height - 1, published.base_height + 1}) {
+        EvoGenerationRecord altered{published};
+        altered.base_height = base_height;
+        write_record(altered);
+        const auto [status, error]{this->TryLoadChainstate()};
+        BOOST_CHECK(status == node::ChainstateLoadStatus::FAILURE);
+        BOOST_CHECK(error.original.find("-reindex-chainstate") != std::string::npos);
+        this->SimulateNodeRestart(/*flush_chainstates=*/false);
+    }
+    write_record(published);
+    ChainstateManager& chainman_restarted = *Assert(m_node.chainman);
 
     BOOST_TEST_MESSAGE("Performing Load/Verify/Activate of chainstate");
 
@@ -685,6 +1990,40 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_init, SnapshotTestSetup)
         BOOST_CHECK_EQUAL(chainman_restarted.ActiveTip()->GetBlockHash(), snapshot_tip_hash);
         BOOST_CHECK_EQUAL(chainman_restarted.ActiveHeight(), 210);
     }
+
+    // The startup tail that follows the block import runs on its own thread:
+    // it must announce the restarted tip, warm caches and check EvoDB repair
+    // bound to the active view, not abort on unbound Evo reads.
+    {
+        class StartupTipReader final : public CValidationInterface
+        {
+        public:
+            explicit StartupTipReader(CDeterministicMNManager& dmnman) :
+                m_dmnman{dmnman}
+            {
+            }
+            void InitializeCurrentBlockTip(const CBlockIndex* tip, bool) override
+            {
+                m_dmnman.UpdatedBlockTip(tip);
+                ++announced;
+            }
+            int announced{0};
+
+        private:
+            CDeterministicMNManager& m_dmnman;
+        } tip_reader{*m_node.dmnman};
+        RegisterValidationInterface(&tip_reader);
+        BOOST_CHECK(!m_node.evodb->IsBound());
+        BOOST_CHECK_NO_THROW(FinishImportedStartup(m_node, m_args, /*skip_evodb_repair_on_reindex=*/false));
+        UnregisterValidationInterface(&tip_reader);
+        BOOST_CHECK_EQUAL(tip_reader.announced, 1);
+    }
+
+    // Active-chain reads through the RPC dispatcher bind the active view.
+    BOOST_CHECK_NO_THROW(this->CallRPC("getblockchaininfo"));
+    UniValue count_params{UniValue::VARR};
+    count_params.push_back("count");
+    BOOST_CHECK_NO_THROW(this->CallRPC("masternode", count_params));
 
     BOOST_TEST_MESSAGE(
         "Ensure we can mine blocks on top of the initialized snapshot chainstate");
@@ -789,6 +2128,8 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_mined_commitment_is_chain_aware, Snaps
     auto& qman = *Assert(m_node.llmq_ctx)->qman;
     {
         LOCK(::cs_main);
+        // The seeded record lives in the snapshot view.
+        EvoViewScope snapshot_view{snapshot_chainstate->EvoView()};
         BOOST_CHECK(qblockman.HasMinedCommitment(llmq_type, quorum_hash));
         BOOST_CHECK(qblockman.HasMinedCommitment(llmq_type, quorum_hash, snapshot_chainstate->m_chain));
         BOOST_CHECK(!qblockman.HasMinedCommitment(llmq_type, quorum_hash, background_chainstate->m_chain));
@@ -815,9 +2156,207 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_mined_commitment_is_chain_aware, Snaps
         CBlock block;
         BOOST_REQUIRE(m_node.chainman->m_blockman.ReadBlockFromDisk(block, *snapshot_mined_block));
         BlockValidationState state;
+        EvoViewScope background_view{background_chainstate->EvoView()};
         BOOST_CHECK(qblockman.ProcessBlock(*background_chainstate, block, snapshot_mined_block, state,
                                            /*fJustCheck=*/true, /*fBLSChecks=*/false));
     }
+
+    // Block templates, built before DIP3 is moved to genesis below.
+    const CBlock signal_template{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), *snapshot_chainstate)};
+    const CBlockIndex* snapshot_tip{WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip())};
+
+    // Before DIP3 no quorum is mined, so while DIP3 activates above the base,
+    // the snapshot view's empty history at or below it is authoritative.
+    const auto platform_type{Params().GetConsensus().llmqTypePlatform};
+    {
+        LOCK(::cs_main);
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(platform_type, snapshot_tip, 1).empty());
+    }
+
+    // With DIP3 active at the base, a commitment only NORMAL has, for a quorum
+    // at or below the base, is history the snapshot view lacks: a miss there is
+    // unavailable data, not a quorum that was never mined. Above the base, a
+    // miss is authoritative.
+    ScopedDIP3FromGenesis dip3_active;
+    const CBlockIndex* earlier_base{
+        WITH_LOCK(::cs_main, return background_chainstate->m_chain[quorum_base->nHeight - llmq_params.dkgInterval])};
+    const uint256 normal_only_hash{earlier_base->GetBlockHash()};
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* normal_mined_block{
+            background_chainstate->m_chain[earlier_base->nHeight + llmq_params.dkgMiningWindowStart]};
+        auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL);
+        m_node.evodb->Write(std::make_pair(std::string{"q_mc"}, std::make_pair(llmq_type, normal_only_hash)),
+                            std::make_pair(llmq::CFinalCommitment{llmq_params, normal_only_hash},
+                                           normal_mined_block->GetBlockHash()));
+        tx->Commit();
+    }
+    {
+        LOCK(::cs_main);
+        EvoViewScope background_view{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+        BOOST_CHECK(qblockman.HasMinedCommitment(llmq_type, normal_only_hash, background_chainstate->m_chain));
+    }
+    {
+        LOCK(::cs_main);
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK_THROW(qblockman.HasMinedCommitment(llmq_type, normal_only_hash, snapshot_chainstate->m_chain),
+                          BlockDataUnavailableError);
+        BOOST_CHECK_THROW(qman.GetQuorum(llmq_type, normal_only_hash, snapshot_chainstate->m_chain),
+                          BlockDataUnavailableError);
+        BOOST_CHECK(!qblockman.HasMinedCommitment(llmq_type, snapshot_mined_block->GetBlockHash(),
+                                                  snapshot_chainstate->m_chain));
+    }
+
+    // So a block whose EHF signal names that quorum stalls instead of failing.
+    ChainstateManager& chainman{*Assert(m_node.chainman)};
+    Consensus::Params& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct V20HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~V20HeightRestore() { params.V20Height = height; }
+    } v20_restore{consensus, std::exchange(consensus.V20Height, 1)};
+    MNHFTxPayload signal;
+    signal.signal.versionBit = consensus.vDeployments[Consensus::DEPLOYMENT_V24].bit;
+    signal.signal.quorumHash = normal_only_hash;
+    CMutableTransaction signal_tx;
+    signal_tx.nVersion = CTransaction::SPECIAL_VERSION;
+    signal_tx.nType = TRANSACTION_MNHF_SIGNAL;
+    SetTxPayload(signal_tx, signal);
+    CBlock signal_block{MakeCbTxBlock(signal_template, snapshot_tip->nHeight + 1, CCbTx::Version::CLSIG_AND_BALANCE)};
+    signal_block.vtx.push_back(MakeTransactionRef(std::move(signal_tx)));
+    signal_block.hashMerkleRoot = BlockMerkleRoot(signal_block);
+    while (!CheckProofOfWork(signal_block.GetHash(), signal_block.nBits, consensus))
+        ++signal_block.nNonce;
+    const auto signal_block_ref{std::make_shared<const CBlock>(signal_block)};
+    chainman.ProcessNewBlock(signal_block_ref, /*force_processing=*/true, /*new_block=*/nullptr);
+    BlockValidationState state;
+    BOOST_CHECK(!snapshot_chainstate->ActivateBestChain(state, signal_block_ref));
+    BOOST_CHECK(IsLocalEvoStateError(state));
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* index{chainman.m_blockman.LookupBlockIndex(signal_block.GetHash())};
+        BOOST_REQUIRE(index);
+        BOOST_CHECK_EQUAL(index->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), snapshot_tip);
+    }
+
+    // A scan by height the snapshot view cannot satisfy from the commitments
+    // mined above the base is unknown, not short: a Platform quorum mined at or
+    // below the base, recorded only in NORMAL, is missing from its result. The
+    // view is isolated from NORMAL, so its answer cannot depend on that record;
+    // NORMAL resolving it shows the history the scan needs does exist.
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* platform_mined_block{
+            background_chainstate->m_chain[earlier_base->nHeight + llmq_params.dkgMiningWindowStart]};
+        auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::NORMAL);
+        // The keys mirror DB_MINED_COMMITMENT and DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT
+        // in llmq/blockprocessor.cpp.
+        m_node.evodb->Write(std::make_pair(std::string{"q_mc"}, std::make_pair(platform_type, normal_only_hash)),
+                            std::make_pair(llmq::CFinalCommitment{Params().GetLLMQ(platform_type).value(), normal_only_hash},
+                                           platform_mined_block->GetBlockHash()));
+        m_node.evodb->Write(std::make_tuple(std::string{"q_mcih"}, platform_type,
+                                            htobe32_internal(std::numeric_limits<uint32_t>::max() -
+                                                             platform_mined_block->nHeight)),
+                            earlier_base->nHeight);
+        tx->Commit();
+    }
+    {
+        LOCK(::cs_main);
+        EvoViewScope background_view{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+        BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(platform_type, background_chainstate->m_chain.Tip(), 1) ==
+                    std::vector<const CBlockIndex*>{earlier_base});
+    }
+    {
+        LOCK(::cs_main);
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK_THROW(qblockman.GetMinedCommitmentsUntilBlock(platform_type, snapshot_tip, 1),
+                          BlockDataUnavailableError);
+        BOOST_CHECK_THROW(qman.ScanQuorums(platform_type, snapshot_tip, 1, snapshot_chainstate->m_chain),
+                          BlockDataUnavailableError);
+    }
+
+    // So a block withdrawing from Platform under that quorum stalls instead of
+    // failing as signed by a quorum too old.
+    CMutableTransaction unlock_tx;
+    unlock_tx.nVersion = CTransaction::SPECIAL_VERSION;
+    unlock_tx.nType = TRANSACTION_ASSET_UNLOCK;
+    unlock_tx.vout.emplace_back(COIN, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+    SetTxPayload(unlock_tx,
+                 CAssetUnlockPayload{CAssetUnlockPayload::INITIAL_VERSION, /*index=*/1, /*fee=*/1000,
+                                     static_cast<uint32_t>(snapshot_tip->nHeight), normal_only_hash, CBLSSignature{}});
+    CBlock unlock_block{MakeCbTxBlock(signal_template, snapshot_tip->nHeight + 1, CCbTx::Version::CLSIG_AND_BALANCE)};
+    unlock_block.vtx.push_back(MakeTransactionRef(std::move(unlock_tx)));
+    unlock_block.hashMerkleRoot = BlockMerkleRoot(unlock_block);
+    while (!CheckProofOfWork(unlock_block.GetHash(), unlock_block.nBits, consensus))
+        ++unlock_block.nNonce;
+    const auto unlock_block_ref{std::make_shared<const CBlock>(unlock_block)};
+    chainman.ProcessNewBlock(unlock_block_ref, /*force_processing=*/true, /*new_block=*/nullptr);
+    BOOST_CHECK(!snapshot_chainstate->ActivateBestChain(state, unlock_block_ref));
+    BOOST_CHECK(IsLocalEvoStateError(state));
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* index{chainman.m_blockman.LookupBlockIndex(unlock_block.GetHash())};
+        BOOST_REQUIRE(index);
+        BOOST_CHECK_EQUAL(index->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), snapshot_tip);
+    }
+
+    // The same holds for the rotating per-index scan, and a scan that the
+    // commitments mined above the base do satisfy is complete.
+    const auto rotating_type{Consensus::LLMQType::LLMQ_TEST_DIP0024};
+    {
+        LOCK(::cs_main);
+        EvoViewScope background_view{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+        BOOST_CHECK(!qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(rotating_type, snapshot_tip, 0, 0));
+    }
+    {
+        LOCK(::cs_main);
+        auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        // The keys mirror DB_MINED_COMMITMENT_BY_INVERSED_HEIGHT(_Q_INDEXED).
+        const uint32_t mined_key{htobe32_internal(std::numeric_limits<uint32_t>::max() - snapshot_mined_block->nHeight)};
+        m_node.evodb->Write(std::make_tuple(std::string{"q_mcih"}, platform_type, mined_key), quorum_base->nHeight);
+        m_node.evodb->Write(std::make_tuple(std::string{"q_mcihi"}, rotating_type, 0, mined_key), quorum_base->nHeight);
+        tx->Commit();
+    }
+    {
+        LOCK(::cs_main);
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK_THROW(qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(rotating_type, snapshot_tip, 0, 1),
+                          BlockDataUnavailableError);
+        BOOST_CHECK(qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(rotating_type, snapshot_tip, 0, 0) ==
+                    quorum_base);
+        BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(platform_type, snapshot_tip, 1) ==
+                    std::vector<const CBlockIndex*>{quorum_base});
+        BOOST_CHECK_THROW(qblockman.GetMinedCommitmentsUntilBlock(platform_type, snapshot_tip, 2),
+                          BlockDataUnavailableError);
+
+        // Nothing can be mined below DIP3, so a short scan from there is complete.
+        const CBlockIndex* pre_dip3{snapshot_tip->GetAncestor(Params().GetConsensus().DIP0003Height - 1)};
+        BOOST_REQUIRE(pre_dip3);
+        BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(platform_type, pre_dip3, 1).empty());
+        BOOST_CHECK(!qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(rotating_type, pre_dip3, 0, 0));
+
+        // Neither can a type that was not enabled up to the base, so its short
+        // scan is complete too.
+        const auto unenabled_type{Consensus::LLMQType::LLMQ_TEST_V17};
+        BOOST_REQUIRE(!chainman.IsQuorumTypeEnabled(unenabled_type, snapshot_tip));
+        BOOST_CHECK(qblockman.GetMinedCommitmentsUntilBlock(unenabled_type, snapshot_tip, 1).empty());
+        BOOST_CHECK(!qblockman.GetLastMinedCommitmentsByQuorumIndexUntilBlock(unenabled_type, snapshot_tip, 0, 0));
+
+        // A type retired before the base but enabled at the first block DIP3
+        // lets mine may have history there, even with DIP3 from genesis.
+        const auto retired_type{Consensus::LLMQType::LLMQ_TEST_INSTANTSEND};
+        BOOST_REQUIRE(!chainman.IsQuorumTypeEnabled(retired_type, snapshot_tip));
+        BOOST_REQUIRE(chainman.IsQuorumTypeEnabled(retired_type, snapshot_tip->GetAncestor(0)));
+        BOOST_CHECK_THROW(qblockman.GetMinedCommitmentsUntilBlock(retired_type, snapshot_tip, 1),
+                          BlockDataUnavailableError);
+        consensus.DIP0003Height = 0;
+        BOOST_CHECK_THROW(qblockman.GetMinedCommitmentsUntilBlock(retired_type, snapshot_tip, 1),
+                          BlockDataUnavailableError);
+    }
+    SetMiscWarning(Untranslated(""));
 }
 
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_evodb_snapshot_only_flush_restart, SnapshotTestSetup)
@@ -942,6 +2481,12 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion, SnapshotTestSetup
     const uint256 snapshot_tip_hash = WITH_LOCK(chainman.GetMutex(),
         return chainman.ActiveTip()->GetBlockHash());
 
+    // Evo state the snapshot chainstate wrote above its base stays out of
+    // NORMAL until promotion.
+    const SnapshotViewRecords snapshot_records{
+        WITH_LOCK(::cs_main, return SnapshotViewRecords::Write(*m_node.evodb, chainman.ActiveChainstate().m_chain[150]))};
+    BOOST_CHECK(snapshot_records.ReadByNormal(m_node) == std::make_pair(false, false));
+
     res = WITH_LOCK(::cs_main, return chainman.MaybeCompleteSnapshotValidation());
     BOOST_CHECK_EQUAL(res, SnapshotCompletionResult::SUCCESS);
 
@@ -986,6 +2531,9 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion, SnapshotTestSetup
     BOOST_CHECK(!m_node.evodb->ReadBestBlock(EvoDbIdentity::SNAPSHOT, obsolete_marker));
     BOOST_CHECK(!m_node.evodb->ReadSnapshotBaseMNListHash(obsolete_marker));
     BOOST_CHECK(!m_node.evodb->HasDualChainstateMarker());
+    // Promotion made the snapshot chainstate's post-base Evo state NORMAL.
+    BOOST_CHECK(snapshot_records.ReadByNormal(m_node) == std::make_pair(true, true));
+    BOOST_CHECK(snapshot_records.ListServedByNormal(m_node));
 
     const Chainstate& active_cs2 = chainman_restarted.ActiveChainstate();
 
@@ -1017,15 +2565,29 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
 
     const CBlockIndex* base_index = WITH_LOCK(::cs_main, return validation_chainstate->m_chain.Tip());
     BOOST_REQUIRE(base_index);
-    const CDeterministicMNList incorrect_base_list{
-        base_index->GetBlockHash(), base_index->nHeight, /*totalRegisteredCount=*/1};
-    const uint256 incorrect_hash{SerializeHash(incorrect_base_list)};
+    CDeterministicMNList incorrect_base_list{base_index->GetBlockHash(), base_index->nHeight, /*totalRegisteredCount=*/1};
+    {
+        auto state{std::make_shared<CDeterministicMNState>()};
+        uint160 owner;
+        owner.begin()[0] = 1;
+        state->keyIDOwner = CKeyID{owner};
+        state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+        auto dmn{std::make_shared<CDeterministicMN>(/*_internalId=*/0)};
+        dmn->proTxHash = uint256::ONE;
+        dmn->collateralOutpoint = COutPoint{uint256::ONE, 0};
+        dmn->pdmnState = std::move(state);
+        incorrect_base_list.AddMN(dmn, /*fBumpTotalCount=*/false);
+    }
+    const uint256 incorrect_hash{CanonicalDeterministicMNListHash(base_index, incorrect_base_list)};
     uint256 captured_block;
     uint256 captured_hash;
     BOOST_REQUIRE(m_node.evodb->ReadBackgroundMNListHash(captured_block, captured_hash));
     BOOST_CHECK_EQUAL(captured_block, base_index->GetBlockHash());
     BOOST_CHECK_NE(captured_hash, incorrect_hash);
-    m_node.dmnman->SetListForBlockForTesting(incorrect_base_list);
+    {
+        EvoViewScope background_view{validation_chainstate->EvoView()};
+        m_node.dmnman->SetListForBlockForTesting(incorrect_base_list);
+    }
 
     // The regtest assumeutxo fixture predates DIP3. Temporarily make DIP3 active
     // so the legacy completion lookup would consume the poisoned shared cache.
@@ -1067,6 +2629,97 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
     BOOST_CHECK(!m_node.evodb->ReadBestBlock(EvoDbIdentity::SNAPSHOT, obsolete_marker));
 }
 
+//! A rejection whose write fails leaves the generation on disk for startup
+//! recovery, but the rest of the run no longer reads it, not even a turn that
+//! bound it before the rejection, and the node still shuts down. An earlier
+//! rejection's invalid directory keeps its place, and the rejected snapshot's
+//! directory is still retired so that startup recovery rejects it.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_unsaved_rejection_stops_reading_the_snapshot, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    CEvoDB& evodb{*m_node.evodb};
+    const fs::path data_dir{m_args.GetDataDirNet()};
+    const fs::path earlier_invalid{data_dir / "chainstate_snapshot_INVALID"};
+    BOOST_REQUIRE(fs::create_directories(earlier_invalid / "earlier"));
+    // A deletion cut short in an earlier run left the dir the snapshot dir is moved to.
+    const fs::path discarded{data_dir / "chainstate_snapshot_todelete"};
+    BOOST_REQUIRE(fs::create_directories(discarded / "leftover"));
+    const auto snapshot_only_key{std::make_pair(std::string{"test_snapshot_only"}, uint256::ONE)};
+    {
+        LOCK(::cs_main);
+        auto tx = evodb.BeginTransaction(EvoDbIdentity::SNAPSHOT);
+        evodb.Write(snapshot_only_key, uint8_t{1});
+        tx->Commit();
+        BOOST_REQUIRE(evodb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT));
+    }
+    BOOST_REQUIRE(evodb.ActiveView().identity == EvoDbIdentity::SNAPSHOT);
+
+    {
+        // A DKG phase thread binds the active view for its round, which then
+        // waits at its start for background validation to complete.
+        TestDKGHandler dkg{m_node, chainman, m_args.GetDataDirNet()};
+        std::optional<EvoDbIdentity> round_view;
+        std::optional<bool> round_read;
+        std::promise<void> bound;
+        auto round = std::async(std::launch::async, [&] {
+            return RunActiveEvoRound(&evodb, "test dkg round", [&] {
+                round_view = Assert(EvoViewScope::InnermostAny())->identity;
+                bound.set_value();
+                dkg.handler.WaitForNextPhase(std::nullopt, llmq::QuorumPhase::Idle);
+                uint8_t value;
+                round_read = evodb.Read(snapshot_only_key, value);
+            });
+        });
+        bound.get_future().wait();
+
+        evodb.SetRejectionFailpointForTesting(true);
+        m_node.notifications->m_shutdown_on_fatal_error = false;
+        BOOST_REQUIRE_EQUAL(m_node.exit_status.load(), EXIT_SUCCESS);
+        BOOST_REQUIRE(chainman.HandleSnapshotStateMismatch("test rejection"));
+        evodb.SetRejectionFailpointForTesting(false);
+        BOOST_CHECK_EQUAL(m_node.exit_status.load(), EXIT_FAILURE);
+
+        // The round resumes once the snapshot is out of use, and its binding
+        // no longer resolves.
+        const bool resumed{round.wait_for(10s) == std::future_status::ready};
+        if (!resumed) dkg.handler.RequestStop(); // so a failure doesn't hang in the future's destructor
+        BOOST_REQUIRE(resumed);
+        BOOST_CHECK(!round.get());
+        BOOST_CHECK(round_view == EvoDbIdentity::SNAPSHOT);
+        BOOST_CHECK(!round_read);
+    }
+
+    BOOST_CHECK(evodb.ActiveView().identity == EvoDbIdentity::NORMAL);
+    {
+        const ActiveEvoViewScope turn{&evodb};
+        uint8_t value;
+        BOOST_CHECK(!evodb.Read(snapshot_only_key, value));
+    }
+
+    // Until startup recovery rejects the generation still on disk, no other
+    // can be created.
+    BOOST_CHECK(evodb.HasDualChainstateMarker());
+    BOOST_CHECK(!evodb.CreateSnapshotGeneration(uint256::ONE, 1));
+    BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot"));
+    BOOST_CHECK(!fs::exists(discarded));
+    // As if the node had stopped before deleting the directory it set aside.
+    BOOST_REQUIRE(fs::create_directories(discarded / "partial"));
+    this->SimulateNodeRestart();
+    this->LoadVerifyActivateChainstate();
+    BOOST_CHECK(WITH_LOCK(::cs_main, return !m_node.chainman->IsSnapshotActive()));
+    BOOST_CHECK(!m_node.evodb->GetSnapshotGeneration());
+    BOOST_CHECK(!m_node.evodb->HasDualChainstateMarker());
+    BOOST_CHECK(fs::exists(earlier_invalid / "earlier"));
+    BOOST_CHECK(!fs::exists(discarded));
+    {
+        // The rejected generation was not promoted either.
+        const ActiveEvoViewScope turn{m_node.evodb.get()};
+        uint8_t value;
+        BOOST_CHECK(!m_node.evodb->Read(snapshot_only_key, value));
+    }
+}
+
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_first_rename, SnapshotTestSetup)
 {
     this->SetupSnapshot();
@@ -1078,6 +2731,8 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_first_rename
 
     this->SimulateNodeRestart();
     const fs::path data_dir{gArgs.GetDataDirNet()};
+    // ValidatedSnapshotCleanup journals the promotion before its first rename.
+    BOOST_REQUIRE(m_node.evodb->PrepareSnapshotPromotion(snapshot_tip));
     fs::rename(data_dir / "chainstate", data_dir / "chainstate_todelete");
 
     this->LoadVerifyActivateChainstate();
@@ -1099,8 +2754,31 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_completed_sw
 
     this->SimulateNodeRestart();
     const fs::path data_dir{gArgs.GetDataDirNet()};
+    // ValidatedSnapshotCleanup journals the promotion before its first rename.
+    BOOST_REQUIRE(m_node.evodb->PrepareSnapshotPromotion(snapshot_tip));
     fs::rename(data_dir / "chainstate", data_dir / "chainstate_todelete");
     fs::rename(data_dir / "chainstate_snapshot", data_dir / "chainstate");
+
+    // The swap is not promoted while the generation's height disagrees with
+    // its base block.
+    const EvoGenerationRecord promoting{*Assert(m_node.evodb->GetSnapshotGeneration())};
+    const auto write_record{[&](const EvoGenerationRecord& record) {
+        LOCK(::cs_main);
+        EvoViewScope normal_view{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+        BOOST_REQUIRE(
+            m_node.evodb->WriteImmediate(std::make_pair(EVODB_GENERATION_RECORD, record.generation), record));
+    }};
+    EvoGenerationRecord altered{promoting};
+    ++altered.base_height;
+    write_record(altered);
+    const auto [status, error]{this->TryLoadChainstate()};
+    BOOST_CHECK(status == node::ChainstateLoadStatus::FAILURE);
+    BOOST_CHECK(error.original.find("-reindex-chainstate") != std::string::npos);
+    BOOST_CHECK(m_node.evodb->ReadPromotionJournal());
+    BOOST_CHECK(m_node.evodb->HasDualChainstateMarker());
+    BOOST_CHECK(fs::exists(data_dir / "chainstate_todelete"));
+    this->SimulateNodeRestart(/*flush_chainstates=*/false);
+    write_record(promoting);
 
     this->LoadVerifyActivateChainstate();
     BOOST_CHECK(m_node.evodb->VerifyBestBlock(EvoDbIdentity::NORMAL, snapshot_tip));
@@ -1131,11 +2809,110 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_invalid_rena
         WITH_LOCK(::cs_main, return restarted.ActiveChainstate().CoinsTip().GetBestBlock())));
 }
 
-//! Pin the documented promote/discard overlap in RecoverSnapshotCleanup: a
-//! crash between an invalid-snapshot rename and its marker discard while the
+//! At or below the base, the snapshot view holds only carried rotation
+//! quarters. Reading an uncarried one as an input, to reconstruct or to
+//! predict members, is unavailable data rather than fewer quarters or "not
+//! available yet"; NORMAL keeps its legacy behavior.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_uncarried_quarter_is_unavailable, SnapshotTestSetup)
+{
+    Chainstate* snapshot_chainstate{std::get<1>(this->SetupSnapshot())};
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    LOCK(::cs_main);
+    const auto rotating{Consensus::LLMQType::LLMQ_TEST_DIP0024};
+    const CBlockIndex* cycle_base{snapshot_chainstate->m_chain[96]};
+    const CBlockIndex* next_work{snapshot_chainstate->m_chain[120 - llmq::WORK_DIFF_DEPTH]};
+    const llmq::UtilParameters reconstruct{*m_node.dmnman, *m_node.llmq_ctx->qsnapman, chainman, cycle_base};
+    const llmq::UtilParameters predict{*m_node.dmnman, *m_node.llmq_ctx->qsnapman, chainman, next_work};
+    // Prediction needs V20's work-block modifier.
+    Consensus::Params& consensus{const_cast<Consensus::Params&>(Params().GetConsensus())};
+    struct V20HeightRestore {
+        Consensus::Params& params;
+        const int height;
+        ~V20HeightRestore() { params.V20Height = height; }
+    } v20_restore{consensus, std::exchange(consensus.V20Height, 1)};
+    {
+        EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK_THROW(llmq::utils::GetAllQuorumMembers(rotating, reconstruct), BlockDataUnavailableError);
+        BOOST_CHECK_THROW(llmq::utils::ComputeQuorumMembersFromWorkBlock(rotating, predict, next_work, 120),
+                          BlockDataUnavailableError);
+    }
+    {
+        EvoViewScope background_view{m_node.evodb->ViewFor(EvoDbIdentity::NORMAL)};
+        BOOST_CHECK_NO_THROW(llmq::utils::GetAllQuorumMembers(rotating, reconstruct));
+        BOOST_CHECK(!llmq::utils::ComputeQuorumMembersFromWorkBlock(rotating, predict, next_work, 120));
+    }
+}
+
+//! A rejection is persisted before the snapshot's coins directory is renamed. A
+//! crash in between must leave startup able to finish the invalidation and run
+//! on NORMAL alone, without a reindex.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_rejection_before_rename, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    this->SimulateNodeRestart();
+    BOOST_REQUIRE(m_node.evodb->DiscardSnapshotMarkers());
+    const fs::path data_dir{gArgs.GetDataDirNet()};
+    BOOST_REQUIRE(fs::exists(data_dir / "chainstate_snapshot"));
+
+    BOOST_CHECK(std::get<0>(this->TryLoadChainstate()) == node::ChainstateLoadStatus::SUCCESS);
+    BOOST_CHECK(fs::exists(data_dir / "chainstate_snapshot_INVALID"));
+    BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot"));
+    BOOST_CHECK(!m_node.evodb->HasRejectedGeneration());
+    BOOST_CHECK(WITH_LOCK(::cs_main, return !m_node.chainman->IsSnapshotActive()));
+}
+
+//! The same recovery when an earlier rejection already left its invalid
+//! directory behind: that directory is kept, and the interrupted one deleted.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_keeps_earlier_invalid_dir, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    this->SimulateNodeRestart();
+    BOOST_REQUIRE(m_node.evodb->DiscardSnapshotMarkers());
+    const fs::path data_dir{gArgs.GetDataDirNet()};
+    const fs::path earlier_invalid{data_dir / "chainstate_snapshot_INVALID"};
+    BOOST_REQUIRE(fs::create_directories(earlier_invalid / "earlier"));
+    // What an interrupted earlier deletion left; it does not block this one.
+    BOOST_REQUIRE(fs::create_directories(data_dir / "chainstate_snapshot_todelete" / "partial"));
+
+    BOOST_CHECK(std::get<0>(this->TryLoadChainstate()) == node::ChainstateLoadStatus::SUCCESS);
+    BOOST_CHECK(fs::exists(earlier_invalid / "earlier"));
+    BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot"));
+    BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot_todelete"));
+    BOOST_CHECK(!m_node.evodb->HasRejectedGeneration());
+    BOOST_CHECK(WITH_LOCK(::cs_main, return !m_node.chainman->IsSnapshotActive()));
+}
+
+//! A rejected generation left behind by a failed collection must not take the
+//! coins directory of a later, live snapshot with it at the next startup.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_keeps_live_snapshot_dir, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    const uint256 snapshot_tip{WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip()->GetBlockHash())};
+    {
+        // The record of an earlier snapshot whose collection failed.
+        LOCK(::cs_main);
+        CEvoDB& evodb{*m_node.evodb};
+        EvoGenerationRecord rejected;
+        rejected.generation = 1000;
+        rejected.state = EvoGenerationState::REJECTED;
+        EvoViewScope normal_view{evodb.ViewFor(EvoDbIdentity::NORMAL)};
+        BOOST_REQUIRE(evodb.WriteImmediate(std::make_pair(EVODB_GENERATION_RECORD, rejected.generation), rejected));
+    }
+    this->SimulateNodeRestart();
+
+    // Startup drops the stale record, and the live snapshot carries on (here
+    // it completes and is promoted) instead of being invalidated.
+    BOOST_CHECK(std::get<0>(this->TryLoadChainstate()) == node::ChainstateLoadStatus::SUCCESS);
+    BOOST_CHECK(!fs::exists(gArgs.GetDataDirNet() / "chainstate_snapshot_INVALID"));
+    BOOST_CHECK(!m_node.evodb->HasRejectedGeneration());
+    BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return m_node.chainman->ActiveTip()->GetBlockHash()), snapshot_tip);
+}
+
+//! A crash between an invalid-snapshot rename and its marker discard while the
 //! SNAPSHOT marker equals the background coins tip (completion failed with the
-//! snapshot chainstate still at its base) makes recovery take the promote
-//! branch. That must produce the same end state a completed discard would.
+//! snapshot chainstate still at its base) looks like a completed coins swap.
+//! Without a promotion journal, recovery must discard the snapshot generation
+//! rather than merge it into NORMAL state.
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_overlap_promote_equals_discard, SnapshotTestSetup)
 {
     Chainstate* background_chainstate = std::get<0>(this->SetupSnapshot());
@@ -1177,6 +2954,8 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_promoted_swa
 
     this->SimulateNodeRestart();
     const fs::path data_dir{gArgs.GetDataDirNet()};
+    // ValidatedSnapshotCleanup journals the promotion before its first rename.
+    BOOST_REQUIRE(m_node.evodb->PrepareSnapshotPromotion(snapshot_tip));
     fs::rename(data_dir / "chainstate", data_dir / "chainstate_todelete");
     fs::rename(data_dir / "chainstate_snapshot", data_dir / "chainstate");
     BOOST_REQUIRE(m_node.evodb->PromoteSnapshotMarkers(snapshot_tip));
@@ -1184,6 +2963,85 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_promoted_swa
     this->LoadVerifyActivateChainstate();
     BOOST_CHECK(!fs::exists(data_dir / "chainstate_todelete"));
     BOOST_CHECK(m_node.evodb->VerifyBestBlock(EvoDbIdentity::NORMAL, snapshot_tip));
+}
+
+//! Stop promotion at `failpoint` as if the node crashed there; the next startup
+//! must finish it from the journal without losing any snapshot-written Evo
+//! state.
+static void CheckPromotionCrashRecovery(SnapshotTestSetup& setup, CEvoDB::PromotionFailpoint failpoint)
+{
+    node::NodeContext& node{setup.m_node};
+    setup.SetupSnapshot();
+    ChainstateManager& chainman = *Assert(node.chainman);
+    const uint256 snapshot_tip = WITH_LOCK(::cs_main, return chainman.ActiveTip()->GetBlockHash());
+    const SnapshotViewRecords snapshot_records{
+        WITH_LOCK(::cs_main, return SnapshotViewRecords::Write(*node.evodb, chainman.ActiveChainstate().m_chain[150]))};
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.MaybeCompleteSnapshotValidation()),
+                        SnapshotCompletionResult::SUCCESS);
+
+    node.evodb->SetMergeBatchSizeForTesting(1);
+    node.evodb->SetPromotionFailpointForTesting(failpoint);
+    setup.SimulateNodeRestart();
+    BOOST_CHECK(std::get<0>(setup.TryLoadChainstate()) == node::ChainstateLoadStatus::FAILURE_FATAL);
+    node.evodb->SetPromotionFailpointForTesting(CEvoDB::PromotionFailpoint::NONE);
+
+    const auto journal{node.evodb->ReadPromotionJournal()};
+    BOOST_REQUIRE(journal);
+    BOOST_CHECK_EQUAL(journal->tip, snapshot_tip);
+    if (failpoint == CEvoDB::PromotionFailpoint::MID_MERGE) {
+        BOOST_CHECK(journal->phase == EvoPromotionPhase::MERGING);
+        BOOST_CHECK(!journal->cursor.empty());
+    } else {
+        BOOST_CHECK(journal->phase == EvoPromotionPhase::MERGED);
+    }
+    BOOST_CHECK(node.evodb->HasDualChainstateMarker());
+
+    setup.SimulateNodeRestart();
+    setup.LoadVerifyActivateChainstate();
+    const fs::path data_dir{gArgs.GetDataDirNet()};
+    BOOST_CHECK(!fs::exists(data_dir / "chainstate_snapshot"));
+    BOOST_CHECK(!fs::exists(data_dir / "chainstate_todelete"));
+    BOOST_CHECK(node.evodb->VerifyBestBlock(EvoDbIdentity::NORMAL, snapshot_tip));
+    BOOST_CHECK(!node.evodb->HasDualChainstateMarker());
+    BOOST_CHECK(!node.evodb->ReadPromotionJournal());
+    BOOST_CHECK(!node.evodb->GetSnapshotGeneration());
+    BOOST_CHECK(snapshot_records.ReadByNormal(node) == std::make_pair(true, true));
+    BOOST_CHECK(snapshot_records.ListServedByNormal(node));
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_promotion_crash_mid_merge, SnapshotTestSetup)
+{
+    CheckPromotionCrashRecovery(*this, CEvoDB::PromotionFailpoint::MID_MERGE);
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_promotion_crash_after_merge, SnapshotTestSetup)
+{
+    CheckPromotionCrashRecovery(*this, CEvoDB::PromotionFailpoint::AFTER_MERGE);
+}
+
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_promotion_crash_after_collect, SnapshotTestSetup)
+{
+    CheckPromotionCrashRecovery(*this, CEvoDB::PromotionFailpoint::AFTER_COLLECT);
+}
+
+//! A journaled promotion that crashed before its first coins rename is redone
+//! by the next startup.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_cleanup_recovers_prepared_promotion, SnapshotTestSetup)
+{
+    this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    const uint256 snapshot_tip = WITH_LOCK(::cs_main, return chainman.ActiveTip()->GetBlockHash());
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.MaybeCompleteSnapshotValidation()),
+                        SnapshotCompletionResult::SUCCESS);
+
+    this->SimulateNodeRestart();
+    BOOST_REQUIRE(m_node.evodb->PrepareSnapshotPromotion(snapshot_tip));
+    this->LoadVerifyActivateChainstate();
+
+    BOOST_CHECK(!fs::exists(gArgs.GetDataDirNet() / "chainstate_snapshot"));
+    BOOST_CHECK(m_node.evodb->VerifyBestBlock(EvoDbIdentity::NORMAL, snapshot_tip));
+    BOOST_CHECK(!m_node.evodb->HasDualChainstateMarker());
+    BOOST_CHECK(!m_node.evodb->ReadPromotionJournal());
 }
 
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_base_is_cached, SnapshotTestSetup)
@@ -1238,14 +3096,8 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_without_base_list_
     // derivable and so no lifecycle hash markers were captured: completion
     // must fall back to the UTXO-set hash alone instead of quarantining a
     // valid snapshot.
-    {
-        LOCK(::cs_main);
-        auto tx = m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT);
-        m_node.evodb->Erase(EVODB_SNAPSHOT_MNLIST_HASH);
-        m_node.evodb->Erase(EVODB_BACKGROUND_MNLIST_HASH);
-        tx->Commit();
-    }
-    BOOST_REQUIRE(WITH_LOCK(::cs_main, return m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true)));
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Erase(EVODB_SNAPSHOT_MNLIST_HASH, /*fSync=*/true));
+    BOOST_REQUIRE(m_node.evodb->GetRawDB().Erase(EVODB_BACKGROUND_MNLIST_HASH, /*fSync=*/true));
 
     const auto res = WITH_LOCK(::cs_main,
         return chainman.MaybeCompleteSnapshotValidation());
@@ -1274,6 +3126,10 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_hash_mismatch, Sna
 
     fs::path snapshot_chainstate_dir = gArgs.GetDataDirNet() / "chainstate_snapshot";
     BOOST_CHECK(fs::exists(snapshot_chainstate_dir));
+
+    // Evo state the snapshot chainstate wrote above its base.
+    const SnapshotViewRecords snapshot_records{
+        WITH_LOCK(::cs_main, return SnapshotViewRecords::Write(*m_node.evodb, chainman.ActiveChainstate().m_chain[150]))};
 
     {
         ASSERT_DEBUG_LOG("failed to validate the -assumeutxo snapshot state");
@@ -1311,6 +3167,12 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_hash_mismatch, Sna
         BOOST_CHECK(!chainman_restarted.IsSnapshotValidated());
         BOOST_CHECK_EQUAL(chainman_restarted.ActiveHeight(), 210);
     }
+
+    // NORMAL advanced past the base over the same blocks. It must build its
+    // own Evo state there, never consuming what the rejected snapshot wrote.
+    BOOST_CHECK(snapshot_records.ReadByNormal(m_node) == std::make_pair(false, false));
+    BOOST_CHECK(!snapshot_records.ListServedByNormal(m_node));
+    BOOST_CHECK(!m_node.evodb->GetSnapshotGeneration());
 
     BOOST_TEST_MESSAGE(
         "Ensure we can mine blocks on top of the \"new\" IBD chainstate");
