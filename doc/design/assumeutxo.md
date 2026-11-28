@@ -8,9 +8,32 @@ instance.
 There is currently no canonical source for snapshots, but any downloaded snapshot
 will be checked against a hash that's been hardcoded in source code.
 
-Once you've obtained the snapshot, you can use the RPC command `loadtxoutset`
-to load it. `loadtxoutset` and `getchainstates` are hidden and available on
-regtest only.
+Dash Core accepts one snapshot per network:
+
+| network | base height | base block hash | snapshot file size | snapshot file sha256 |
+| ------- | ----------- | --------------- | ------------------ | -------------------- |
+| mainnet | 2579482 | `000000000000001cfbe4751211d7e753bab093e5d63de1fa947cf20714a0e727` | 289606403 bytes | `bf65a65ef575989e58df25f5781187a6b4dec25e0211b329fb2413b203dc952f` |
+| testnet | 1599687 | `0000006e4b85a1f38f3224ead2865de8e7f29d98229b58b00a1b1bedab624872` | 64126131 bytes | `651e5b29b8c9ff9b50606cbd95c515e7877fb0004432bfa9d4bdce228fc99786` |
+
+The snapshot file is deterministic: `dumptxoutset` writes the same bytes at the same
+base block on every node, so a file can be checked with `sha256sum` before loading it.
+Loading checks the file again, independently of where it came from: the coins against
+the pinned UTXO set hash and the Dash evo section (masternode list, quorums, credit
+pool and hard-fork signals) against the pinned evo hash.
+
+Once you've obtained the snapshot, start the node and wait until its headers have
+passed the base block (`getblockchaininfo` reports `headers` at or above the base
+height), then load it with the RPC command `loadtxoutset`, for example
+
+```
+dash-cli loadtxoutset /path/to/utxo-2579482.dat
+```
+
+The node then syncs to the network tip from the base block, and validates the chain
+up to the base block in the background. `getchainstates` shows both chainstates and
+whether the snapshot has been validated yet. Once background validation has reached
+the base block and a restart has promoted the snapshot chainstate, the node is
+indistinguishable from one that synced from genesis.
 
 A masternode does not load snapshots, and a node does not start with
 `-masternodeblsprivkey` while it has a snapshot chainstate, validated or not,
@@ -53,6 +76,13 @@ use a significant amount of disk space.
 The RPC command `dumptxoutset` can be used to generate a snapshot. This can be used
 to create a snapshot on one node that you wish to load on another node.
 It can also be used to verify the hardcoded snapshot hash in the source code.
+
+`dumptxoutset` writes the snapshot at the node's current tip, and only a snapshot whose
+base is pinned can be loaded. To produce the pinned mainnet or testnet file, use a copy
+of a synced datadir, disconnect it from the network (`setnetworkactive false`), call
+`invalidateblock` on the block after the base, and run `dumptxoutset` there. Its
+`txoutset_hash`, `evo.hash` and `nchaintx` fields are the values pinned in
+`src/kernel/chainparams.cpp`.
 
 The utility script
 `./contrib/devtools/utxo_snapshot.sh` may be of use.
