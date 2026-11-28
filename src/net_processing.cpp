@@ -2903,7 +2903,7 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
         std::shared_ptr<CBlock> pblockRead = std::make_shared<CBlock>();
         const auto hash = m_chainman.m_blockman.ReadBlockFromDisk(*pblockRead, block_pos);
         if (!hash || *hash != inv.hash) {
-            if (WITH_LOCK(cs_main, return m_chainman.m_blockman.IsBlockPruned(pindex))) {
+            if (WITH_LOCK(cs_main, return m_chainman.m_blockman.IsBlockPruned(*pindex))) {
                 LogPrint(BCLog::NET, "Block was pruned before it could be read, disconnect peer=%d\n", pfrom.GetId());
             } else {
                 LogError("Cannot load block from disk, disconnect peer=%d\n", pfrom.GetId());
@@ -5077,7 +5077,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                 ForgetTx(tx.GetHash());
 
                 // DoS prevention: do not allow m_orphans to grow unbounded (see CVE-2012-3789)
-                m_orphanage.LimitOrphans(m_opts.max_orphan_txs_size);
+                m_orphanage.LimitOrphans(m_opts.max_orphan_txs_size, m_rng);
             } else {
                 LogPrint(BCLog::MEMPOOL, "not keeping orphan with rejected parents %s\n",tx.GetHash().ToString());
                 // We will continue to reject this tx since it has rejected

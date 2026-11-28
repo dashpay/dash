@@ -986,7 +986,7 @@ static void PeriodicStats(NodeContext& node)
             ::g_stats_client->gaugeDouble("network.petahashesPerSecond", nNetworkHashPS / 1e15);
             ::g_stats_client->gaugeDouble("network.exahashesPerSecond", nNetworkHashPS / 1e18);
         }
-        ::g_stats_client->gaugeDouble("network.difficulty", (double)GetDifficulty(tip));
+        ::g_stats_client->gaugeDouble("network.difficulty", GetDifficulty(*tip));
 
         ::g_stats_client->gauge("transactions.txCacheSize", chainman.ActiveChainstate().CoinsTip().GetCacheSize(), 1.0f);
         ::g_stats_client->gauge("transactions.totalTransactions", tip->nChainTx, 1.0f);

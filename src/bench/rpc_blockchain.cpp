@@ -45,7 +45,7 @@ static void BlockToJsonVerbose(benchmark::Bench& bench)
     TestBlockAndIndex data;
     const llmq::CInstantSendManager& isman = *data.testing_setup->m_node.isman;
     bench.run([&] {
-        auto univalue = blockToJSON(data.testing_setup->m_node.chainman->m_blockman, data.block, &data.blockindex, &data.blockindex, *data.testing_setup->m_node.chainlocks, isman, TxVerbosity::SHOW_DETAILS_AND_PREVOUT);
+        auto univalue = blockToJSON(data.testing_setup->m_node.chainman->m_blockman, data.block, data.blockindex, data.blockindex, *data.testing_setup->m_node.chainlocks, isman, TxVerbosity::SHOW_DETAILS_AND_PREVOUT);
         ankerl::nanobench::doNotOptimizeAway(univalue);
     });
 }
@@ -56,7 +56,7 @@ static void BlockToJsonVerboseWrite(benchmark::Bench& bench)
 {
     TestBlockAndIndex data;
     const llmq::CInstantSendManager& isman = *data.testing_setup->m_node.isman;
-    auto univalue = blockToJSON(data.testing_setup->m_node.chainman->m_blockman, data.block, &data.blockindex, &data.blockindex, *data.testing_setup->m_node.chainlocks, isman, TxVerbosity::SHOW_DETAILS_AND_PREVOUT);
+    auto univalue = blockToJSON(data.testing_setup->m_node.chainman->m_blockman, data.block, data.blockindex, data.blockindex, *data.testing_setup->m_node.chainlocks, isman, TxVerbosity::SHOW_DETAILS_AND_PREVOUT);
     bench.run([&] {
         auto str = univalue.write();
         ankerl::nanobench::doNotOptimizeAway(str);

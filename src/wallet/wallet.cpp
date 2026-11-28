@@ -2658,6 +2658,8 @@ DBErrors CWallet::LoadWallet()
 {
     LOCK(cs_wallet);
 
+    Assert(m_spk_managers.empty());
+    Assert(m_wallet_flags == 0);
     DBErrors nLoadWalletRet = WalletBatch(GetDatabase()).LoadWallet(this);
     if (nLoadWalletRet == DBErrors::NEED_REWRITE)
     {
@@ -4736,6 +4738,10 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const S
 {
     AssertLockHeld(cs_wallet);
 
+    // Create single batch txn
+    WalletBatch batch(GetDatabase());
+    if (!batch.TxnBegin()) throw std::runtime_error("Error: cannot create db transaction for descriptors setup");
+
     for (auto type : {PathDerivationType::BIP44_External, PathDerivationType::BIP44_Internal, PathDerivationType::DIP0009_CoinJoin}) {
         { // OUTPUT_TYPE is only one: LEGACY
             auto spk_manager = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, m_keypool_size));
@@ -4743,18 +4749,21 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const S
                 if (IsLocked()) {
                     throw std::runtime_error(std::string(__func__) + ": Wallet is locked, cannot setup new descriptors");
                 }
-                if (!spk_manager->CheckDecryptionKey(vMasterKey) && !spk_manager->Encrypt(vMasterKey, nullptr)) {
+                if (!spk_manager->CheckDecryptionKey(vMasterKey) && !spk_manager->Encrypt(vMasterKey, &batch)) {
                     throw std::runtime_error(std::string(__func__) + ": Could not encrypt new descriptors");
                 }
             }
-            spk_manager->SetupDescriptorGeneration(master_key, mnemonic, mnemonic_passphrase, type);
+            spk_manager->SetupDescriptorGeneration(batch, master_key, mnemonic, mnemonic_passphrase, type);
             uint256 id = spk_manager->GetID();
             AddScriptPubKeyMan(id, std::move(spk_manager));
             if (type != PathDerivationType::DIP0009_CoinJoin) {
-                AddActiveScriptPubKeyMan(id, type == PathDerivationType::BIP44_Internal);
+                AddActiveScriptPubKeyManWithDb(batch, id, type == PathDerivationType::BIP44_Internal);
             }
         }
     }
+
+    // Ensure information is committed to disk
+    if (!batch.TxnCommit()) throw std::runtime_error("Error: cannot commit db transaction for descriptors setup");
 }
 
 static bool IsBIP44Descriptor(const Descriptor& desc, const SigningProvider& provider)
@@ -4798,6 +4807,10 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, 
         UniValue signer_res = signer.GetDescriptors(account);
 
         if (!signer_res.isObject()) throw std::runtime_error(std::string(__func__) + ": Unexpected result");
+
+        WalletBatch batch(GetDatabase());
+        if (!batch.TxnBegin()) throw std::runtime_error("Error: cannot create db transaction for descriptors import");
+
         for (bool internal : {false, true}) {
             const UniValue& descriptor_vals = signer_res.find_value(internal ? "internal" : "receive");
             if (!descriptor_vals.isArray()) throw std::runtime_error(std::string(__func__) + ": Unexpected result");
@@ -4816,20 +4829,28 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, 
                 // only activates certain types (External and Internal, but not CoinJoin)
                 const bool activate = IsBIP44Descriptor(*desc, keys);
                 auto spk_manager = std::unique_ptr<ExternalSignerScriptPubKeyMan>(new ExternalSignerScriptPubKeyMan(*this, m_keypool_size));
-                spk_manager->SetupDescriptor(std::move(desc));
+                spk_manager->SetupDescriptor(batch, std::move(desc));
                 uint256 id = spk_manager->GetID();
                 AddScriptPubKeyMan(id, std::move(spk_manager));
                 if (activate) {
-                    AddActiveScriptPubKeyMan(id, internal);
+                    AddActiveScriptPubKeyManWithDb(batch, id, internal);
                 }
             }
         }
+
+        // Ensure imported descriptors are committed to disk
+        if (!batch.TxnCommit()) throw std::runtime_error("Error: cannot commit db transaction for descriptors import");
     }
 }
 
 void CWallet::AddActiveScriptPubKeyMan(uint256 id, bool internal)
 {
     WalletBatch batch(GetDatabase());
+    return AddActiveScriptPubKeyManWithDb(batch, id, internal);
+}
+
+void CWallet::AddActiveScriptPubKeyManWithDb(WalletBatch& batch, uint256 id, bool internal)
+{
     if (!batch.WriteActiveScriptPubKeyMan(id, internal)) {
         throw std::runtime_error(std::string(__func__) + ": writing active ScriptPubKeyMan id failed");
     }

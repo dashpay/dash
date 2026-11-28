@@ -49,7 +49,7 @@ public:
     bool HaveMoreWork(NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
     /** Limit the orphanage to the given maximum */
-    void LimitOrphans(unsigned int max_orphans_size) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
+    void LimitOrphans(unsigned int max_orphans_size, FastRandomContext& rng) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
     /** Add any orphans that list a particular tx as a parent into the from peer's work set */
     void AddChildrenToWorkSet(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);;

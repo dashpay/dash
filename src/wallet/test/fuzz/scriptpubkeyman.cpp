@@ -3,15 +3,36 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
-#include <validation.h>
+#include <coins.h>
+#include <key.h>
+#include <primitives/transaction.h>
+#include <psbt.h>
+#include <script/descriptor.h>
+#include <script/interpreter.h>
+#include <script/script.h>
+#include <script/signingprovider.h>
+#include <script/standard.h>
+#include <sync.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
 #include <test/fuzz/util/descriptor.h>
 #include <test/util/setup_common.h>
+#include <util/check.h>
+#include <util/translation.h>
+#include <validation.h>
 #include <wallet/scriptpubkeyman.h>
-#include <wallet/wallet.h>
 #include <wallet/test/util.h>
+#include <wallet/types.h>
+#include <wallet/wallet.h>
+#include <wallet/walletutil.h>
+
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <variant>
 
 namespace wallet {
 namespace {
@@ -112,7 +133,9 @@ FUZZ_TARGET(scriptpubkeyman, .init = initialize_spkm)
                     bool extract_dest{ExtractDestination(spk, dest)};
                     if (extract_dest) {
                         const std::string msg{fuzzed_data_provider.ConsumeRandomLengthString()};
-                        PKHash pk_hash{fuzzed_data_provider.ConsumeBool() ? PKHash{ConsumeUInt160(fuzzed_data_provider)} : *std::get_if<PKHash>(&dest)};
+                        PKHash pk_hash{std::get_if<PKHash>(&dest) && fuzzed_data_provider.ConsumeBool() ?
+                                           *std::get_if<PKHash>(&dest) :
+                                           PKHash{ConsumeUInt160(fuzzed_data_provider)}};
                         std::string str_sig;
                         (void)spk_manager->SignMessage(msg, pk_hash, str_sig);
                     }

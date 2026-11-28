@@ -10,7 +10,7 @@ export SDK_URL=${SDK_URL:-https://bitcoincore.org/depends-sources/sdks}
 
 export CONTAINER_NAME=ci_macos_cross
 export HOST=x86_64-apple-darwin
-export PACKAGES="clang cmake lld llvm  zip"
+export PACKAGES="clang lld llvm  zip"
 export XCODE_VERSION=26.1.1
 export XCODE_BUILD_ID=17B100
 export RUN_UNIT_TESTS=false
