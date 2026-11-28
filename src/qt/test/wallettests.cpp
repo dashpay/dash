@@ -366,6 +366,9 @@ void TestGUI(interfaces::Node& node)
         QCOMPARE(walletModel.prepareTransaction(retried, one_coin).status, WalletModel::OK);
         QCOMPARE(walletModel.sendCoins(retried, /*fIsCoinJoin=*/false).status, WalletModel::OK);
         QVERIFY(node.context()->mempool->exists(retried.getWtx()->GetHash()));
+        // The model's balance only refreshes if the wallet lock is free, so
+        // let the wallet finish processing the send's mempool notification.
+        SyncWithValidationInterfaceQueue();
         // Cached balances were computed under the flag.
         wallet->UnsetWalletFlag(WALLET_FLAG_AVOID_REUSE);
         wallet->MarkDirty();
