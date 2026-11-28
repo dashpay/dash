@@ -418,10 +418,23 @@ bool BuildEvoSnapshot(const CChainParams& chainparams, const ChainstateManager& 
     std::sort(ordered_history.begin(), ordered_history.end(), [](const auto* a, const auto* b) {
         return std::make_tuple(a->nHeight, a->GetBlockHash()) > std::make_tuple(b->nHeight, b->GetBlockHash());
     });
+    std::vector<std::pair<const CBlockIndex*, CDeterministicMNList>> history;
+    history.reserve(ordered_history.size());
+    for (const CBlockIndex* index : ordered_history) {
+        history.emplace_back(index, BoundList(dmnman.GetListForBlock(index), index));
+    }
+    std::vector<const CDeterministicMNList*> carried{&result.mn_list};
+    for (const auto& [_, list] : history) carried.push_back(&list);
+    const auto canonical_ids{CanonicalMNIds(carried)};
+    const auto renumber = [&](const CDeterministicMNList& list) {
+        return list.Renumbered([&](const CDeterministicMN& dmn) { return canonical_ids.at(dmn.proTxHash); },
+                               static_cast<uint32_t>(canonical_ids.size()));
+    };
+    result.mn_list = renumber(result.mn_list);
     CDeterministicMNList previous_list{result.mn_list};
     uint256 previous_hash{result.base_block_hash};
-    for (const CBlockIndex* index : ordered_history) {
-        const CDeterministicMNList list{BoundList(dmnman.GetListForBlock(index), index)};
+    for (const auto& [index, local_list] : history) {
+        const CDeterministicMNList list{renumber(local_list)};
         result.historical_mn_list_diffs.push_back({previous_hash, index->GetBlockHash(), index->nHeight,
                                                    list.GetTotalRegisteredCount(), CanonicalMNListHash(list),
                                                    previous_list.BuildDiff(list)});

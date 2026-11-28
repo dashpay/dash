@@ -90,6 +90,14 @@ public:
         READWRITE(obj.nType);
     }
 
+    //! Every serialized field but the internal id, which each node assigns
+    //! locally.
+    template <typename Stream>
+    void SerializeWithoutInternalId(Stream& s) const
+    {
+        s << proTxHash << collateralOutpoint << nOperatorReward << pdmnState << nType;
+    }
+
     [[nodiscard]] bool HasInternalId() const { return internalId != std::numeric_limits<uint64_t>::max(); }
     [[nodiscard]] uint64_t GetInternalId() const;
 

@@ -640,6 +640,16 @@ BOOST_FIXTURE_TEST_CASE(populated_roundtrip_and_representation_independence, Bas
     BOOST_CHECK_EQUAL_COLLECTIONS(forward_bytes.begin(), forward_bytes.end(), reverse_bytes.begin(), reverse_bytes.end());
     BOOST_CHECK(evo::CanonicalMNListHash(forward.mn_list) == evo::CanonicalMNListHash(reverse.mn_list));
     BOOST_CHECK(GetEvoSnapshotHash(forward) == GetEvoSnapshotHash(reverse));
+    // Nodes number masternodes by their own history; the list hash does not
+    // see the numbering.
+    const auto renumbered{
+        forward.mn_list.Renumbered([](const CDeterministicMN& dmn) { return 20 - dmn.GetInternalId(); }, 21)};
+    BOOST_CHECK(evo::CanonicalMNListHash(renumbered) == evo::CanonicalMNListHash(forward.mn_list));
+    DataStream forward_list{};
+    DataStream renumbered_list{};
+    forward_list << forward.mn_list;
+    renumbered_list << renumbered;
+    BOOST_CHECK(forward_list.str() != renumbered_list.str());
 
     DataStream input{forward_bytes};
     evo::EvoSnapshot decoded;
@@ -696,12 +706,11 @@ BOOST_AUTO_TEST_CASE(rotation_bitset_larger_than_quorum_roundtrips)
 
 BOOST_FIXTURE_TEST_CASE(populated_v4_golden_value, BasicTestingSetup)
 {
-    // The assembler reproduces the v3 bytes whose hash this test pinned before
-    // the format changed, so it encodes the shared fields independently of the
-    // codec. The v4 pin is its v4 output.
+    // The assembler encodes the fields v3 and v4 share independently of the
+    // codec. The v3 pin is its v3 output, the v4 pin its v4 output.
     const auto v3_content{SyntheticSnapshot(/*reverse_representation=*/false, /*with_bootstrap=*/false)};
     BOOST_CHECK_EQUAL(Sha256Hex(AssembleWireBytes(v3_content, 3)),
-                      "8a2883207069e92589ffcce1f9867736881ecdf04ccfc89b492570740e7d3f31");
+                      "c61ab99e7e7bbf99bb2163be61bcd5bf34e2037bbb19260e4b6c91695c33b8f4");
 
     const auto snapshot{SyntheticSnapshot()};
     BOOST_REQUIRE_NO_THROW(snapshot.Validate(/*require_canonical_order=*/true));
@@ -709,7 +718,7 @@ BOOST_FIXTURE_TEST_CASE(populated_v4_golden_value, BasicTestingSetup)
     const auto encoded{SerializeSnapshot(snapshot)};
     BOOST_CHECK_EQUAL_COLLECTIONS(assembled.begin(), assembled.end(), UCharCast(encoded.data()),
                                   UCharCast(encoded.data() + encoded.size()));
-    BOOST_CHECK_EQUAL(Sha256Hex(assembled), "a5c6ce9b960a7c89796d51de442e0e9049b004bfd284303ffcece581d1580762");
+    BOOST_CHECK_EQUAL(Sha256Hex(assembled), "5e13d16741be278b29434c021d291230aad8801a6dd48eb26b1172e6dc185410");
     BOOST_CHECK_EQUAL(GetEvoSnapshotHash(snapshot).ToString(), Sha256Hex(assembled));
 }
 
@@ -1969,6 +1978,7 @@ void RewireDependencies(EvoSnapshotChainSetup& setup, evo::EvoSnapshot& snapshot
             {key.first, key.second, old != old_modifiers.end() ? old->second : SerializeHash(key)});
     }
     std::vector<const CBlockIndex*> work;
+    work.reserve(work_hashes.size());
     {
         LOCK(::cs_main);
         for (const auto& hash : work_hashes)
@@ -1976,11 +1986,26 @@ void RewireDependencies(EvoSnapshotChainSetup& setup, evo::EvoSnapshot& snapshot
     }
     std::sort(work.begin(), work.end(), [](const auto* a, const auto* b) { return a->nHeight > b->nHeight; });
     snapshot.historical_mn_list_diffs.clear();
+    const EvoViewScope normal{setup.Normal()};
+    std::vector<CDeterministicMNList> lists;
+    lists.reserve(work.size());
+    for (const CBlockIndex* index : work)
+        lists.push_back(setup.m_node.dmnman->GetListForBlock(index));
+    std::vector<const CDeterministicMNList*> carried{&snapshot.mn_list};
+    carried.reserve(1 + lists.size());
+    for (const auto& list : lists)
+        carried.push_back(&list);
+    const auto ids{evo::CanonicalMNIds(carried)};
+    const auto renumber = [&](const CDeterministicMNList& list) {
+        return list.Renumbered([&](const CDeterministicMN& dmn) { return ids.at(dmn.proTxHash); },
+                               static_cast<uint32_t>(ids.size()));
+    };
+    snapshot.mn_list = renumber(snapshot.mn_list);
     CDeterministicMNList previous{snapshot.mn_list};
     uint256 previous_hash{snapshot.base_block_hash};
-    const EvoViewScope normal{setup.Normal()};
-    for (const CBlockIndex* index : work) {
-        const auto list{setup.m_node.dmnman->GetListForBlock(index)};
+    for (size_t i{0}; i < work.size(); ++i) {
+        const CBlockIndex* index{work[i]};
+        const auto list{renumber(lists[i])};
         snapshot.historical_mn_list_diffs.push_back({previous_hash, index->GetBlockHash(), index->nHeight,
                                                      list.GetTotalRegisteredCount(), evo::CanonicalMNListHash(list),
                                                      previous.BuildDiff(list)});

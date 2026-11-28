@@ -268,10 +268,12 @@ uint64_t ReadCompactSize(SnapshotBoundedInput<Stream>& stream)
 /**
  * Snapshot-local canonical deterministic-MN encoding.
  *
- * internalId and nTotalRegisteredCount are intentionally retained. They are
- * consensus-deterministic for nodes synced from genesis: registrations assign
- * internalId in on-chain order and advance the counter identically. Thus a
- * from-genesis background validation re-derives the dumper's exact values.
+ * A node's internalIds and nTotalRegisteredCount depend on its history: no
+ * diff records a masternode registered and removed in one block, so a list
+ * rebuilt from a stored list and diffs (after a restart, or once the cache
+ * dropped it) counts one registration fewer, and later registrations take
+ * lower ids. A section therefore carries its own numbering, from
+ * CanonicalMNIds(), and CanonicalMNListHash() covers neither value.
  * Entries are sorted by the full proTxHash, never by immer iteration order.
  */
 template <typename Stream>
@@ -337,8 +339,15 @@ CDeterministicMNList UnserializeCanonicalMNList(Stream& s)
     return list;
 }
 
-/** Canonical hash shared by snapshot encoding and M3 completion comparison. */
+/** Canonical hash shared by snapshot encoding and M3 completion comparison.
+ *  It leaves out the internal ids and the registration counter, so every node
+ *  derives the same hash for the same list. */
 uint256 CanonicalMNListHash(const CDeterministicMNList& list);
+
+/** The internal ids an evo snapshot carries for the masternodes of `lists`:
+ *  each proTxHash's rank among all of them. The registration counter of every
+ *  carried list is their number. */
+std::map<uint256, uint64_t> CanonicalMNIds(const std::vector<const CDeterministicMNList*>& lists);
 
 /** Canonical snapshot-local encoding of a deterministic-MN list diff. */
 template <typename Stream>

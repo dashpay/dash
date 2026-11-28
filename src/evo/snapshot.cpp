@@ -129,8 +129,25 @@ void ValidateCanonicalMNInvariants(const CDeterministicMNList& list)
 uint256 CanonicalMNListHash(const CDeterministicMNList& list)
 {
     HashWriter writer{};
-    SerializeCanonicalMNList(writer, list);
+    writer << list.GetBlockHash() << list.GetHeightForSnapshotCodec();
+    std::vector<CDeterministicMNCPtr> mns;
+    mns.reserve(list.GetCounts().total());
+    list.ForEachMNShared(/*onlyValid=*/false, [&](const auto& dmn) { mns.emplace_back(dmn); });
+    std::sort(mns.begin(), mns.end(), [](const auto& a, const auto& b) { return a->proTxHash < b->proTxHash; });
+    WriteCompactSize(writer, mns.size());
+    for (const auto& dmn : mns) dmn->SerializeWithoutInternalId(writer);
     return writer.GetHash();
+}
+
+std::map<uint256, uint64_t> CanonicalMNIds(const std::vector<const CDeterministicMNList*>& lists)
+{
+    std::map<uint256, uint64_t> ids;
+    for (const auto* list : lists) {
+        list->ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) { ids.emplace(dmn.proTxHash, 0); });
+    }
+    uint64_t rank{0};
+    for (auto& [_, id] : ids) id = rank++;
+    return ids;
 }
 
 bool ReconstructHistoricalMNLists(const EvoSnapshot& snapshot, std::map<uint256, CDeterministicMNList>& lists,

@@ -2565,8 +2565,19 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_
 
     const CBlockIndex* base_index = WITH_LOCK(::cs_main, return validation_chainstate->m_chain.Tip());
     BOOST_REQUIRE(base_index);
-    const CDeterministicMNList incorrect_base_list{
-        base_index->GetBlockHash(), base_index->nHeight, /*totalRegisteredCount=*/1};
+    CDeterministicMNList incorrect_base_list{base_index->GetBlockHash(), base_index->nHeight, /*totalRegisteredCount=*/1};
+    {
+        auto state{std::make_shared<CDeterministicMNState>()};
+        uint160 owner;
+        owner.begin()[0] = 1;
+        state->keyIDOwner = CKeyID{owner};
+        state->netInfo = NetInfoInterface::MakeNetInfo(state->nVersion);
+        auto dmn{std::make_shared<CDeterministicMN>(/*_internalId=*/0)};
+        dmn->proTxHash = uint256::ONE;
+        dmn->collateralOutpoint = COutPoint{uint256::ONE, 0};
+        dmn->pdmnState = std::move(state);
+        incorrect_base_list.AddMN(dmn, /*fBumpTotalCount=*/false);
+    }
     const uint256 incorrect_hash{CanonicalDeterministicMNListHash(base_index, incorrect_base_list)};
     uint256 captured_block;
     uint256 captured_hash;
