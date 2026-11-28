@@ -7,11 +7,12 @@
 A pruned node, a masternode and a node with -addressindex, -spentindex or
 -timestampindex cannot load a snapshot. A node with a snapshot chainstate,
 validated or not, does not start with -prune, one of those indexes or
--masternodeblsprivkey until a restart has promoted the snapshot.
+-masternodeblsprivkey until a restart has promoted the snapshot, unless a
+reindex discards it.
 -assumeutxodata is regtest-only. Governance waits until the collateral index
 follows the active chainstate.
 
-Node 1 authorizes node 0's dump with -assumeutxodata.
+Nodes 1 and 2 authorize node 0's dump with -assumeutxodata.
 """
 from decimal import Decimal
 import json
@@ -79,25 +80,26 @@ class ProposalPeer(P2PInterface):
 class AssumeutxoRefusalsTest(BitcoinTestFramework):
     def set_test_params(self):
         """Use the pregenerated, deterministic chain up to height 199."""
-        self.num_nodes = 2
+        self.num_nodes = 3
         self.rpc_timeout = 120
 
     def setup_network(self):
-        self.add_nodes(2)
+        self.add_nodes(3)
         self.start_nodes()
 
     def run_test(self):
-        n0, n1 = self.nodes
+        n0, n1, n2 = self.nodes
         for n in self.nodes:
             n.setmocktime(n.getblockheader(n.getbestblockhash())['time'])
         self.sync_blocks()
 
-        # n1 learns the headers up to the base, but not the blocks. The first of
-        # them holds a proposal's collateral.
+        # n1 and n2 learn the headers up to the base, but not the blocks. The
+        # first of them holds a proposal's collateral.
         self.mine_proposal_collateral()
         for _ in range(SNAPSHOT_BASE_HEIGHT - START_HEIGHT):
             self.generate(n0, nblocks=1, sync_fun=self.no_op)
-            n1.submitheader(n0.getblock(n0.getbestblockhash(), 0))
+            for n in (n1, n2):
+                n.submitheader(n0.getblock(n0.getbestblockhash(), 0))
         dump_output = n0.dumptxoutset('utxos.dat')
         self.snapshot_path = dump_output['path']
         self.base_hash = dump_output['base_hash']
@@ -107,6 +109,7 @@ class AssumeutxoRefusalsTest(BitcoinTestFramework):
 
         self.test_load_refusals()
         self.test_startup_refusals()
+        self.test_reindex_discards_snapshot()
         self.test_assumeutxodata_off_regtest()
 
     def snapshot_dir(self):
@@ -187,7 +190,7 @@ class AssumeutxoRefusalsTest(BitcoinTestFramework):
             assert not self.snapshot_dir().exists()
 
     def test_startup_refusals(self):
-        n0, n1 = self.nodes
+        n0, n1 = self.nodes[:2]
         self.restart_node(1, extra_args=self.pin)
         loaded = n1.loadtxoutset(self.snapshot_path)
         assert_equal(loaded['base_height'], SNAPSHOT_BASE_HEIGHT)
@@ -206,7 +209,7 @@ class AssumeutxoRefusalsTest(BitcoinTestFramework):
         self.log.info("Once validated, the snapshot is promoted at the next restart")
         self.connect_nodes(0, 1)
         self.wait_until(lambda: len(n1.getchainstates()['chainstates']) == 1)
-        self.sync_blocks()
+        self.sync_blocks(self.nodes[:2])
         assert self.snapshot_dir().exists()
 
         self.log.info("Once the collateral index has caught up, the held proposal is requested and accepted")
@@ -246,6 +249,19 @@ class AssumeutxoRefusalsTest(BitcoinTestFramework):
         ]:
             n1.assert_start_raises_init_error(extra_args=extra_args + self.pin, expected_msg=f"Error: {error}", match=ErrorMatch.PARTIAL_REGEX)
         assert self.snapshot_dir().exists()
+
+    def test_reindex_discards_snapshot(self):
+        self.log.info("A reindex discards an unvalidated snapshot, so the node starts with -prune")
+        n2 = self.nodes[2]
+        self.restart_node(2, extra_args=self.pin)
+        n2.loadtxoutset(self.snapshot_path)
+        snapshot_dir = n2.chain_path / "chainstate_snapshot"
+        assert snapshot_dir.exists()
+        self.restart_node(2, extra_args=["-reindex", "-prune=1", "-fastprune", "-txindex=0"] + self.pin)
+        assert not snapshot_dir.exists()
+        chainstate, = n2.getchainstates()['chainstates']
+        assert_equal(chainstate['blocks'], START_HEIGHT)
+        assert_equal(chainstate.get('snapshot_blockhash'), None)
 
     def test_assumeutxodata_off_regtest(self):
         self.log.info("-assumeutxodata is regtest-only")

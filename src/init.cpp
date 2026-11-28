@@ -2170,8 +2170,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // ********************************************************* Step 7b: load block chain
 
     // A snapshot chainstate, validated or not, stays in use until a restart
-    // promotes it, and neither chainstate can run with these options.
-    if (node::FindSnapshotChainstateDir(args.GetDataDirNet())) {
+    // promotes it, and neither chainstate can run with these options. A
+    // reindex discards it before it is opened.
+    if (node::FindSnapshotChainstateDir(args.GetDataDirNet()) && !args.GetBoolArg("-reindex", false) &&
+        !args.GetBoolArg("-reindex-chainstate", false)) {
         if (args.GetIntArg("-prune", 0)) {
             return InitError(_("An assumeutxo snapshot chainstate is in use, which pruning would break. Restart without "
                                "-prune until the snapshot has been validated and a restart has promoted it."));

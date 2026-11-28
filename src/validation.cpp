@@ -6923,6 +6923,15 @@ std::optional<std::string> ChainstateManager::SnapshotActivationRefusal(const CB
     if (active.m_chainlocks.HasConflictingChainLock(base.nHeight, base.GetBlockHash())) {
         return "the snapshot base conflicts with a ChainLock";
     }
+    // A base above the best ChainLocked block this node knows must descend
+    // from it. The lock does not mark a competing branch whose headers
+    // arrived first, so neither check above sees one.
+    if (active.m_chainlocks.IsEnabled()) {
+        if (const CBlockIndex* locked{active.m_chainlocks.GetBestChainlockWithPindex().second};
+            locked && base.nHeight > locked->nHeight && base.GetAncestor(locked->nHeight) != locked) {
+            return "the snapshot base's chain omits a ChainLocked block";
+        }
+    }
     return std::nullopt;
 }
 
