@@ -150,12 +150,11 @@ class EncryptedP2PMisbehaving(BitcoinTestFramework):
         peer1.v2_state.can_data_be_received = True
         self.wait_until(lambda: peer1.v2_state.ellswift_ours)
         peer1.send_raw_message(peer1.v2_state.ellswift_ours[4:] + peer1.v2_state.sent_garbage)
-        mocktime += 3
-        node0.setmocktime(mocktime)
         # Ensure that the bytes sent after 4 bytes network magic are actually received.
         self.wait_until(lambda: node0.getpeerinfo()[-1]["bytesrecv"] > 4)
+        self.wait_until(lambda: node0.getpeerinfo()[-1]["bytessent"] > 0)
         with node0.assert_debug_log(['V2 handshake timeout peer=0']):
-            mocktime += 1  # `InactivityCheck()` triggers now
+            mocktime += 4  # `InactivityCheck()` triggers now
             node0.setmocktime(mocktime)
             # Dash runs InactivityCheck() at most once per second (ThreadSocketHandler), so allow more than 1s
             peer1.wait_for_disconnect(timeout=3)
