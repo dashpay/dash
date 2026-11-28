@@ -19,6 +19,7 @@
 #include <llmq/signing.h>
 #include <masternode/sync.h>
 #include <node/interface_ui.h>
+#include <util/signalinterrupt.h>
 #include <util/thread.h>
 #include <validation.h>
 
@@ -439,7 +440,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
     // We only need the ISLOCK from now on to detect conflicts
     TruncateRecoveredSigsForInputs(*islock);
-    ResolveBlockConflicts(hash, *islock);
+    if (!ResolveBlockConflicts(hash, *islock)) return;
 
     if (found_transaction) {
         RemoveMempoolConflictsForLock(hash, *islock);
@@ -619,9 +620,24 @@ void NetInstantSend::NotifyChainLock(const CBlockIndex* pindex, const std::share
     HandleFullyConfirmedBlock(pindex);
 }
 
-void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
+bool NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
 {
     auto conflicts = m_is_manager.RetrieveISConflicts(islockHash, islock);
+    if (conflicts.empty()) return true;
+
+    // Until a snapshot chainstate is validated in the background, it does not
+    // move away from blocks it cannot fully check: the chain wins and the lock
+    // is discarded, stored or still waiting for its transaction, so it is
+    // neither applied, announced, relayed nor served. This holds for a
+    // ChainLocked conflict too.
+    if (m_chainman.IsSnapshotActiveAndUnvalidated()) {
+        LogPrintf("NetInstantSend::%s -- txid=%s, islock=%s: conflicting blocks are kept before snapshot "
+                  "validation completes, discarding the lock\n",
+                  __func__, islock.txid.ToString(), islockHash.ToString());
+        m_is_manager.RemoveConflictingLock(islockHash, islock);
+        m_is_manager.RemovePendingNoTxLock(islockHash);
+        return false;
+    }
 
     // Lets see if any of the conflicts was already mined into a ChainLocked block
     bool hasChainLockedConflict = false;
@@ -641,8 +657,20 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
         LogPrintf("NetInstantSend::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock\n",
                   __func__, islock.txid.ToString(), islockHash.ToString());
         m_is_manager.RemoveConflictingLock(islockHash, islock);
-        return;
+        return true;
     }
+
+    // A pruned node that cannot undo a block because block data it needs was
+    // pruned stalls instead of moving away from it: the lock stays, and its
+    // conflicts are given up on. A node that cannot read a block is shutting
+    // down.
+    const auto give_up{[&](const BlockValidationState& state) {
+        if (IsLocalEvoStateError(state)) return true;
+        if (m_chainman.m_interrupt) return false;
+        // This should not have happened and we are in a state were it's not safe to continue anymore
+        assert(false);
+        return false;
+    }};
 
     bool hasTxForLock = m_is_manager.HasTxForLock(islockHash);
 
@@ -656,28 +684,29 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
         BlockValidationState state;
         // need non-const pointer
         auto pindex2 = WITH_LOCK(::cs_main, return m_chainman.ActiveChainstate().m_blockman.LookupBlockIndex(pindex->GetBlockHash()));
-        if (!m_chainman.ActiveChainstate().InvalidateBlock(state, pindex2)) {
-            LogPrintf("NetInstantSend::%s -- InvalidateBlock failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
-        }
-        if (hasTxForLock) {
-            activateBestChain = true;
-        } else {
+        const bool invalidated{m_chainman.ActiveChainstate().InvalidateBlock(state, pindex2)};
+        if (!hasTxForLock) {
+            // Without the locked transaction the invalidation is only temporary,
+            // also when it stopped partway.
             LogPrintf("NetInstantSend::%s -- resetting block %s\n", __func__, pindex2->GetBlockHash().ToString());
             LOCK(::cs_main);
             m_chainman.ActiveChainstate().ResetBlockFailureFlags(pindex2);
         }
+        if (!invalidated) {
+            LogPrintf("NetInstantSend::%s -- InvalidateBlock failed: %s\n", __func__, state.ToString());
+            return give_up(state);
+        }
+        if (hasTxForLock) activateBestChain = true;
     }
 
     if (activateBestChain) {
         BlockValidationState state;
         if (!m_chainman.ActiveChainstate().ActivateBestChain(state)) {
             LogPrintf("NetInstantSend::%s -- ActivateBestChain failed: %s\n", __func__, state.ToString());
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
+            return give_up(state);
         }
     }
+    return true;
 }
 
 void NetInstantSend::TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock)

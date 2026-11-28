@@ -140,6 +140,8 @@ public:
     void WriteNewISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, std::optional<int> minedHeight);
     void AddPendingISLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
+    //! Forget a lock that waits for its transaction.
+    void RemovePendingNoTxLock(const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
     bool PreVerifyIsLock(const uint256& hash, const instantsend::InstantSendLockPtr& islock, NodeId from) const;
 

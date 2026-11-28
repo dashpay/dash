@@ -135,6 +135,12 @@ void CInstantSendManager::AddPendingISLock(const uint256& hash, const instantsen
     pendingNoTxInstantSendLocks.try_emplace(hash, instantsend::PendingISLockFromPeer{from, islock});
 }
 
+void CInstantSendManager::RemovePendingNoTxLock(const uint256& hash)
+{
+    LOCK(cs_pendingLocks);
+    pendingNoTxInstantSendLocks.erase(hash);
+}
+
 void CInstantSendManager::TransactionIsRemoved(const CTransactionRef& tx)
 {
     if (!instantsend::HasLockInputs(*tx)) {
