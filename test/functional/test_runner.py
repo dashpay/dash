@@ -398,6 +398,8 @@ BASE_SCRIPTS = [
     'p2p_ibd_txrelay.py',
     'rpc_coinjoin.py',
     'rpc_masternode.py',
+    'p2p_mnauth.py --v1transport',
+    'p2p_mnauth.py --v2transport',
     'rpc_mnauth.py',
     'rpc_verifychainlock.py',
     'wallet_create_tx.py --legacy-wallet',
