@@ -137,15 +137,13 @@ class UpdateServiceDialog : public MasternodeActionDialog
 
 public:
     UpdateServiceDialog(interfaces::Node& node, WalletModel* wallet_model, const MasternodeEntry& entry,
-                        QWidget* parent = nullptr);
+                        interfaces::ProviderTxCapabilities capabilities, QWidget* parent = nullptr);
 
 protected:
     void validate() override;
     void submit() override;
 
 private:
-    UpdateServiceDialog(interfaces::Node& node, WalletModel* wallet_model, const MasternodeEntry& entry,
-                        interfaces::ProviderTxCapabilities capabilities, QWidget* parent);
     std::optional<interfaces::ProviderNetInfo> buildNetInfo(QString& error) const;
     std::optional<interfaces::ProviderUpdateServiceRequest> buildRequest(const CBLSSecretKey& operator_key,
                                                                          QString& error) const;
@@ -173,15 +171,13 @@ class UpdateRegistrarDialog : public MasternodeActionDialog
 
 public:
     UpdateRegistrarDialog(interfaces::Node& node, WalletModel* wallet_model, const MasternodeEntry& entry,
-                          QWidget* parent = nullptr);
+                          interfaces::ProviderTxCapabilities capabilities, QWidget* parent = nullptr);
 
 protected:
     void validate() override;
     void submit() override;
 
 private:
-    UpdateRegistrarDialog(interfaces::Node& node, WalletModel* wallet_model, const MasternodeEntry& entry,
-                          interfaces::ProviderTxCapabilities capabilities, QWidget* parent);
     std::optional<interfaces::ProviderUpdateRegistrarRequest> buildRequest(QString& error) const;
     bool operatorChanged() const;
     bool votingChanged() const;

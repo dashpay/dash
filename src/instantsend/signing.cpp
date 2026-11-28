@@ -9,6 +9,7 @@
 #include <chainparams.h>
 #include <evo/assetlocktx.h>
 #include <evo/creditpool.h>
+#include <evo/snapshot_types.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <index/txindex.h>
@@ -219,10 +220,14 @@ bool InstantSendSigner::CheckCanLockAssetUnlock(const CTransaction& tx, bool pri
     Chainstate& chainstate = m_chainman.ActiveChainstate();
     const CBlockIndex* tip = chainstate.m_chain.Tip();
     // Minable in the next block: inside its height window and signed by a recent quorum
-    TxValidationState state;
-    if (!chainstate.m_special_tx.CheckSpecialTx(tx, tip, GetSpecialTxRules(tip, m_chainman),
-                                                chainstate.CoinsTip(), /*check_sigs=*/true, state)) {
-        return log_refusal(state.ToString());
+    try {
+        TxValidationState state;
+        if (!chainstate.m_special_tx.CheckSpecialTx(tx, tip, GetSpecialTxRules(tip, m_chainman),
+                                                    chainstate.CoinsTip(), /*check_sigs=*/true, state)) {
+            return log_refusal(state.ToString());
+        }
+    } catch (const evo::LocalStateError& e) {
+        return log_refusal(e.what());
     }
     // Fits the withdrawal limit alongside every other pending withdrawal: the limit is enforced
     // only when a block is connected, so an over-limit unlock is otherwise indistinguishable from
@@ -235,6 +240,9 @@ bool InstantSendSigner::CheckCanLockAssetUnlock(const CTransaction& tx, bool pri
     try {
         limit = chainstate.m_special_tx.m_cpoolman->GetCreditPool(tip).currentLimit;
     } catch (const std::exception& e) {
+        LogPrintf("%s -- txid=%s: GetCreditPool failed: %s\n", __func__, tx.GetHash().ToString(), e.what());
+        return false;
+    } catch (const evo::LocalStateError& e) {
         LogPrintf("%s -- txid=%s: GetCreditPool failed: %s\n", __func__, tx.GetHash().ToString(), e.what());
         return false;
     }

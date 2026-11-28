@@ -116,7 +116,28 @@ public:
     }
 };
 
+/** Why a block could not be processed against this node's own Evo state. This
+ *  never describes the block itself, so it accompanies an error, not a
+ *  BlockValidationResult. */
+enum class LocalEvoStateResult {
+    NONE = 0,    //!< not a local Evo state error
+    UNAVAILABLE, //!< state the block needs is not available to this chainstate
+    BINDING,     //!< the operation was not bound to this chainstate's Evo view
+    MISMATCH,    //!< state disagrees with the snapshot, which could not be rejected
+};
+
 class TxValidationState : public ValidationState<TxValidationResult> {};
-class BlockValidationState : public ValidationState<BlockValidationResult> {};
+class BlockValidationState : public ValidationState<BlockValidationResult>
+{
+    LocalEvoStateResult m_local_evo_result{LocalEvoStateResult::NONE};
+
+public:
+    bool LocalEvoStateError(LocalEvoStateResult result, const std::string& reject_reason)
+    {
+        if (IsValid()) m_local_evo_result = result;
+        return Error(reject_reason);
+    }
+    LocalEvoStateResult GetLocalEvoStateResult() const { return m_local_evo_result; }
+};
 
 #endif // BITCOIN_CONSENSUS_VALIDATION_H

@@ -6,6 +6,7 @@
 #define BITCOIN_TEST_UTIL_MASTERNODE_H
 
 #include <coins.h>
+#include <evo/dmn_types.h>
 #include <primitives/transaction.h>
 
 #include <map>
@@ -27,6 +28,10 @@ void SignTransaction(CMutableTransaction& tx, const SimpleUTXOMap& coins, const 
 CMutableTransaction CreateProRegTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, int port,
                                    const CScript& script_payout, const CKey& coinbase_key, CKey& owner_key_ret,
                                    CBLSSecretKey& operator_key_ret);
+//! Overload registering the given keys, for chains that must be the same in every run.
+CMutableTransaction CreateProRegTx(const ChainstateManager& chainman, SimpleUTXOMap& utxos, int port,
+                                   const CScript& script_payout, const CKey& coinbase_key, const CKey& owner_key,
+                                   const CBLSSecretKey& operator_key, MnType type = MnType::Regular);
 CScript GenerateRandomAddress();
 
 #endif // BITCOIN_TEST_UTIL_MASTERNODE_H

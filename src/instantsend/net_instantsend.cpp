@@ -9,6 +9,7 @@
 #include <chainparams.h>
 #include <consensus/params.h>
 #include <cxxtimer.hpp>
+#include <evo/snapshot_types.h>
 #include <instantsend/instantsend.h>
 #include <instantsend/lock.h>
 #include <instantsend/signing.h>
@@ -144,9 +145,18 @@ std::unique_ptr<NetInstantSend::BatchVerificationData> NetInstantSend::BuildVeri
             const int sign_height = next_cycle_height < active_chain.Height() ? next_cycle_height - 1 : -1;
             pindex_start = llmq::SelectQuorumForSigningStartBlock(active_chain, sign_height, signOffset);
         }
-        // For RegTest non-rotating quorum cycleHash has directly quorum hash
-        auto quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, m_qman, id, pindex_start)
-                                              : m_qman.GetQuorum(llmq_params.type, islock->cycleHash);
+        llmq::CQuorumCPtr quorum;
+        try {
+            // For RegTest non-rotating quorum cycleHash has directly quorum hash
+            quorum = llmq_params.useRotation ? llmq::SelectQuorumForSigning(llmq_params, m_qman, id, pindex_start)
+                                             : m_qman.GetQuorum(llmq_params.type, islock->cycleHash);
+        } catch (const evo::LocalStateError& e) {
+            // Left unchecked, so only this lock is dropped, without blaming its peer: the rest of the batch stays
+            // verifiable.
+            LogPrint(BCLog::INSTANTSEND, "NetInstantSend::%s -- txid=%s, islock=%s: cannot select quorum: %s\n",
+                     __func__, islock->txid.ToString(), hash.ToString(), e.what());
+            continue;
+        }
 
         if (!quorum) {
             // Different cycle hashes can select different quorums within the same batch.
@@ -452,8 +462,9 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
 void NetInstantSend::WorkThreadMain()
 {
     while (!workInterrupt) {
-        bool fMoreWork = [&]() -> bool {
-            if (!m_is_manager.IsInstantSendEnabled()) return false;
+        bool fMoreWork{false};
+        RunActiveEvoRound(m_chainman.EvoDb(), "isman", [&] {
+            if (!m_is_manager.IsInstantSendEnabled()) return;
 
             auto [more_work, locks] = m_is_manager.FetchPendingLocks();
             if (!locks.empty()) {
@@ -462,8 +473,8 @@ void NetInstantSend::WorkThreadMain()
             if (m_signer) {
                 m_signer->ProcessPendingRetryLockTxs(m_is_manager.PrepareTxToRetry());
             }
-            return more_work;
-        }();
+            fMoreWork = more_work;
+        });
 
         if (!fMoreWork && !workInterrupt.sleep_for(WORK_THREAD_SLEEP_INTERVAL)) {
             return;
