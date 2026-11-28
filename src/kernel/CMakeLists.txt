@@ -117,6 +117,7 @@ add_library(bitcoinkernel STATIC EXCLUDE_FROM_ALL
   ../util/chaintype.cpp
   ../util/check.cpp
   ../util/exception.cpp
+  ../util/feefrac.cpp
   ../util/fs.cpp
   ../util/fs_helpers.cpp
   ../util/hasher.cpp

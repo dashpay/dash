@@ -290,6 +290,9 @@ struct Peer {
      * Most peers use headers-first syncing, which doesn't use this mechanism */
     uint256 m_continuation_block GUARDED_BY(m_block_inv_mutex) {};
 
+    /** Set to true once initial VERSION message was sent (only relevant for outbound peers). */
+    bool m_outbound_version_message_sent GUARDED_BY(NetEventsInterface::g_msgproc_mutex){false};
+
     /** This peer's reported block height when we connected */
     std::atomic<int> m_starting_height{-1};
 
@@ -603,7 +606,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!m_most_recent_block_mutex);
 
     /** Implement NetEventsInterface */
-    void InitializeNode(CNode& node, ServiceFlags our_services) override
+    void InitializeNode(const CNode& node, ServiceFlags our_services) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_object_request_mutex, !m_peer_mutex);
     void FinalizeNode(const CNode& node) override EXCLUSIVE_LOCKS_REQUIRED(!m_object_request_mutex, !m_peer_mutex);
     bool HasAllDesirableServiceFlags(ServiceFlags services) const override;
@@ -1787,7 +1790,7 @@ void PeerManagerImpl::UpdateLastBlockAnnounceTime(NodeId node, int64_t time_in_s
     if (state) state->m_last_block_announcement = time_in_seconds;
 }
 
-void PeerManagerImpl::InitializeNode(CNode& node, ServiceFlags our_services) {
+void PeerManagerImpl::InitializeNode(const CNode& node, ServiceFlags our_services) {
     NodeId nodeid = node.GetId();
     {
         LOCK(cs_main);
@@ -1803,9 +1806,6 @@ void PeerManagerImpl::InitializeNode(CNode& node, ServiceFlags our_services) {
     {
         LOCK(m_peer_mutex);
         m_peer_map.emplace_hint(m_peer_map.end(), nodeid, peer);
-    }
-    if (!node.IsInboundConn()) {
-        PushNodeVersion(node, *peer);
     }
 }
 
@@ -5958,6 +5958,10 @@ bool PeerManagerImpl::ProcessMessages(CNode* pfrom, std::atomic<bool>& interrupt
     PeerRef peer = GetPeerRef(pfrom->GetId());
     if (peer == nullptr) return false;
 
+    // For outbound connections, ensure that the initial VERSION message
+    // has been sent first before processing any incoming messages
+    if (!pfrom->IsInboundConn() && !peer->m_outbound_version_message_sent) return false;
+
     {
         LOCK(peer->m_getdata_requests_mutex);
         if (!peer->m_getdata_requests.empty()) {
@@ -6040,16 +6044,19 @@ void PeerManagerImpl::ConsiderEviction(CNode& pto, Peer& peer, std::chrono::seco
         // unless it's invalid, in which case we should find that out and
         // disconnect from them elsewhere).
         if (state.pindexBestKnownBlock != nullptr && state.pindexBestKnownBlock->nChainWork >= m_chainman.ActiveChain().Tip()->nChainWork) {
+            // The outbound peer has sent us a block with at least as much work as our current tip, so reset the timeout if it was set
             if (state.m_chain_sync.m_timeout != 0s) {
                 state.m_chain_sync.m_timeout = 0s;
                 state.m_chain_sync.m_work_header = nullptr;
                 state.m_chain_sync.m_sent_getheaders = false;
             }
         } else if (state.m_chain_sync.m_timeout == 0s || (state.m_chain_sync.m_work_header != nullptr && state.pindexBestKnownBlock != nullptr && state.pindexBestKnownBlock->nChainWork >= state.m_chain_sync.m_work_header->nChainWork)) {
-            // Our best block known by this peer is behind our tip, and we're either noticing
-            // that for the first time, OR this peer was able to catch up to some earlier point
-            // where we checked against our tip.
-            // Either way, set a new timeout based on current tip.
+            // At this point we know that the outbound peer has either never sent us a block/header or they have, but its tip is behind ours
+            // AND
+            // we are noticing this for the first time (m_timeout is 0)
+            // OR we noticed this at some point within the last CHAIN_SYNC_TIMEOUT + HEADERS_RESPONSE_TIME seconds and set a timeout
+            // for them, they caught up to our tip at the time of setting the timer but not to our current one (we've also advanced).
+            // Either way, set a new timeout based on our current tip.
             state.m_chain_sync.m_timeout = time_in_seconds + CHAIN_SYNC_TIMEOUT;
             state.m_chain_sync.m_work_header = m_chainman.ActiveChain().Tip();
             state.m_chain_sync.m_sent_getheaders = false;
@@ -6398,6 +6405,12 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
     // We must call MaybeDiscourageAndDisconnect first, to ensure that we'll
     // disconnect misbehaving peers even before the version handshake is complete.
     if (MaybeDiscourageAndDisconnect(*pto, *peer)) return true;
+
+    // Initiate version handshake for outbound connections
+    if (!pto->IsInboundConn() && !peer->m_outbound_version_message_sent) {
+        PushNodeVersion(*pto, *peer);
+        peer->m_outbound_version_message_sent = true;
+    }
 
     // Don't send anything until the version handshake is complete
     if (!pto->fSuccessfullyConnected || pto->fDisconnect)

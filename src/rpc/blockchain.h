@@ -20,6 +20,7 @@
 
 class CBlock;
 class CBlockIndex;
+class CChain;
 class Chainstate;
 class CCoinsView;
 namespace chainlock { class Chainlocks; }
@@ -79,5 +80,8 @@ std::optional<kernel::CCoinsStats> GetUTXOStats(CCoinsView* view, node::BlockMan
                                                 const std::function<void()>& interruption_point = {},
                                                 const CBlockIndex* pindex = nullptr,
                                                 bool index_requested = true);
+
+//! Return height of highest block that has been pruned, or std::nullopt if no blocks have been pruned
+std::optional<int> GetPruneHeight(const node::BlockManager& blockman, const CChain& chain) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
 #endif // BITCOIN_RPC_BLOCKCHAIN_H

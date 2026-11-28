@@ -1162,8 +1162,8 @@ public:
     /** Mutex for anything that is only accessed via the msg processing thread */
     static Mutex g_msgproc_mutex;
 
-    /** Initialize a peer (setup state, queue any initial messages) */
-    virtual void InitializeNode(CNode& node, ServiceFlags our_services) = 0;
+    /** Initialize a peer (setup state) */
+    virtual void InitializeNode(const CNode& node, ServiceFlags our_services) = 0;
 
     /** Handle removal of a peer (clear state) */
     virtual void FinalizeNode(const CNode& node) = 0;
@@ -1467,6 +1467,8 @@ public:
 
     void StartExtraBlockRelayPeers();
 
+    // Count the number of full-relay peer we have.
+    int GetFullOutboundConnCount() const;
     // Return the number of outbound peers we have in excess of our target (eg,
     // if we previously called SetTryNewOutboundPeer(true), and have since set
     // to false, we may have extra peers that we wish to disconnect). This may
