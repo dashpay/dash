@@ -74,7 +74,7 @@ protected:
     void TransactionAddedToMempool(const CTransactionRef&, int64_t, uint64_t mempool_sequence) override;
     void TransactionRemovedFromMempool(const CTransactionRef& ptx, MemPoolRemovalReason reason,
                                        uint64_t mempool_sequence) override;
-    void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex) override;
+    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex) override;
     void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected) override;
     void NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig) override;
 
@@ -101,7 +101,9 @@ private:
         const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
         const std::vector<instantsend::PendingISLockEntry>& pend);
 
-    void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock);
+    //! Returns false if the caller must not go on with the lock: it was
+    //! discarded, or the node is shutting down.
+    [[nodiscard]] bool ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock);
 
     void TruncateRecoveredSigsForInputs(const instantsend::InstantSendLock& islock);
 

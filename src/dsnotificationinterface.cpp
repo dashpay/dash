@@ -34,6 +34,11 @@ void CDSNotificationInterface::InitializeCurrentBlockTip(const CBlockIndex* tip,
     UpdatedBlockTip(tip, nullptr, ibd);
 }
 
+void CDSNotificationInterface::InitializeSnapshotTip(const CBlockIndex* tip, bool ibd)
+{
+    UpdatedBlockTip(tip, nullptr, ibd);
+}
+
 void CDSNotificationInterface::AcceptedBlockHeader(const CBlockIndex *pindexNew)
 {
     m_mn_sync.AcceptedBlockHeader(pindexNew);
@@ -77,8 +82,12 @@ void CDSNotificationInterface::TransactionAddedToMempool(const CTransactionRef& 
     m_dstxman.TransactionAddedToMempool(ptx);
 }
 
-void CDSNotificationInterface::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
+void CDSNotificationInterface::BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
 {
+    // Only the active chainstate's blocks concern this subscriber.
+    if (role == ChainstateRole::BACKGROUND) {
+        return;
+    }
     m_dstxman.BlockConnected(pblock, pindex);
 }
 

@@ -236,6 +236,8 @@ public:
 
     virtual bool Valid() const = 0;
     virtual void Next() = 0;
+    //! Whether a read failed: the cursor may then have skipped records.
+    virtual bool HasError() const = 0;
 
     //! Get best block at the time this cursor was created
     const uint256 &GetBestBlock() const { return hashBlock; }

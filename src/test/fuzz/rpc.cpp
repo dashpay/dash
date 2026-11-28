@@ -97,6 +97,7 @@ const std::vector<std::string> RPC_COMMANDS_NOT_SAFE_FOR_FUZZING{
     "gobject submit", // changes governance state
     "importmempool", // avoid reading from disk
     "importwallet", // avoid reading from disk
+    "loadtxoutset",   // avoid reading from disk
     "loadwallet",   // avoid reading from disk
     "masternode", // may dispatch to masternode connect
     "masternode connect",   // avoid network activity / DNS lookups
@@ -163,6 +164,7 @@ const std::vector<std::string> RPC_COMMANDS_SAFE_FOR_FUZZING{
     "getblocktemplate",
     "getchainlockbyheight",
     "getchaintips",
+    "getchainstates",
     "getchaintxstats",
     "getcoinjoininfo",
     "getconnectioncount",

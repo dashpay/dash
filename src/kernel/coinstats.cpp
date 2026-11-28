@@ -139,6 +139,10 @@ static bool ComputeUTXOStats(CCoinsView* view, CCoinsStats& stats, T hash_obj, c
         }
         pcursor->Next();
     }
+    if (pcursor->HasError()) {
+        LogError("%s: unable to read the coins database\n", __func__);
+        return false;
+    }
     if (!outputs.empty()) {
         ApplyStats(stats, prevkey, outputs);
         ApplyHash(hash_obj, prevkey, outputs);

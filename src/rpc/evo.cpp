@@ -1718,10 +1718,11 @@ static RPCHelpMan protx_list()
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid height specified");
         }
 
-        std::set<COutPoint> setOutpts;
-        for (const auto& outpt : wallet->ListProTxCoins()) {
-            setOutpts.emplace(outpt);
+        const auto protx_coins{wallet->ListProTxCoins()};
+        if (!protx_coins) {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Masternode list is not available yet");
         }
+        const std::set<COutPoint> setOutpts{protx_coins->begin(), protx_coins->end()};
 
         CDeterministicMNList mnList = dmnman.GetListForBlock(chainman.ActiveChain()[height]);
         mnList.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
@@ -1836,7 +1837,8 @@ static RPCHelpMan protx_info()
     };
 }
 
-static uint256 ParseBlock(const UniValue& v, const ChainstateManager& chainman, const std::string& strName) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+static uint256 ParseBlock(const UniValue& v, const CChain& chain, const std::string& strName)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(::cs_main);
 
@@ -1849,10 +1851,10 @@ static uint256 ParseBlock(const UniValue& v, const ChainstateManager& chainman, 
         } else if (!ParseInt32(v.get_str(), &h)) {
             fail = true;
         }
-        if (fail || h < 1 || h > chainman.ActiveChain().Height()) {
+        if (fail || h < 1 || h > chain.Height()) {
             throw std::runtime_error(strprintf("%s must be a block hash or chain height and not %s", strName, v.getValStr()));
         }
-        return *chainman.ActiveChain()[h]->phashBlock;
+        return *chain[h]->phashBlock;
     }
 }
 
@@ -1861,7 +1863,7 @@ static const CBlockIndex* ParseBlockIndex(const UniValue& v, const ChainstateMan
     AssertLockHeld(::cs_main);
 
     try {
-        const auto hash{ParseBlock(v, chainman, strName)};
+        const auto hash{ParseBlock(v, chainman.ActiveChain(), strName)};
         const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(hash);
         if (!pindex) {
             throw std::runtime_error(strprintf("Block %s with hash %s not found", strName, v.getValStr()));
@@ -1896,8 +1898,8 @@ static RPCHelpMan protx_diff()
     const LLMQContext& llmq_ctx = *CHECK_NONFATAL(node.llmq_ctx);
 
     LOCK(::cs_main);
-    uint256 baseBlockHash = ParseBlock(request.params[0], chainman, "baseBlock");
-    uint256 blockHash = ParseBlock(request.params[1], chainman, "block");
+    uint256 baseBlockHash = ParseBlock(request.params[0], chainman.ActiveChain(), "baseBlock");
+    uint256 blockHash = ParseBlock(request.params[1], chainman.ActiveChain(), "block");
     bool extended = false;
     if (!request.params[2].isNull()) {
         extended = ParseBoolV(request.params[2], "extended");
@@ -2018,32 +2020,34 @@ static UniValue evodb_verify_or_repair_impl(const JSONRPCRequest& request, bool 
 
     {
         LOCK(::cs_main);
+        const CChain& chain{chainman.NormalEvoChain()};
+        const std::string chain_name{&chain == &chainman.ActiveChain() ? "active chain" : "background validation chain"};
         // Default to DIP0003 activation height if startBlock not specified
         if (request.params[0].isNull()) {
             const auto& consensus_params = Params().GetConsensus();
-            start_index = chainman.ActiveChain()[consensus_params.DIP0003Height];
+            start_index = chain[consensus_params.DIP0003Height];
             if (!start_index) {
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot find DIP0003 activation block");
             }
         } else {
-            uint256 start_block_hash = ParseBlock(request.params[0], chainman, "startBlock");
+            uint256 start_block_hash = ParseBlock(request.params[0], chain, "startBlock");
             start_index = chainman.m_blockman.LookupBlockIndex(start_block_hash);
-            if (!start_index || !chainman.ActiveChain().Contains(start_index)) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Start block not found in active chain");
+            if (!start_index || !chain.Contains(start_index)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Start block not found in %s", chain_name));
             }
         }
 
         // Default to chain tip if stopBlock not specified
         if (request.params[1].isNull()) {
-            stop_index = chainman.ActiveChain().Tip();
+            stop_index = chain.Tip();
             if (!stop_index) {
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot find chain tip");
             }
         } else {
-            uint256 stop_block_hash = ParseBlock(request.params[1], chainman, "stopBlock");
+            uint256 stop_block_hash = ParseBlock(request.params[1], chain, "stopBlock");
             stop_index = chainman.m_blockman.LookupBlockIndex(stop_block_hash);
-            if (!stop_index || !chainman.ActiveChain().Contains(stop_index)) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Stop block not found in active chain");
+            if (!stop_index || !chain.Contains(stop_index)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Stop block not found in %s", chain_name));
             }
         }
     }
