@@ -91,8 +91,13 @@ void CreditPoolFeed::fetch()
         return;
     }
 
+    // Unavailable counts keep the current data until a later fetch.
+    const auto counts{m_client_model.node().llmq().getCreditPoolCounts()};
+    if (!counts) {
+        return;
+    }
     auto ret = std::make_shared<Data>();
-    ret->m_counts = m_client_model.node().llmq().getCreditPoolCounts();
+    ret->m_counts = *counts;
     ret->m_pending_unlocks = m_client_model.node().llmq().getPendingAssetUnlocks();
 
     setData(std::move(ret));
@@ -132,8 +137,12 @@ void QuorumFeed::fetch()
         return;
     }
 
+    auto quorums{m_client_model.node().llmq().getQuorumStats()};
+    if (!quorums) {
+        return;
+    }
     auto ret = std::make_shared<Data>();
-    ret->m_quorums = m_client_model.node().llmq().getQuorumStats();
+    ret->m_quorums = std::move(*quorums);
 
     setData(std::move(ret));
 }
@@ -220,22 +229,31 @@ void ProposalFeed::fetch()
     const auto nMinQuorum = static_cast<size_t>(Params().GetConsensus().nGovernanceMinQuorum);
     ret->m_abs_vote_req = static_cast<int>(std::max(nMinQuorum, data_mn->m_counts.m_valid_weighted / 10));
     ret->m_gov_info = m_client_model.node().gov().getGovernanceInfo();
+    auto fundable{m_client_model.node().gov().getFundableProposalHashes()};
+    // Proposals are judged against the masternode list; without it, keep the
+    // current data until a later fetch.
+    if (!ret->m_gov_info.fundingthreshold || !fundable) {
+        return;
+    }
     std::vector<CGovernanceObject> govObjList;
     m_client_model.getAllGovernanceObjects(govObjList);
     for (const auto& govObj : govObjList) {
         if (govObj.GetObjectType() != GovernanceObject::PROPOSAL) {
             continue; // Skip triggers.
         }
-        ret->m_proposals.emplace_back(std::make_shared<Proposal>(m_client_model, govObj, ret->m_gov_info, ret->m_gov_info.requiredConfs,
-                                                                 /*is_broadcast=*/true));
+        auto proposal{std::make_shared<Proposal>(m_client_model, govObj, ret->m_gov_info, ret->m_gov_info.requiredConfs,
+                                                 /*is_broadcast=*/true)};
         const auto voters = m_client_model.node().gov().getObjUniqueVoters(govObj, VOTE_SIGNAL_FUNDING);
-        ret->m_max_regular_voters = std::max(ret->m_max_regular_voters, voters.m_regular);
-        ret->m_max_evo_voters = std::max(ret->m_max_evo_voters, voters.m_evo);
+        if (!proposal->hasVotes() || !voters) {
+            return;
+        }
+        ret->m_proposals.emplace_back(std::move(proposal));
+        ret->m_max_regular_voters = std::max(ret->m_max_regular_voters, voters->m_regular);
+        ret->m_max_evo_voters = std::max(ret->m_max_evo_voters, voters->m_evo);
     }
 
-    auto fundable{m_client_model.node().gov().getFundableProposalHashes()};
-    ret->m_fundable_hashes = std::move(fundable.hashes);
-    ret->m_allocated = fundable.allocated;
+    ret->m_fundable_hashes = std::move(fundable->hashes);
+    ret->m_allocated = fundable->allocated;
 
     setData(std::move(ret));
 }

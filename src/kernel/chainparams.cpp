@@ -361,8 +361,14 @@ public:
             }
         };
 
-        m_assumeutxo_data = MapAssumeutxo{
-         // TODO to be specified in a future patch.
+        m_assumeutxo_data = {
+            {
+                .height = 2579482,
+                .hash_serialized = AssumeutxoHash{uint256S("0x9f04690bf3ef7a4917eace719ac558cd6896a8bd22e905a74f19d76ce83d5811")},
+                .evo_hash = EvoSnapshotHash{uint256S("0x5fe390df978e8e5ac259e02a0b0690a6e3a757f45177025cf5f4d864e59ebc6e")},
+                .nChainTx = 71739012,
+                .blockhash = uint256S("0x000000000000001cfbe4751211d7e753bab093e5d63de1fa947cf20714a0e727"),
+            },
         };
 
         // getchaintxstats 17280 000000000000000346a1804da4832b0b69dd9a7f96b14c7cb54585a9ac6ae98f
@@ -546,8 +552,14 @@ public:
             }
         };
 
-        m_assumeutxo_data = MapAssumeutxo{
-            // TODO to be specified in a future patch.
+        m_assumeutxo_data = {
+            {
+                .height = 1599687,
+                .hash_serialized = AssumeutxoHash{uint256S("0x4ba6fb243e38624fac1f2f434027b381c3cdf900f3da981e996d113be148d772")},
+                .evo_hash = EvoSnapshotHash{uint256S("0x574ddf5486e18f81998b2a49a37b7ba9562ac4e134d14a7225bdd04b0c1b4afd")},
+                .nChainTx = 9019675,
+                .blockhash = uint256S("0x0000006e4b85a1f38f3224ead2865de8e7f29d98229b58b00a1b1bedab624872"),
+            },
         };
 
         // getchaintxstats 17280 000000116cd3c11d44c88cbc0a26804bd277a5d790f684ec3a8aaa820690318c
@@ -980,16 +992,31 @@ public:
             }
         };
 
-        m_assumeutxo_data = MapAssumeutxo{
+        m_assumeutxo_data = {
             {
-                110,
-                {AssumeutxoHash{uint256S("0xffb210087e1ed14526c0c08a3ec3a7c8e288079eaa68acb87d3d4d9fd746079f")}, EvoSnapshotHash{uint256{}}, 110},
+                .height = 110,
+                .hash_serialized = AssumeutxoHash{uint256S("0xffb210087e1ed14526c0c08a3ec3a7c8e288079eaa68acb87d3d4d9fd746079f")},
+                .evo_hash = EvoSnapshotHash{uint256{}},
+                .nChainTx = 111,
+                .blockhash = uint256S("0x729bcb1479ff9f4968439f0276bd76bcb2de0f0720b7a16f383321f6a41cb238"),
             },
             {
-                200,
-                {AssumeutxoHash{uint256S("0x16e00a64db4fa48dd989dce86d8677f41797d52044e5fc86021aa88cc22b665b")}, EvoSnapshotHash{uint256{}}, 200},
+                .height = 200,
+                .hash_serialized = AssumeutxoHash{uint256S("0x16e00a64db4fa48dd989dce86d8677f41797d52044e5fc86021aa88cc22b665b")},
+                .evo_hash = EvoSnapshotHash{uint256{}},
+                .nChainTx = 201,
+                .blockhash = uint256S("0x19c1b203b5a960c7f3619e0e805b24c94e684b1aa261f3a79c84d291638a6e1f"),
             },
         };
+        for (const auto& data : opts.assumeutxo_data) {
+            if (std::ranges::any_of(m_assumeutxo_data, [&](const auto& entry) {
+                    return entry.height == data.height || entry.blockhash == data.blockhash;
+                })) {
+                throw std::runtime_error(strprintf("Duplicate height or block hash in -assumeutxodata (%d:%s)",
+                                                   data.height, data.blockhash.ToString()));
+            }
+            m_assumeutxo_data.push_back(data);
+        }
 
         chainTxData = ChainTxData{
             0,

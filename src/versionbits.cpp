@@ -35,7 +35,6 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
     int nPeriod = Period(params);
     int min_activation_height = MinActivationHeight(params);
     int64_t nTimeStart = BeginTime(params);
-    int masternodeStartHeight = SignalHeight(pindexPrev, params);
     int64_t nTimeTimeout = EndTime(params);
 
     // Check if this deployment is always active.
@@ -47,6 +46,9 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
     if (nTimeStart == Consensus::BIP9Deployment::NEVER_ACTIVE) {
         return ThresholdState::FAILED;
     }
+
+    // Only a state that can change reads the masternode signal, which may need EvoDB.
+    int masternodeStartHeight = SignalHeight(pindexPrev, params);
 
     // A block's state is always the same as that of the first of its period, so it is computed based on a pindexPrev whose height equals a multiple of nPeriod - 1.
     if (pindexPrev != nullptr) {

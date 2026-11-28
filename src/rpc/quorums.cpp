@@ -173,7 +173,8 @@ static RPCHelpMan quorum_list_extended()
 
         auto quorums = llmq_ctx.qman->ScanQuorums(type, pblockindex, llmq_params.signingActiveQuorumCount);
         for (const auto& q : quorums) {
-            size_t num_members = q->members.size();
+            // A quorum known by its key only counts its commitment's member slots.
+            const size_t num_members{q->HasMembers() ? q->Members().size() : q->qc->validMembers.size()};
             size_t num_valid_members = std::count_if(q->qc->validMembers.begin(), q->qc->validMembers.begin() + num_members, [](auto val){return val;});
             double health_ratio = num_members > 0 ? static_cast<double>(num_valid_members) / static_cast<double>(num_members) : 0.0;
             std::stringstream ss;
@@ -224,8 +225,8 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
 
     if (includeMembers) {
         UniValue membersArr(UniValue::VARR);
-        for (size_t i = 0; i < quorum.members.size(); i++) {
-            const auto& dmn = quorum.members[i];
+        for (size_t i = 0; i < quorum.Members().size(); i++) {
+            const auto& dmn = quorum.Members()[i];
             UniValue mo(UniValue::VOBJ);
             mo.pushKV("proTxHash", dmn->proTxHash.ToString());
             if (IsDeprecatedRPCEnabled("service")) {
