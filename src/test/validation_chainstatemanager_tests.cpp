@@ -6,6 +6,7 @@
 #include <banman.h>
 #include <chainlock/chainlock.h>
 #include <chainlock/clsig.h>
+#include <chainlock/handler.h>
 #include <chainparams.h>
 #include <compat/endian.h>
 #include <consensus/merkle.h>
@@ -46,6 +47,7 @@
 #include <rpc/protocol.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
+#include <spork.h>
 #include <streams.h>
 #include <sync.h>
 #include <test/util/bls.h>
@@ -261,6 +263,21 @@ protected:
     {
         ++changes;
     }
+};
+
+//! The last tip validation announced, synchronously and through the queue.
+class TipAnnouncements final : public CValidationInterface
+{
+public:
+    const CBlockIndex* synchronous{nullptr};
+    const CBlockIndex* queued{nullptr};
+
+protected:
+    void SynchronousUpdatedBlockTip(const CBlockIndex* new_tip, const CBlockIndex*, bool) override
+    {
+        synchronous = new_tip;
+    }
+    void UpdatedBlockTip(const CBlockIndex* new_tip, const CBlockIndex*, bool) override { queued = new_tip; }
 };
 
 //! The validation result announced for one block.
@@ -1583,7 +1600,33 @@ struct EvoStallTestSetup : SnapshotTestSetup {
     Chainstate& m_background_cs{*std::get<0>(m_chainstates)};
     Chainstate& m_snapshot_cs{*std::get<1>(m_chainstates)};
 
+    ~EvoStallTestSetup() { SetMiscWarning(Untranslated("")); }
+
     CBlockIndex* SnapshotTip() const { return WITH_LOCK(::cs_main, return m_snapshot_cs.m_chain.Tip()); }
+
+    //! Mine until the next block is outside every regtest LLMQ mining window
+    //! (dkgInterval 24, windows end at offset 20), so it needs no quorum
+    //! commitment.
+    void MineOutsideLLMQWindows()
+    {
+        while (WITH_LOCK(::cs_main, return (m_snapshot_cs.m_chain.Height() + 1) % 24) < 21) {
+            const int height{WITH_LOCK(::cs_main, return m_snapshot_cs.m_chain.Height())};
+            mineBlocks(1);
+            BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return m_snapshot_cs.m_chain.Height()), height + 1);
+        }
+    }
+
+    //! Make undoing `block` change the MN list, which needs the pre-base list.
+    void MakeUndoNeedPreBaseList(const CBlockIndex& block)
+    {
+        LOCK(::cs_main);
+        CDeterministicMNListDiff diff;
+        diff.removedMns.emplace(0);
+        // The key mirrors DB_LIST_DIFF in evo/deterministicmns.cpp.
+        auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+        m_node.evodb->Write(std::make_pair(std::string{"dmn_D4"}, block.GetBlockHash()), diff);
+        tx->Commit();
+    }
 
     //! A CbTx block on `parent` at `height`, built from `block_template`.
     static std::shared_ptr<const CBlock> ChildOf(const CBlock& block_template, const CBlock& parent, int height,
@@ -1597,6 +1640,202 @@ struct EvoStallTestSetup : SnapshotTestSetup {
         return std::make_shared<const CBlock>(MakeCbTxBlock(child, height, version));
     }
 };
+
+//! A block that needs the pre-base MN list stalls the chainstate with a local
+//! error instead of being marked invalid. Each stalled block is validated
+//! once, however many branches stall, startup's block import goes on past the
+//! stall, and a branch that needs no unavailable state still advances the
+//! chain although every stalled branch has more work.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_stall_passes_over_stalled_branches, EvoStallTestSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    MineOutsideLLMQWindows();
+    const CBlockIndex* snapshot_tip{SnapshotTip()};
+    const CBlock template_block{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), m_snapshot_cs)};
+
+    std::optional<ScopedDIP3FromGenesis> dip3_active{std::in_place};
+    int evo_state_errors{0};
+    const auto log_callback{LogInstance().PushBackCallback([&](const std::string& line) {
+        if (line.find("local Evo state error") != std::string::npos) ++evo_state_errors;
+    })};
+    int alerts{0};
+    const boost::signals2::scoped_connection alert_connection{uiInterface.NotifyAlertChanged_connect([&] { ++alerts; })};
+    const auto block{std::make_shared<const CBlock>(MakeCbTxBlock(template_block, snapshot_tip->nHeight + 1))};
+    BOOST_CHECK(!chainman.ProcessNewBlock(block, /*force_processing=*/true, /*new_block=*/nullptr));
+    BlockValidationState state;
+    BOOST_CHECK(!m_snapshot_cs.ActivateBestChain(state, block));
+    BOOST_CHECK(IsLocalEvoStateError(state));
+    BOOST_CHECK(state.GetLocalEvoStateResult() == LocalEvoStateResult::UNAVAILABLE);
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "evo-local-unavailable");
+    BOOST_CHECK(WarningsContain("Snapshot state unavailable"));
+    // The GUI alert still fires once per warning.
+    BOOST_CHECK_EQUAL(alerts, 1);
+    chainman.CheckBlockIndex();
+
+    // Longer branches, each stalling at its own first block, are out of reach
+    // together: no stall makes the chainstate forget another.
+    BOOST_CHECK(!chainman.ProcessNewBlock(ChildOf(template_block, *block, snapshot_tip->nHeight + 2),
+                                          /*force_processing=*/true, /*new_block=*/nullptr));
+    // However many there are: every stalled block is remembered.
+    constexpr int stalled_branches{40};
+    for (int i{1}; i < stalled_branches; ++i) {
+        CBlock other_template{template_block};
+        other_template.nTime += i;
+        const auto other{std::make_shared<const CBlock>(MakeCbTxBlock(other_template, snapshot_tip->nHeight + 1))};
+        BOOST_CHECK(!chainman.ProcessNewBlock(other, /*force_processing=*/true, /*new_block=*/nullptr));
+        BOOST_CHECK(!chainman.ProcessNewBlock(ChildOf(template_block, *other, snapshot_tip->nHeight + 2),
+                                              /*force_processing=*/true, /*new_block=*/nullptr));
+    }
+    BOOST_CHECK_EQUAL(alerts, 1);
+
+    // Startup's block import goes on past the stalled chainstate instead of
+    // aborting the node.
+    {
+        ASSERT_DEBUG_LOG("Chainstate cannot advance yet");
+        node::ImportBlocks(chainman, /*vImportFiles=*/{});
+    }
+    BOOST_CHECK(!m_node.kernel->interrupt);
+    m_node.kernel->interrupt.reset();
+
+    // Retrying cannot succeed before the snapshot's Evo state changes, so each
+    // stalled block was validated once and every later attempt refused it
+    // outright.
+    LogInstance().DeleteCallback(log_callback);
+    BOOST_CHECK_EQUAL(evo_state_errors, stalled_branches);
+    {
+        LOCK(::cs_main);
+        const CBlockIndex* index{chainman.m_blockman.LookupBlockIndex(block->GetHash())};
+        BOOST_REQUIRE(index);
+        BOOST_CHECK_EQUAL(index->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(m_snapshot_cs.m_chain.Tip(), snapshot_tip);
+    }
+    chainman.CheckBlockIndex();
+
+    // The stalls keep out only the branches through the stalled blocks: a
+    // block that needs no unavailable data still advances the chain, although
+    // every stalled branch has more work.
+    dip3_active.reset();
+    const auto usable{std::make_shared<const CBlock>(template_block)};
+    BOOST_CHECK(chainman.ProcessNewBlock(usable, /*force_processing=*/true, /*new_block=*/nullptr));
+    BOOST_CHECK_EQUAL(SnapshotTip()->GetBlockHash(), usable->GetHash());
+}
+
+//! A chainstate that stalls partway back still announces the tip it got to,
+//! whether it was invalidating a block, moving away from a block that
+//! conflicts with a ChainLock, or reorganizing.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_stall_partway_back_announces_tip, EvoStallTestSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    MineOutsideLLMQWindows();
+    const CBlockIndex* snapshot_tip{SnapshotTip()};
+    const CBlock template_block{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), m_snapshot_cs)};
+
+    // A stalled branch, `block` and its child, and the block `usable` on the
+    // same parent, which needs no unavailable data and becomes the tip.
+    std::optional<ScopedDIP3FromGenesis> dip3_active{std::in_place};
+    const auto block{std::make_shared<const CBlock>(MakeCbTxBlock(template_block, snapshot_tip->nHeight + 1))};
+    const auto behind_block{ChildOf(template_block, *block, snapshot_tip->nHeight + 2)};
+    BOOST_CHECK(!chainman.ProcessNewBlock(block, /*force_processing=*/true, /*new_block=*/nullptr));
+    BOOST_CHECK(!chainman.ProcessNewBlock(behind_block, /*force_processing=*/true, /*new_block=*/nullptr));
+    dip3_active.reset();
+    const auto usable{std::make_shared<const CBlock>(template_block)};
+    BOOST_REQUIRE(chainman.ProcessNewBlock(usable, /*force_processing=*/true, /*new_block=*/nullptr));
+    BOOST_REQUIRE_EQUAL(SnapshotTip()->GetBlockHash(), usable->GetHash());
+
+    // Undoing `usable` stalls once it changes the MN list: that needs the
+    // pre-base list.
+    CBlockIndex* usable_index{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(usable->GetHash()))};
+    MakeUndoNeedPreBaseList(*usable_index);
+    TipAnnouncements tips;
+    RegisterValidationInterface(&tips);
+    // After each step the block index is consistent with wherever the chain
+    // got to.
+    const auto check_announced{[&](const CBlockIndex* expected_tip) {
+        SyncWithValidationInterfaceQueue();
+        BOOST_CHECK_EQUAL(SnapshotTip(), expected_tip);
+        BOOST_CHECK_EQUAL(tips.synchronous, expected_tip);
+        BOOST_CHECK_EQUAL(tips.queued, expected_tip);
+        chainman.CheckBlockIndex();
+    }};
+
+    mineBlocks(1);
+    CBlockIndex* above_usable{SnapshotTip()};
+    dip3_active.emplace();
+    BlockValidationState state;
+    BOOST_CHECK(!m_snapshot_cs.InvalidateBlock(state, usable_index));
+    BOOST_CHECK(IsLocalEvoStateError(state));
+    check_announced(usable_index);
+
+    // Resetting the block it was asked to invalidate, as a temporary
+    // invalidation does, leaves none of the blocks the stalled attempt
+    // disconnected marked invalid.
+    dip3_active.reset();
+    {
+        LOCK(::cs_main);
+        m_snapshot_cs.ResetBlockFailureFlags(usable_index);
+        BOOST_CHECK_EQUAL(above_usable->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(usable_index->nStatus & BLOCK_FAILED_MASK, 0U);
+    }
+    BOOST_REQUIRE(m_snapshot_cs.ActivateBestChain(state));
+    BOOST_REQUIRE_EQUAL(SnapshotTip(), above_usable);
+
+    // Invalidating it again is refused before anything is disconnected: the
+    // stall still stands, so nothing is announced and no block is marked.
+    SyncWithValidationInterfaceQueue();
+    tips.synchronous = tips.queued = nullptr;
+    state = BlockValidationState();
+    BOOST_CHECK(!m_snapshot_cs.InvalidateBlock(state, usable_index));
+    BOOST_CHECK(IsLocalEvoStateError(state));
+    SyncWithValidationInterfaceQueue();
+    BOOST_CHECK(tips.synchronous == nullptr && tips.queued == nullptr);
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK_EQUAL(m_snapshot_cs.m_chain.Tip(), above_usable);
+        BOOST_CHECK_EQUAL(above_usable->nStatus & BLOCK_FAILED_MASK, 0U);
+    }
+
+    // Enforcing a ChainLock on the stalled sibling moves the chain away from
+    // `usable`.
+    const CBlockIndex* stalled_sibling{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(block->GetHash()))};
+    m_snapshot_cs.EnforceBlock(state, stalled_sibling);
+    check_announced(usable_index);
+    BOOST_CHECK(WITH_LOCK(::cs_main, return above_usable->nStatus & BLOCK_CONFLICT_CHAINLOCK));
+
+    // A reorganization from a new tip above `usable` to a longer branch that
+    // forks at `usable` disconnects that tip, then stalls connecting the
+    // branch. The tip it left was mined before DIP3 counted from genesis and
+    // no longer connects either, so the chain stays at `usable`.
+    // The stalled branch through `block`, whose body is pruned, is set aside
+    // each time the stall lists it again, and linked once when the body
+    // arrives.
+    CBlockIndex* pruned{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(block->GetHash()))};
+    const CBlockIndex* behind_pruned{
+        WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(behind_block->GetHash()))};
+    BOOST_REQUIRE(pruned && behind_pruned);
+    WITH_LOCK(::cs_main, chainman.m_blockman.m_have_pruned = true; pruned->nStatus &= ~BLOCK_HAVE_DATA);
+    mineBlocks(1);
+    dip3_active.emplace();
+    const auto reorg_first{ChildOf(template_block, *usable, snapshot_tip->nHeight + 2)};
+    const auto reorg_second{ChildOf(template_block, *reorg_first, snapshot_tip->nHeight + 3)};
+    chainman.ProcessNewBlock(reorg_first, /*force_processing=*/true, /*new_block=*/nullptr);
+    BOOST_CHECK(!chainman.ProcessNewBlock(reorg_second, /*force_processing=*/true, /*new_block=*/nullptr));
+    check_announced(usable_index);
+    {
+        LOCK(::cs_main);
+        const auto [first, last]{chainman.m_blockman.m_blocks_unlinked.equal_range(pruned)};
+        BOOST_CHECK_EQUAL(std::count_if(first, last, [&](const auto& entry) { return entry.second == behind_pruned; }), 1);
+    }
+    chainman.ProcessNewBlock(block, /*force_processing=*/true, /*new_block=*/nullptr);
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK(pruned->nStatus & BLOCK_HAVE_DATA);
+        BOOST_CHECK_EQUAL(behind_pruned->nSequenceId, pruned->nSequenceId + 1);
+        chainman.m_blockman.m_have_pruned = false;
+    }
+    chainman.CheckBlockIndex();
+
+    UnregisterValidationInterface(&tips);
+}
 
 //! A block that stalls after its masternode list was derived leaves no list
 //! for itself in its view's cache: the list's diff was rolled back with the
@@ -1638,6 +1877,348 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_stall_after_mn_list_evicts_it, Snapsho
     const auto heights{m_node.dmnman->CachedListHeightsForTesting()};
     BOOST_CHECK(std::find(heights.begin(), heights.end(), stalled->nHeight) == heights.end());
     BOOST_CHECK_THROW(m_node.dmnman->GetListForBlock(stalled), BlockDataUnavailableError);
+}
+
+//! A chainstate whose first disconnect stalls has not moved, so its best
+//! header stays where it was, whether it was invalidating that block or moving
+//! away from it for a ChainLock.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_stall_keeps_best_header, EvoStallTestSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    Chainstate* snapshot_chainstate{&m_snapshot_cs};
+    MineOutsideLLMQWindows();
+    const CBlock sibling_template{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), *snapshot_chainstate)};
+    mineBlocks(1);
+    CBlockIndex* tip{SnapshotTip()};
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.m_best_header), tip);
+    MakeUndoNeedPreBaseList(*tip);
+    ScopedDIP3FromGenesis dip3_active;
+    const auto check_unmoved{[&] {
+        WITH_LOCK(::cs_main, BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), tip));
+        WITH_LOCK(::cs_main, BOOST_CHECK_EQUAL(chainman.m_best_header, tip));
+        chainman.CheckBlockIndex();
+    }};
+
+    BlockValidationState state;
+    BOOST_CHECK(!snapshot_chainstate->InvalidateBlock(state, tip));
+    BOOST_CHECK(IsLocalEvoStateError(state));
+    check_unmoved();
+
+    const auto sibling{std::make_shared<const CBlock>(MakeCbTxBlock(sibling_template, tip->nHeight))};
+    chainman.ProcessNewBlock(sibling, /*force_processing=*/true, /*new_block=*/nullptr);
+    const CBlockIndex* sibling_index{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(sibling->GetHash()))};
+    BOOST_REQUIRE(sibling_index);
+    BlockValidationState enforce_state;
+    snapshot_chainstate->EnforceBlock(enforce_state, sibling_index);
+    BOOST_CHECK(IsLocalEvoStateError(enforce_state));
+    check_unmoved();
+}
+
+//! A ChainLock enforcement that stalls partway back stops there, and the next
+//! ChainLock round attempts it again. Going on with the stall's error would
+//! connect a sibling of the disconnected tip and record its consensus failure
+//! as another stall instead of marking it invalid.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_stalled_chainlock_enforcement_stops, EvoStallTestSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    Chainstate* snapshot_chainstate{&m_snapshot_cs};
+    // Stay outside every regtest LLMQ mining window, so no block below needs a
+    // quorum commitment.
+    while (WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Height() % 24) != 20) {
+        const int height{WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Height())};
+        mineBlocks(1);
+        BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Height()), height + 1);
+    }
+    // A block of its own, not the one mined next from the same template.
+    const auto other_than_mined{[&] {
+        CBlock block{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), *snapshot_chainstate)};
+        ++block.nTime;
+        while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())) {
+            ++block.nNonce;
+        }
+        return block;
+    }};
+    const CBlock locked_first{other_than_mined()};
+    mineBlocks(1);
+    CBlockIndex* stalling{SnapshotTip()};
+    const CBlock sibling{other_than_mined()};
+    mineBlocks(1);
+    MakeUndoNeedPreBaseList(*stalling);
+
+    // A sibling of the tip, received before the ChainLock, at the height the
+    // ChainLock locks another block.
+    BOOST_REQUIRE(chainman.ProcessNewBlock(std::make_shared<const CBlock>(sibling), /*force_processing=*/true,
+                                           /*new_block=*/nullptr));
+    CBlockHeader locked_second{locked_first.GetBlockHeader()};
+    locked_second.hashPrevBlock = locked_first.GetHash();
+    while (!CheckProofOfWork(locked_second.GetHash(), locked_second.nBits, Params().GetConsensus())) {
+        ++locked_second.nNonce;
+    }
+    BlockValidationState state;
+    BOOST_REQUIRE(chainman.ProcessNewBlockHeaders({locked_first.GetBlockHeader(), locked_second}, state));
+    CBlockIndex* sibling_index;
+    const CBlockIndex* locked_index;
+    {
+        LOCK(::cs_main);
+        sibling_index = chainman.m_blockman.LookupBlockIndex(sibling.GetHash());
+        locked_index = chainman.m_blockman.LookupBlockIndex(locked_second.GetHash());
+    }
+    BOOST_REQUIRE(sibling_index && locked_index);
+    BOOST_REQUIRE_EQUAL(locked_index->nHeight, sibling_index->nHeight);
+
+    constexpr const char* spork_key{"cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"};
+    BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
+    BOOST_REQUIRE(m_node.sporkman->SetPrivKey(spork_key));
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 0).has_value());
+    m_node.clhandler->CheckActiveState();
+    BOOST_REQUIRE(m_node.chainlocks->UpdateBestChainlock(
+        locked_index->GetBlockHash(), chainlock::ChainLockSig{locked_index->nHeight, locked_index->GetBlockHash(), {}},
+        locked_index));
+
+    ScopedDIP3FromGenesis dip3_active;
+    m_node.clhandler->EnforceBestChainLock();
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), stalling);
+        BOOST_CHECK_EQUAL(sibling_index->nStatus & BLOCK_FAILED_MASK, 0U);
+    }
+
+    // The next attempt to advance the chain finds the sibling invalid.
+    state = BlockValidationState();
+    snapshot_chainstate->ActivateBestChain(state);
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), stalling);
+        BOOST_CHECK(sibling_index->nStatus & BLOCK_FAILED_VALID);
+    }
+    chainman.CheckBlockIndex();
+
+    m_node.chainlocks->ResetChainlock();
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_19_CHAINLOCKS_ENABLED, 4070908800).has_value());
+}
+
+//! A reorganization that stalls after disconnecting more than one block goes
+//! back to the chain it left before releasing cs_main, keeping the block index
+//! consistent and marking nothing invalid. A branch past the stalled block
+//! that is invalid anyway, or a stalled block later found invalid, keeps
+//! nothing out of reach.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_stall_rewinds_consistently, SnapshotTestSetup)
+{
+    auto [background_chainstate, snapshot_chainstate] = this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    // Stay outside every regtest LLMQ mining window, so no block below needs a
+    // quorum commitment.
+    while (WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Height() % 24) != 20) {
+        mineBlocks(1);
+    }
+    CBlockIndex* fork{WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip())};
+    const CBlock branch_template{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), *snapshot_chainstate)};
+    TipAnnouncements tips;
+    RegisterValidationInterface(&tips);
+    mineBlocks(2);
+    CBlockIndex* old_tip{WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip())};
+    CBlockIndex* old_first{old_tip->pprev};
+
+    // A longer branch from `fork`, whose first block needs the pre-base MN
+    // list: DIP3 counts from genesis until that lookup fails, and the chain
+    // the branch would replace predates DIP3 again when it is reconnected.
+    std::vector<std::shared_ptr<const CBlock>> branch;
+    for (int height{fork->nHeight + 1}; height <= fork->nHeight + 3; ++height) {
+        CBlock block_template{branch_template};
+        block_template.hashPrevBlock = branch.empty() ? fork->GetBlockHash() : branch.back()->GetHash();
+        CMutableTransaction coinbase{*block_template.vtx[0]};
+        coinbase.vin[0].scriptSig = CScript{} << height << CScriptNum{1};
+        block_template.vtx[0] = MakeTransactionRef(std::move(coinbase));
+        branch.push_back(std::make_shared<const CBlock>(MakeCbTxBlock(block_template, height)));
+    }
+    std::optional<ScopedDIP3FromGenesis> dip3_active{std::in_place};
+    m_node.dmnman->SetListSnapshotMissHookForTesting([&](const CBlockIndex*) {
+        if (!dip3_active) return;
+        dip3_active.reset();
+        throw BlockDataUnavailableError("masternode list unavailable");
+    });
+    BOOST_CHECK(chainman.ProcessNewBlock(branch[0], /*force_processing=*/true, /*new_block=*/nullptr));
+    BOOST_CHECK(chainman.ProcessNewBlock(branch[1], /*force_processing=*/true, /*new_block=*/nullptr));
+    // The stall still keeps the branch, which has more work, out of reach.
+    BOOST_CHECK(!chainman.ProcessNewBlock(branch[2], /*force_processing=*/true, /*new_block=*/nullptr));
+    BOOST_CHECK(!dip3_active);
+    m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
+    SyncWithValidationInterfaceQueue();
+    std::vector<CBlockIndex*> branch_index;
+    {
+        LOCK(::cs_main);
+        for (const auto& block : branch) branch_index.push_back(chainman.m_blockman.LookupBlockIndex(block->GetHash()));
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), old_tip);
+        for (CBlockIndex* block : {old_first, old_tip, branch_index[0], branch_index[1], branch_index[2]}) {
+            BOOST_CHECK_EQUAL(block->nStatus & BLOCK_FAILED_MASK, 0U);
+        }
+        BOOST_CHECK(snapshot_chainstate->setBlockIndexCandidates.count(old_tip));
+        BOOST_CHECK(snapshot_chainstate->setBlockIndexCandidates.count(branch_index[2]));
+    }
+    BOOST_CHECK_EQUAL(tips.synchronous, old_tip);
+    BOOST_CHECK_EQUAL(tips.queued, old_tip);
+    chainman.CheckBlockIndex();
+    // It stalled connecting the branch's first block, and the masternode list
+    // tip followed the chain back.
+    BOOST_CHECK(WarningsContain(branch[0]->GetHash().ToString()));
+    {
+        const EvoViewScope snapshot_view{m_node.evodb->ViewFor(EvoDbIdentity::SNAPSHOT)};
+        BOOST_CHECK_EQUAL(m_node.dmnman->TipForTesting(), old_tip);
+    }
+
+    // A branch the stall keeps out of reach that is invalid anyway, past the
+    // stalled block, is removed like any other invalid branch.
+    std::vector<std::shared_ptr<const CBlock>> side;
+    for (int height{fork->nHeight + 2}; height <= fork->nHeight + 3; ++height) {
+        CBlock block{branch_template};
+        block.hashPrevBlock = side.empty() ? branch[0]->GetHash() : side.back()->GetHash();
+        CMutableTransaction coinbase{*block.vtx[0]};
+        coinbase.vin[0].scriptSig = CScript{} << height << CScriptNum{2};
+        block.vtx[0] = MakeTransactionRef(std::move(coinbase));
+        block.hashMerkleRoot = BlockMerkleRoot(block);
+        while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())) ++block.nNonce;
+        side.push_back(std::make_shared<const CBlock>(block));
+    }
+    for (const auto& block : side) chainman.ProcessNewBlock(block, /*force_processing=*/true, /*new_block=*/nullptr);
+    CBlockIndex* side_first{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(side[0]->GetHash()))};
+    CBlockIndex* side_tip{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(side[1]->GetHash()))};
+    BOOST_REQUIRE(side_first && side_tip);
+    BlockValidationState side_state;
+    BOOST_REQUIRE(snapshot_chainstate->InvalidateBlock(side_state, side_first));
+    BOOST_CHECK(!snapshot_chainstate->ActivateBestChain(side_state));
+    BOOST_CHECK(IsLocalEvoStateError(side_state));
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK(side_tip->nStatus & BLOCK_FAILED_CHILD);
+        BOOST_CHECK(!snapshot_chainstate->setBlockIndexCandidates.count(side_tip));
+        BOOST_CHECK(snapshot_chainstate->setBlockIndexCandidates.count(branch_index[2]));
+    }
+    chainman.CheckBlockIndex();
+
+    // Once the stalled block is found invalid, the branch through it is
+    // removed like any other, and nothing is stalled any more.
+    BlockValidationState state;
+    BOOST_REQUIRE(snapshot_chainstate->InvalidateBlock(state, branch_index[0]));
+    BOOST_CHECK(snapshot_chainstate->ActivateBestChain(state));
+    BOOST_CHECK(state.IsValid());
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), old_tip);
+        BOOST_CHECK(branch_index[2]->nStatus & BLOCK_FAILED_CHILD);
+        BOOST_CHECK(!snapshot_chainstate->setBlockIndexCandidates.count(branch_index[2]));
+    }
+    chainman.CheckBlockIndex();
+
+    UnregisterValidationInterface(&tips);
+    SetMiscWarning(Untranslated(""));
+}
+
+//! A stall that ends while another is recorded still counts as a new stall:
+//! the chain it rewound is connected again before ActivateBestChain returns.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_stall_replacing_an_ended_one_reconnects, SnapshotTestSetup)
+{
+    auto [background_chainstate, snapshot_chainstate] = this->SetupSnapshot();
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    // Stay outside every regtest LLMQ mining window, so no block below needs a
+    // quorum commitment.
+    while (WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Height() % 24) != 20) {
+        mineBlocks(1);
+    }
+    const CBlockIndex* fork{WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip())};
+    const CBlock block_template{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), *snapshot_chainstate)};
+    const auto child_of{[&](const uint256& parent, int height, int branch, bool cbtx) {
+        CBlock block{block_template};
+        block.hashPrevBlock = parent;
+        CMutableTransaction coinbase{*block.vtx[0]};
+        coinbase.vin[0].scriptSig = CScript{} << height << CScriptNum{branch};
+        block.vtx[0] = MakeTransactionRef(std::move(coinbase));
+        if (cbtx) return std::make_shared<const CBlock>(MakeCbTxBlock(block, height));
+        block.hashMerkleRoot = BlockMerkleRoot(block);
+        while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())) ++block.nNonce;
+        return std::make_shared<const CBlock>(block);
+    }};
+    const auto index_of{[&](const CBlock& block) {
+        return WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(block.GetHash()));
+    }};
+    // The first masternode list lookup fails for want of the pre-base list.
+    // DIP3 counts from genesis until then, and the chain predates it again
+    // afterwards.
+    std::optional<ScopedDIP3FromGenesis> dip3_active;
+    m_node.dmnman->SetListSnapshotMissHookForTesting([&](const CBlockIndex*) {
+        if (!dip3_active) return;
+        dip3_active.reset();
+        throw BlockDataUnavailableError("masternode list unavailable");
+    });
+
+    // The chain stalls on the second block of a branch whose first block it
+    // connected, with a third block waiting behind the stall.
+    mineBlocks(1);
+    CBlockIndex* stalled_parent{WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip())};
+    const auto stalled{child_of(stalled_parent->GetBlockHash(), fork->nHeight + 2, /*branch=*/1, /*cbtx=*/true)};
+    dip3_active.emplace();
+    BOOST_CHECK(!chainman.ProcessNewBlock(stalled, /*force_processing=*/true, /*new_block=*/nullptr));
+    BOOST_REQUIRE(!dip3_active);
+    chainman.ProcessNewBlock(child_of(stalled->GetHash(), fork->nHeight + 3, /*branch=*/1, /*cbtx=*/false),
+                             /*force_processing=*/true, /*new_block=*/nullptr);
+
+    // It moves to a longer chain from `fork` that needs no unavailable data.
+    const auto usable_first{child_of(fork->GetBlockHash(), fork->nHeight + 1, /*branch=*/2, /*cbtx=*/false)};
+    const auto usable_tip{child_of(usable_first->GetHash(), fork->nHeight + 2, /*branch=*/2, /*cbtx=*/false)};
+    chainman.ProcessNewBlock(usable_first, /*force_processing=*/true, /*new_block=*/nullptr);
+    chainman.ProcessNewBlock(usable_tip, /*force_processing=*/true, /*new_block=*/nullptr);
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return snapshot_chainstate->m_chain.Tip()), index_of(*usable_tip));
+
+    // A third branch from `fork` is one block short of the most work.
+    dip3_active.emplace();
+    const auto other_first{child_of(fork->GetBlockHash(), fork->nHeight + 1, /*branch=*/3, /*cbtx=*/true)};
+    const auto other_second{child_of(other_first->GetHash(), fork->nHeight + 2, /*branch=*/3, /*cbtx=*/true)};
+    const auto other_tip{child_of(other_second->GetHash(), fork->nHeight + 3, /*branch=*/3, /*cbtx=*/true)};
+    chainman.ProcessNewBlock(other_first, /*force_processing=*/true, /*new_block=*/nullptr);
+    chainman.ProcessNewBlock(other_second, /*force_processing=*/true, /*new_block=*/nullptr);
+    BOOST_REQUIRE(dip3_active);
+
+    // Invalidating the stalled block's parent ends the first stall, which the
+    // next selection finds out as it discards that branch. The same call
+    // then rewinds to `fork` for the third branch and stalls on its first
+    // block.
+    BlockValidationState state;
+    BOOST_REQUIRE(snapshot_chainstate->InvalidateBlock(state, stalled_parent));
+    BOOST_CHECK(!chainman.ProcessNewBlock(other_tip, /*force_processing=*/true, /*new_block=*/nullptr));
+    BOOST_CHECK(!dip3_active);
+    m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
+    {
+        LOCK(::cs_main);
+        BOOST_CHECK(chainman.m_blockman.LookupBlockIndex(stalled->GetHash())->nStatus & BLOCK_FAILED_CHILD);
+        BOOST_CHECK_EQUAL(chainman.m_blockman.LookupBlockIndex(other_first->GetHash())->nStatus & BLOCK_FAILED_MASK, 0U);
+        BOOST_CHECK_EQUAL(snapshot_chainstate->m_chain.Tip(), chainman.m_blockman.LookupBlockIndex(usable_tip->GetHash()));
+    }
+    chainman.CheckBlockIndex();
+    SetMiscWarning(Untranslated(""));
+}
+
+//! Without a snapshot, Evo state is missing only when the block data it is
+//! derived from was pruned, and the warning says how to get it back.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_stall_without_snapshot_names_pruning, SnapshotTestSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    Chainstate& chainstate{chainman.ActiveChainstate()};
+    // Stay outside every regtest LLMQ mining window, so the block needs no
+    // quorum commitment.
+    while (WITH_LOCK(::cs_main, return (chainstate.m_chain.Height() + 1) % 24) < 21) {
+        mineBlocks(1);
+    }
+    const CBlockIndex* tip{WITH_LOCK(::cs_main, return chainstate.m_chain.Tip())};
+    const CBlock block_template{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), chainstate)};
+    const auto block{std::make_shared<const CBlock>(MakeCbTxBlock(block_template, tip->nHeight + 1))};
+    ScopedDIP3FromGenesis dip3_active;
+    m_node.dmnman->SetListSnapshotMissHookForTesting(
+        [](const CBlockIndex*) { throw BlockDataUnavailableError("masternode list unavailable"); });
+    BOOST_CHECK(!chainman.ProcessNewBlock(block, /*force_processing=*/true, /*new_block=*/nullptr));
+    m_node.dmnman->SetListSnapshotMissHookForTesting(nullptr);
+    BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return chainstate.m_chain.Tip()), tip);
+    BOOST_CHECK(WarningsContain("Block data was pruned; restart with -reindex"));
+    BOOST_CHECK(!WarningsContain("Snapshot state"));
+    SetMiscWarning(Untranslated(""));
 }
 
 //! V19 activates above the snapshot base, so the background chainstate
@@ -1798,7 +2379,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_missing_body_stalls, EvoStallTestSetup
         tip->nFile = tip_file;
         tip->nStatus = pruned_status;
     }
-    // Processing a sibling that needs it stops the node the same way, and
+    // Connecting a sibling that needs it stops the node the same way, and
     // leaves the sibling valid.
     {
         CBlock sibling_template{template_block};
@@ -3162,6 +3743,36 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion, SnapshotTestSetup
     }
 }
 
+//! What background validation derived reaches the snapshot chainstate only
+//! when the next startup promotes it. Until then a block the snapshot
+//! chainstate stalled on stays out of reach, and the node says so.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_keeps_stall, EvoStallTestSetup)
+{
+    ChainstateManager& chainman = *Assert(m_node.chainman);
+    Chainstate& snapshot_cs{m_snapshot_cs};
+    MineOutsideLLMQWindows();
+    const CBlockIndex* stall_parent{SnapshotTip()};
+    const CBlock stall_template{CreateBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()), snapshot_cs)};
+    const auto stalled{std::make_shared<const CBlock>(MakeCbTxBlock(stall_template, stall_parent->nHeight + 1))};
+    const auto stalls_on_it{[&] {
+        ScopedDIP3FromGenesis dip3_active;
+        BlockValidationState stall_state;
+        chainman.ProcessNewBlock(stalled, /*force_processing=*/true, /*new_block=*/nullptr);
+        return !snapshot_cs.ActivateBestChain(stall_state, stalled) && IsLocalEvoStateError(stall_state);
+    }};
+    BOOST_REQUIRE(stalls_on_it());
+    BOOST_REQUIRE(WarningsContain("Snapshot state unavailable"));
+
+    BOOST_REQUIRE_EQUAL(WITH_LOCK(::cs_main, return chainman.MaybeCompleteSnapshotValidation()),
+                        SnapshotCompletionResult::SUCCESS);
+    // Until the restart that promotes the snapshot, no chainstate reads NORMAL.
+    BOOST_CHECK(!WITH_LOCK(::cs_main, return chainman.EvoChain(EvoDbIdentity::NORMAL)));
+    BOOST_CHECK(WITH_LOCK(::cs_main, return chainman.EvoChain(EvoDbIdentity::SNAPSHOT)) == &snapshot_cs.m_chain);
+    BOOST_CHECK(stalls_on_it());
+    BOOST_CHECK(WarningsContain("restart to resume from the validated chain"));
+    BOOST_CHECK_EQUAL(WITH_LOCK(::cs_main, return snapshot_cs.m_chain.Tip()), stall_parent);
+}
+
 BOOST_FIXTURE_TEST_CASE(chainstatemanager_snapshot_completion_incorrect_base_mn_list, SnapshotTestSetup)
 {
     auto [validation_chainstate, snapshot_chainstate] = this->SetupSnapshot();
@@ -4407,24 +5018,33 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_missing_seed_stalls, EvoS
         m_node.evodb->Erase(std::make_pair(std::string{"cpm_H"}, m_blocks.at(DIP3_HEIGHT)->GetHash()));
         tx->Commit();
     }
+    SetMiscWarning(Untranslated("unrelated warning"));
+    const auto warned = [](const std::string& text) { return WarningsContain(text); };
     const BlockValidationState state{Feed(active, stall_height, stall_height)};
     BOOST_CHECK(state.IsError());
     BOOST_CHECK_EQUAL(Height(active), stall_height - 1);
     const CBlockIndex* stalled{
         WITH_LOCK(::cs_main, return m_node.chainman->m_blockman.LookupBlockIndex(m_blocks.at(stall_height)->GetHash()))};
     BOOST_CHECK(!(WITH_LOCK(::cs_main, return stalled->nStatus) & BLOCK_FAILED_MASK));
+    BOOST_CHECK(warned("Snapshot state unavailable"));
+    BOOST_CHECK(warned("unrelated warning"));
 
     // Completing the snapshot does not reach the snapshot chainstate's own
-    // view, so it stays where it is. After the restart that promotes the
-    // snapshot, the block connects on the validated state.
+    // view, so it stays stalled and keeps warning. The restart that promotes
+    // the snapshot clears the warning, leaving the other one, and the block
+    // connects on the validated state.
     Feed(Background(), 1, BASE_HEIGHT);
     BOOST_REQUIRE(WITH_LOCK(::cs_main, return m_node.chainman->IsSnapshotValidated()));
     BOOST_CHECK_EQUAL(Height(active), stall_height - 1);
+    BOOST_CHECK(warned("Snapshot state unavailable"));
     Restart();
     BOOST_REQUIRE(!m_node.chainman->IsSnapshotActive());
+    BOOST_CHECK(!warned("Snapshot state unavailable"));
+    BOOST_CHECK(warned("unrelated warning"));
     BlockValidationState restarted_state;
     BOOST_CHECK(m_node.chainman->ActiveChainstate().ActivateBestChain(restarted_state));
     BOOST_CHECK_EQUAL(Height(m_node.chainman->ActiveChainstate()), stall_height);
+    SetMiscWarning(Untranslated(""));
 }
 
 //! On restart, a published generation is used only while the evo section it
@@ -5808,6 +6428,99 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_bounded_normal_caches, Ev
                             "list at height " << height << " outlived its quorums");
     }
     BOOST_CHECK_EQUAL(m_node.dmnman->GetListForBlock(background.m_chain.Tip()).GetCounts().total(), size_t{MN_COUNT});
+}
+
+//! A carried record missing on the way back is a local failure for the callers
+//! that disconnect blocks above the base, too: a reorg and ChainLock
+//! enforcement of a competing block both stall where they are, mark nothing
+//! invalid or conflicting, and succeed once the record is back.
+BOOST_FIXTURE_TEST_CASE(chainstatemanager_evo_snapshot_stalls_on_the_way_back, EvoSnapshotTestSetup)
+{
+    const fs::path snapshot{DumpEvoSnapshot()};
+    MineTo(BASE_HEIGHT + 3);
+    ForgetBlocks();
+    BOOST_REQUIRE(LoadEvoSnapshot(snapshot));
+    Chainstate& active{m_node.chainman->ActiveChainstate()};
+    BOOST_REQUIRE(Feed(active, BASE_HEIGHT + 1, BASE_HEIGHT + 3).IsValid());
+
+    // A competing block at B+1, as a ChainLock may later select.
+    auto competing{std::make_shared<CBlock>(*m_blocks.at(BASE_HEIGHT + 1))};
+    {
+        CMutableTransaction coinbase{*competing->vtx[0]};
+        coinbase.vout[0].scriptPubKey = CScript{} << OP_TRUE;
+        competing->vtx[0] = MakeTransactionRef(std::move(coinbase));
+        competing->hashMerkleRoot = BlockMerkleRoot(*competing);
+        while (!CheckProofOfWork(competing->GetHash(), competing->nBits, m_node.chainman->GetConsensus()))
+            ++competing->nNonce;
+        LOCK(::cs_main);
+        BlockValidationState state;
+        CBlockIndex* index{nullptr};
+        BOOST_REQUIRE(m_node.chainman->AcceptBlock(competing, state, &index, /*fRequested=*/true, nullptr, nullptr));
+    }
+    const auto index_of = [&](const uint256& hash) {
+        return WITH_LOCK(::cs_main, return m_node.chainman->m_blockman.LookupBlockIndex(hash));
+    };
+    CBlockIndex* first{index_of(m_blocks.at(BASE_HEIGHT + 1)->GetHash())};
+    CBlockIndex* competing_index{index_of(competing->GetHash())};
+
+    // Every list above the base derives from the carried base list. The key
+    // mirrors DB_LIST_SNAPSHOT in evo/deterministicmns.cpp (file-local there).
+    const auto base_list_key{std::make_pair(std::string{"dmn_S3"}, m_blocks.at(BASE_HEIGHT)->GetHash())};
+    CDeterministicMNList base_list;
+    const auto with_snapshot_tx = [&](const std::function<void()>& change) {
+        LOCK(::cs_main);
+        const EvoViewScope view{active.EvoView()};
+        {
+            auto tx{m_node.evodb->BeginTransaction(EvoDbIdentity::SNAPSHOT)};
+            change();
+            tx->Commit();
+        }
+        BOOST_REQUIRE(m_node.evodb->CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true));
+        DropEvoCaches();
+    };
+    with_snapshot_tx([&] {
+        BOOST_REQUIRE(m_node.evodb->Read(base_list_key, base_list));
+        m_node.evodb->Erase(base_list_key);
+    });
+    const auto unchanged = [&] {
+        LOCK(::cs_main);
+        return active.m_chain.Height() == BASE_HEIGHT + 3 &&
+               !(first->nStatus & (BLOCK_FAILED_MASK | BLOCK_CONFLICT_CHAINLOCK)) &&
+               !(competing_index->nStatus & BLOCK_FAILED_MASK);
+    };
+
+    // A stall, as the InstantSend conflict path requires before it defers.
+    const auto stall_warned = [] { return WarningsContain("Snapshot state unavailable"); };
+    BOOST_REQUIRE(!stall_warned());
+    {
+        BlockValidationState state;
+        BOOST_CHECK(!active.InvalidateBlock(state, first));
+        BOOST_CHECK(IsLocalEvoStateError(state));
+        BOOST_CHECK(unchanged());
+        BOOST_CHECK(stall_warned());
+    }
+    {
+        BlockValidationState state;
+        active.EnforceBlock(state, competing_index);
+        BOOST_CHECK(IsLocalEvoStateError(state));
+        BOOST_CHECK(unchanged());
+    }
+    BOOST_CHECK(!m_node.kernel->interrupt);
+
+    // With the record back, and after the restart that a stalled block waits
+    // for, enforcement moves the chain to the competing block.
+    with_snapshot_tx([&] { m_node.evodb->Write(base_list_key, base_list); });
+    Restart();
+    Chainstate& restarted{m_node.chainman->ActiveChainstate()};
+    BOOST_REQUIRE(restarted.m_from_snapshot_blockhash);
+    competing_index = index_of(competing->GetHash());
+    {
+        BlockValidationState state;
+        restarted.EnforceBlock(state, competing_index);
+        BOOST_CHECK(state.IsValid());
+        BOOST_REQUIRE(restarted.ActivateBestChain(state));
+    }
+    BOOST_CHECK(WITH_LOCK(::cs_main, return restarted.m_chain.Contains(competing_index)));
 }
 
 //! Every block of a period after the fixture's base signals a bit no

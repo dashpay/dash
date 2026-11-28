@@ -1525,6 +1525,12 @@ void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFile
         for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
             BlockValidationState state;
             if (!chainstate->ActivateBestChain(state, nullptr)) {
+                if (IsLocalEvoStateError(state)) {
+                    // The chainstate stays eligible; the other chainstates
+                    // and the rest of startup proceed without it.
+                    LogPrintf("Chainstate cannot advance yet (%s), continuing\n", state.ToString());
+                    continue;
+                }
                 chainman.GetNotifications().fatalError(strprintf("Failed to connect best block (%s)", state.ToString()));
                 return;
             }

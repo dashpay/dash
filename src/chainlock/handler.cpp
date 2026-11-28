@@ -307,7 +307,7 @@ void ChainlockHandler::EnforceBestChainLock()
     LogPrint(BCLog::CHAINLOCKS, "ChainlockHandler::%s -- enforcing block %s via CLSIG (%s)\n", __func__,
              currentBestChainLockBlockIndex->GetBlockHash().ToString(), clsig.ToString());
     m_chainman.ActiveChainstate().EnforceBlock(dummy_state, currentBestChainLockBlockIndex);
-
+    if (dummy_state.IsError()) return;
 
     if (/*activateNeeded =*/WITH_LOCK(::cs_main, return m_chainman.ActiveTip()->GetAncestor(
                                                      currentBestChainLockBlockIndex->nHeight)) !=

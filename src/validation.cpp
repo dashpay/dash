@@ -89,6 +89,8 @@
 #include <optional>
 #include <ranges>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 using kernel::CCoinsStats;
@@ -3423,12 +3425,12 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
 }
 
 /** Classify an error about this node's own Evo state at a chainstate boundary.
- *  A block body it has but cannot read shuts the node down, as a block
- *  ConnectTip cannot read does, and so does a mismatch for a snapshot still in
- *  use that could not be rejected; a rejected snapshot is an ordinary error, as
- *  the node is shutting down. Anything else, a mismatch for a snapshot no
- *  longer in use included, is an error result (IsLocalEvoStateError). None of
- *  them marks the block invalid or blames a peer. */
+ *  Unavailable data, binding faults and a mismatch for a snapshot no longer in
+ *  use stall the chainstate (IsLocalEvoStateError); a rejected snapshot is an
+ *  ordinary error, as the node is shutting down, and so are a mismatch for a
+ *  snapshot still in use that could not be rejected and a block body it has
+ *  but cannot read, which shut it down. None of them marks the block invalid
+ *  or blames a peer. */
 static bool LocalEvoStateError(ChainstateManager& chainman, const evo::LocalStateError& e, BlockValidationState& state)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
@@ -3466,6 +3468,74 @@ bool WarnLocalEvoStateUnavailable(const std::string& source, const std::string& 
     assert(false);
 }
 
+std::string Chainstate::EvoStallWarningSource() const { return strprintf("stall:%p", static_cast<const void*>(this)); }
+
+Chainstate::~Chainstate()
+{
+    if (m_evo_stall_warned) SetEvoStateWarning(EvoStallWarningSource(), std::nullopt);
+}
+
+const Chainstate::EvoStall* Chainstate::FindEvoStall(const CBlockIndex* pindex) const
+{
+    AssertLockHeld(::cs_main);
+    // A block found invalid, or conflicting with a ChainLock, since is out of
+    // reach whatever the state it waited for.
+    if (pindex->nStatus & (BLOCK_FAILED_MASK | BLOCK_CONFLICT_CHAINLOCK)) return nullptr;
+    const auto it{m_evo_stalls.find(pindex)};
+    return it != m_evo_stalls.end() && it->second.view == EvoView() ? &it->second : nullptr;
+}
+
+void Chainstate::ForgetObsoleteEvoStalls()
+{
+    AssertLockHeld(::cs_main);
+    std::erase_if(m_evo_stalls,
+                  [&](const auto& entry) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) { return !FindEvoStall(entry.first); });
+}
+
+void Chainstate::RestoreBlockIndexCandidates()
+{
+    AssertLockHeld(::cs_main);
+    for (auto& [_, block_index] : m_blockman.m_block_index) {
+        if (block_index.IsValid(BLOCK_VALID_TRANSACTIONS) && block_index.HaveTxsDownloaded()) {
+            TryAddBlockIndexCandidate(&block_index);
+        }
+    }
+}
+
+bool Chainstate::RefuseStalledBlock(const CBlockIndex* pindex, BlockValidationState& state) const
+{
+    AssertLockHeld(::cs_main);
+    const EvoStall* stall{FindEvoStall(pindex)};
+    if (!stall) return false;
+    state.LocalEvoStateError(stall->result, stall->reject_reason);
+    return true;
+}
+
+void Chainstate::RecordEvoStall(const CBlockIndex* pindex, const BlockValidationState& state)
+{
+    AssertLockHeld(::cs_main);
+    if (!IsLocalEvoStateError(state)) return;
+    ++m_evo_stalls_recorded;
+    ForgetObsoleteEvoStalls();
+    m_evo_stalls.insert_or_assign(pindex, EvoStall{EvoView(), state.GetLocalEvoStateResult(), state.GetRejectReason()});
+    if (m_evo_stalls.size() > MANY_EVO_STALLS && !std::exchange(m_many_evo_stalls_warned, true)) {
+        LogPrintf("WARNING: %s has stalled on more than %d blocks\n", ToString(), MANY_EVO_STALLS);
+    }
+    if (std::exchange(m_evo_stall_warned, true)) return;
+    const std::string detail{strprintf("%s stalled at block %s (height %d), %s", ToString(),
+                                       pindex->GetBlockHash().ToString(), pindex->nHeight, state.GetRejectReason())};
+    // Without a snapshot, only pruning removes the block data Evo state is
+    // derived from.
+    const auto reason{m_chainman.IsSnapshotActive() ? EvoStateUnavailableReason::SNAPSHOT
+                      : state.GetLocalEvoStateResult() == LocalEvoStateResult::UNAVAILABLE ? EvoStateUnavailableReason::PRUNED
+                      : EvoStateUnavailableReason::OTHER};
+    LogPrintf("ERROR: %s; it will not retry this block before restart%s\n", detail,
+              reason == EvoStateUnavailableReason::PRUNED ? " (block data was pruned; restart with -reindex)" : "");
+    if (WarnLocalEvoStateUnavailable(EvoStallWarningSource(), detail, reason)) {
+        m_chainman.GetNotifications().evoStateWarningChanged();
+    }
+}
+
 /** Disconnect m_chain's tip.
   * After calling, the mempool will be in an inconsistent state, with
   * transactions from disconnected blocks being added to disconnectpool.  You
@@ -3487,6 +3557,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     CBlockIndex *pindexDelete = m_chain.Tip();
     assert(pindexDelete);
     assert(pindexDelete->pprev);
+    if (RefuseStalledBlock(pindexDelete, state)) return false;
     // Read block from disk.
     std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
     CBlock& block = *pblock;
@@ -3509,7 +3580,9 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
         assert(flushed);
         dbTx->Commit();
     } catch (const evo::LocalStateError& e) {
-        return LocalEvoStateError(m_chainman, e, state);
+        LocalEvoStateError(m_chainman, e, state);
+        RecordEvoStall(pindexDelete, state);
+        return false;
     }
     LogPrint(BCLog::BENCHMARK, "- Disconnect block: %.2fms\n",
              Ticks<MillisecondsDouble>(SteadyClock::now() - time_start));
@@ -3615,6 +3688,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     if (m_mempool) AssertLockHeld(m_mempool->cs);
 
     assert(pindexNew->pprev == m_chain.Tip());
+    if (RefuseStalledBlock(pindexNew, state)) return false;
     // Read block from disk.
     const auto time_1{SteadyClock::now()};
     std::shared_ptr<const CBlock> pthisBlock;
@@ -3664,6 +3738,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
             }
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
+            RecordEvoStall(pindexNew, state);
             LogError("%s: ConnectBlock %s failed, %s\n", __func__, pindexNew->GetBlockHash().ToString(), state.ToString());
             return false;
         }
@@ -3748,19 +3823,67 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
  * Return the tip of the chain with the most work in it, that isn't
  * known to be invalid (it's however far from certain to be valid).
  */
-CBlockIndex* Chainstate::FindMostWorkChain()
+Chainstate::MostWorkChain Chainstate::FindMostWorkChain()
 {
     AssertLockHeld(::cs_main);
+    MostWorkChain result;
+    ForgetObsoleteEvoStalls();
+    // A stalled block in the chain could not be disconnected; one outside it
+    // could not be connected.
+    std::vector<const CBlockIndex*> chain_stalls;
+    std::unordered_map<const CBlockIndex*, const CBlockIndex*> stalled_ancestor;
+    for (const auto& [block, _] : m_evo_stalls) {
+        if (m_chain.Contains(block)) {
+            chain_stalls.push_back(block);
+        } else {
+            stalled_ancestor.emplace(block, block);
+        }
+    }
+    const auto stall_obstructing{[&](const CBlockIndex* candidate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        for (const CBlockIndex* stall : chain_stalls) {
+            if (candidate->GetAncestor(stall->nHeight) != stall) return stall;
+        }
+        const CBlockIndex* obstruction{nullptr};
+        if (stalled_ancestor.empty()) return obstruction;
+        std::vector<const CBlockIndex*> path;
+        for (const CBlockIndex* block{candidate}; block && !m_chain.Contains(block); block = block->pprev) {
+            if (const auto it{stalled_ancestor.find(block)}; it != stalled_ancestor.end()) {
+                obstruction = it->second;
+                break;
+            }
+            path.push_back(block);
+        }
+        for (const CBlockIndex* block : path) stalled_ancestor.emplace(block, obstruction);
+        return obstruction;
+    }};
+    std::unordered_set<const CBlockIndex*> reach_usable_blocks;
+    const auto reaches_unusable_block{[&](const CBlockIndex* candidate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+        std::vector<const CBlockIndex*> path;
+        for (const CBlockIndex* block{candidate}; block && !m_chain.Contains(block) && !reach_usable_blocks.contains(block);
+             block = block->pprev) {
+            if (block->nStatus & (BLOCK_FAILED_MASK | BLOCK_CONFLICT_CHAINLOCK) || !(block->nStatus & BLOCK_HAVE_DATA)) {
+                return true;
+            }
+            path.push_back(block);
+        }
+        reach_usable_blocks.insert(path.begin(), path.end());
+        return false;
+    }};
     do {
         CBlockIndex *pindexNew = nullptr;
 
-        // Find the best candidate header.
-        {
-            std::set<CBlockIndex*, CBlockIndexWorkComparator>::reverse_iterator it = setBlockIndexCandidates.rbegin();
-            if (it == setBlockIndexCandidates.rend())
-                return nullptr;
-            pindexNew = *it;
+        // Find the best candidate header. Candidates a local Evo stall keeps
+        // out of reach stay candidates for when the stall ends, unless their
+        // chain is unusable anyway: the walk below removes those.
+        for (auto it{setBlockIndexCandidates.rbegin()}; it != setBlockIndexCandidates.rend(); ++it) {
+            const CBlockIndex* obstruction{stall_obstructing(*it)};
+            if (obstruction == nullptr || reaches_unusable_block(*it)) {
+                pindexNew = *it;
+                break;
+            }
+            if (result.stall_obstruction == nullptr) result.stall_obstruction = obstruction;
         }
+        if (pindexNew == nullptr) return result;
 
         // Check whether all blocks on the path between the currently active chain and the candidate are valid.
         // Just going until the active chain is an optimization, as we know all blocks in it are valid already.
@@ -3795,8 +3918,11 @@ CBlockIndex* Chainstate::FindMostWorkChain()
                         // If we're missing data, then add back to m_blocks_unlinked,
                         // so that if the block arrives in the future we can try adding
                         // to setBlockIndexCandidates again.
-                        m_blockman.m_blocks_unlinked.insert(
-                            std::make_pair(pindexFailed->pprev, pindexFailed));
+                        const auto [first, last]{m_blockman.m_blocks_unlinked.equal_range(pindexFailed->pprev)};
+                        if (std::none_of(first, last, [&](const auto& entry) { return entry.second == pindexFailed; })) {
+                            m_blockman.m_blocks_unlinked.insert(
+                                std::make_pair(pindexFailed->pprev, pindexFailed));
+                        }
                     }
                     setBlockIndexCandidates.erase(pindexFailed);
                     pindexFailed = pindexFailed->pprev;
@@ -3807,8 +3933,10 @@ CBlockIndex* Chainstate::FindMostWorkChain()
             }
             pindexTest = pindexTest->pprev;
         }
-        if (!fInvalidAncestor)
-            return pindexNew;
+        if (!fInvalidAncestor) {
+            result.candidate = pindexNew;
+            return result;
+        }
     } while(true);
 }
 
@@ -3843,14 +3971,19 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
     DisconnectedBlockTransactions disconnectpool{MAX_DISCONNECTED_TX_POOL_BYTES};
     while (m_chain.Tip() && m_chain.Tip() != pindexFork) {
         if (!DisconnectTip(state, &disconnectpool)) {
-            // This is likely a fatal error, but keep the mempool consistent,
-            // just in case. Only remove from the mempool in this case.
-            MaybeUpdateMempoolForReorg(disconnectpool, false);
+            // A local Evo state stall leaves this chainstate running where it
+            // is, so the disconnected transactions go back to the mempool.
+            // Anything else is likely a fatal error, but keep the mempool
+            // consistent, just in case: only remove from it then.
+            MaybeUpdateMempoolForReorg(disconnectpool, IsLocalEvoStateError(state));
 
-            // If we're unable to disconnect a block during normal operation,
-            // then that is a failure of our local system -- we should abort
-            // rather than stay on a less work chain.
-            FatalError(m_chainman.GetNotifications(), state, "Failed to disconnect block; see debug.log for details");
+            // Unless the chainstate stalled, we're unable to disconnect a block
+            // during normal operation, which is a failure of our local system
+            // -- we should abort rather than stay on a less work chain. A stall,
+            // or a block that could not be read, has set its own error.
+            if (!state.IsError()) {
+                FatalError(m_chainman.GetNotifications(), state, "Failed to disconnect block; see debug.log for details");
+            }
             return false;
         }
         fBlocksDisconnected = true;
@@ -3886,10 +4019,13 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
                     fContinue = false;
                     break;
                 } else {
-                    // A system error occurred (disk space, database error, ...).
+                    // A system error occurred (disk space, database error, ...),
+                    // or this chainstate stalled on its own Evo state.
                     // Make the mempool consistent with the current tip, just in case
-                    // any observers try to use it before shutdown.
-                    MaybeUpdateMempoolForReorg(disconnectpool, false);
+                    // any observers try to use it before shutdown. A stalled
+                    // chainstate keeps running, so it takes the disconnected
+                    // transactions back.
+                    MaybeUpdateMempoolForReorg(disconnectpool, IsLocalEvoStateError(state));
                     return false;
                 }
             } else {
@@ -3982,6 +4118,7 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
 
     CBlockIndex *pindexMostWork = nullptr;
     CBlockIndex *pindexNewTip = nullptr;
+    bool stalled{false};
     do {
         // Block until the validation queue drains. This should largely
         // never happen in normal operation, however may happen during
@@ -3997,25 +4134,47 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
             LOCK(MempoolMutex());
             CBlockIndex* starting_tip = m_chain.Tip();
             bool blocks_connected = false;
+            const uint64_t stalls_recorded_at_start{m_evo_stalls_recorded};
             do {
                 // We absolutely may not unlock cs_main until we've made forward progress
                 // (with the exception of shutdown due to hardware issues, low disk space, etc).
                 ConnectTrace connectTrace; // Destructed before cs_main is unlocked
 
+                const CBlockIndex* stall_obstruction{nullptr};
                 if (pindexMostWork == nullptr) {
-                    pindexMostWork = FindMostWorkChain();
+                    const MostWorkChain most_work{FindMostWorkChain()};
+                    pindexMostWork = most_work.candidate;
+                    stall_obstruction = most_work.stall_obstruction;
                 }
 
                 // Whether we have anything to do at all.
                 if (pindexMostWork == nullptr || pindexMostWork == m_chain.Tip()) {
+                    // Only a local Evo stall keeps a better candidate out of reach.
+                    stalled = stall_obstruction && RefuseStalledBlock(stall_obstruction, state);
                     break;
                 }
 
                 bool fInvalidFound = false;
                 std::shared_ptr<const CBlock> nullBlockPtr;
+                const uint64_t stalls_recorded_before{m_evo_stalls_recorded};
                 if (!ActivateBestChainStep(state, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : nullBlockPtr, fInvalidFound, connectTrace)) {
-                    // A system error occurred
-                    return false;
+                    // A system error occurred, or this chainstate stalled on
+                    // its own Evo state. A stall still announces the blocks
+                    // this step connected before it stops.
+                    if (!IsLocalEvoStateError(state)) return false;
+                    // A stall can leave the chain rewound below the candidates
+                    // it passed, which the block index must then list again.
+                    if (starting_tip && CBlockIndexWorkComparator()(m_chain.Tip(), starting_tip)) {
+                        RestoreBlockIndexCandidates();
+                    }
+                    // A newly recorded stall is passed over when selecting
+                    // again: connect the best chain still in reach, normally
+                    // the one this started on, before cs_main is released.
+                    stalled = m_evo_stalls_recorded == stalls_recorded_before;
+                    if (!stalled) {
+                        state = BlockValidationState();
+                        pindexMostWork = nullptr;
+                    }
                 }
                 blocks_connected = true;
 
@@ -4037,13 +4196,25 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                 // if at all, so we should catch it here.
                 //
                 // Break this do-while to ensure we don't advance past the base snapshot.
-                if (m_disabled) {
+                if (m_disabled || stalled) {
                     break;
                 }
             } while (!m_chain.Tip() || (starting_tip && CBlockIndexWorkComparator()(m_chain.Tip(), starting_tip)));
-            if (!blocks_connected) return true;
+            if (m_evo_stalls_recorded != stalls_recorded_at_start) {
+                // A stall that rewound the chain moved the masternode list tip
+                // back along with the mempool. A chain that returns to where it
+                // started sends no tip notification to move it forward again.
+                if (m_mempool && m_chain.Tip()) m_special_tx.UpdatedMNListTip(m_chain.Tip());
+                // Whether a stall still keeps a better candidate out of reach
+                // is for the next selection to tell.
+                pindexMostWork = nullptr;
+            }
+            if (!blocks_connected) return !stalled;
 
             const CBlockIndex* pindexFork = m_chain.FindFork(starting_tip);
+            // A stall can leave the chain only rewound. Announce that the way
+            // InvalidateBlock does.
+            if (pindexFork == pindexNewTip && pindexNewTip != starting_tip) pindexFork = nullptr;
             bool fInitialDownload = m_chainman.IsInitialBlockDownload();
 
             // Notify external listeners about the new tip.
@@ -4059,10 +4230,12 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
                     // be changed to bubble up the kernel::Interrupted value to
                     // the caller so the caller could distinguish between
                     // completed and interrupted operations.
+                    if (stalled) return false;
                     break;
                 }
             }
         }
+        if (stalled) return false;
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
         if (WITH_LOCK(::cs_main, return m_disabled)) {
@@ -4134,6 +4307,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
 
     CBlockIndex* to_mark_failed = pindex;
     bool pindex_was_in_chain = false;
+    bool stalled{false};
     int disconnected = 0;
 
     // We do not allow ActivateBestChain() to run while InvalidateBlock() is
@@ -4152,6 +4326,14 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
 
     {
         LOCK(cs_main);
+        // A block this chainstate already failed to disconnect is still in the
+        // way. Refuse before disconnecting the blocks above it once more.
+        for (const auto& [stalled_block, _] : m_evo_stalls) {
+            if (m_chain.Contains(stalled_block) && stalled_block->GetAncestor(pindex->nHeight) == pindex &&
+                RefuseStalledBlock(stalled_block, state)) {
+                return false;
+            }
+        }
         for (auto& entry : m_blockman.m_block_index) {
             CBlockIndex* candidate = &entry.second;
             // We don't need to put anything in our active chain into the
@@ -4184,6 +4366,8 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         pindex_was_in_chain = true;
         CBlockIndex *invalid_walk_tip = m_chain.Tip();
         const CBlockIndex* pindexOldTip = m_chain.Tip();
+        CBlockIndex* const best_header{m_chainman.m_best_header};
+        CBlockIndex* const best_invalid{m_chainman.m_best_invalid};
 
         if (pindex == m_chainman.m_best_header) {
             m_chainman.m_best_invalid = m_chainman.m_best_header;
@@ -4200,7 +4384,16 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         // and we're not doing a very deep invalidation (in which case
         // keeping the mempool up to date is probably futile anyway).
         MaybeUpdateMempoolForReorg(disconnectpool, /* fAddToMempool = */ (++disconnected <= 10) && ret);
-        if (!ret) return false;
+        if (!ret) {
+            if (!IsLocalEvoStateError(state)) return false;
+            // A stalled chainstate stays where it got to: pindex is still in
+            // the chain, and the blocks already disconnected are finished and
+            // announced below.
+            m_chainman.m_best_header = best_header;
+            m_chainman.m_best_invalid = best_invalid;
+            stalled = true;
+            break;
+        }
         assert(invalid_walk_tip->pprev == m_chain.Tip());
 
         if (pindexOldTip == m_chainman.m_best_header) {
@@ -4286,7 +4479,7 @@ bool Chainstate::InvalidateBlock(BlockValidationState& state, CBlockIndex* pinde
         // changes.
         (void)m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *to_mark_failed->pprev);
     }
-    return true;
+    return !stalled;
 }
 
 void Chainstate::EnforceBlock(BlockValidationState& state, const CBlockIndex *pindex)
@@ -4308,6 +4501,10 @@ void Chainstate::EnforceBlock(BlockValidationState& state, const CBlockIndex *pi
             }
             if (!MarkConflictingBlock(state, jt->second)) {
                 LogPrintf("Chainstate::%s -- MarkConflictingBlock failed: %s\n", __func__, state.ToString());
+                // A stall leaves the chainstate where it is; the next ChainLock
+                // enforcement tries again. A node that could not read a block
+                // is shutting down.
+                if (IsLocalEvoStateError(state) || m_chainman.m_interrupt) return;
                 // This should not have happened and we are in a state were it's not safe to continue anymore
                 assert(false);
             }
@@ -4329,7 +4526,9 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
     // We first disconnect backwards and then mark the blocks as conflicting.
 
     bool pindex_was_in_chain = false;
+    bool stalled{false};
     CBlockIndex *conflicting_walk_tip = m_chain.Tip();
+    CBlockIndex* const best_header{m_chainman.m_best_header};
 
     if (pindex == m_chainman.m_best_header) {
         m_chainman.m_best_header = m_chainman.m_best_header->pprev;
@@ -4344,6 +4543,16 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
         // ActivateBestChain considers blocks already in m_chain
         // unconditionally valid already, so force disconnect away from it.
         if (!DisconnectTip(state, &disconnectpool)) {
+            // A stalled chainstate stays where it got to: the blocks already
+            // disconnected are marked and announced below.
+            if (IsLocalEvoStateError(state)) {
+                if (pindexOldTip != conflicting_walk_tip) {
+                    stalled = true;
+                    break;
+                }
+                // Nothing moved: pindex is still the tip.
+                m_chainman.m_best_header = best_header;
+            }
             // It's probably hopeless to try to make the mempool consistent
             // here if DisconnectTip failed, but we can try.
             MaybeUpdateMempoolForReorg(disconnectpool, false);
@@ -4356,15 +4565,17 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
 
     // Now mark the blocks we just disconnected as descendants conflicting
     // (note this may not be all descendants).
-    while (pindex_was_in_chain && conflicting_walk_tip != pindex) {
+    while (pindex_was_in_chain && conflicting_walk_tip != pindex && conflicting_walk_tip != m_chain.Tip()) {
         conflicting_walk_tip->nStatus |= BLOCK_CONFLICT_CHAINLOCK;
         setBlockIndexCandidates.erase(conflicting_walk_tip);
         conflicting_walk_tip = conflicting_walk_tip->pprev;
     }
 
-    // Mark the block itself as conflicting.
-    pindex->nStatus |= BLOCK_CONFLICT_CHAINLOCK;
-    setBlockIndexCandidates.erase(pindex);
+    if (!stalled) {
+        // Mark the block itself as conflicting.
+        pindex->nStatus |= BLOCK_CONFLICT_CHAINLOCK;
+        setBlockIndexCandidates.erase(pindex);
+    }
 
     // DisconnectTip will add transactions to disconnectpool; try to add these
     // back to the mempool.
@@ -4381,7 +4592,7 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
         it++;
     }
 
-    ConflictingChainFound(pindex);
+    if (!stalled) ConflictingChainFound(pindex);
     if (this == &m_chainman.ActiveChainstate()) {
         GetMainSignals().SynchronousUpdatedBlockTip(m_chain.Tip(), nullptr, m_chainman.IsInitialBlockDownload());
         GetMainSignals().UpdatedBlockTip(m_chain.Tip(), nullptr, m_chainman.IsInitialBlockDownload());
@@ -4389,9 +4600,9 @@ bool Chainstate::MarkConflictingBlock(BlockValidationState& state, CBlockIndex *
 
     // Only notify about a new block tip if the active chain was modified.
     if (pindex_was_in_chain) {
-        (void)m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *pindex->pprev);
+        (void)m_chainman.GetNotifications().blockTip(GetSynchronizationState(m_chainman.IsInitialBlockDownload()), *m_chain.Tip());
     }
-    return true;
+    return !stalled;
 }
 
 void Chainstate::ResetBlockFailureFlags(CBlockIndex *pindex, bool ignore_chainlocks) {
@@ -5794,7 +6005,7 @@ void ChainstateManager::LoadExternalBlockFile(
                     bool genesis_activation_failure = false;
                     for (auto c : GetAll()) {
                         BlockValidationState state;
-                        if (!c->ActivateBestChain(state, nullptr)) {
+                        if (!c->ActivateBestChain(state, nullptr) && !IsLocalEvoStateError(state)) {
                             genesis_activation_failure = true;
                             break;
                         }
@@ -5817,6 +6028,8 @@ void ChainstateManager::LoadExternalBlockFile(
                         BlockValidationState state;
                         if (!c->ActivateBestChain(state, pblock)) {
                             LogPrint(BCLog::REINDEX, "failed to activate chain (%s)\n", state.ToString());
+                            // A stalled chainstate must not stop the import for the others.
+                            if (IsLocalEvoStateError(state)) continue;
                             activation_failure = true;
                             break;
                         }
@@ -7353,6 +7566,19 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation()
     // The captures stay until promotion, which repeats this check at the next
     // startup.
     m_ibd_chainstate->m_disabled = true;
+    // What background validation derived reaches the snapshot chainstate only
+    // when the next startup promotes it: until then the snapshot chainstate
+    // reads its own generation, and a block it stalled on stays out of reach.
+    // Its stall warning says so instead, until the chainstate goes.
+    if (std::ranges::any_of(m_snapshot_chainstate->m_evo_stalls, [&](const auto& stall) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
+            return m_snapshot_chainstate->FindEvoStall(stall.first) != nullptr;
+        })) {
+        const std::string detail{"snapshot validation completed; restart to resume from the validated chain"};
+        LogPrintf("WARNING: %s\n", detail);
+        if (WarnLocalEvoStateUnavailable(m_snapshot_chainstate->EvoStallWarningSource(), detail)) {
+            GetNotifications().evoStateWarningChanged();
+        }
+    }
     this->MaybeRebalanceCaches();
 
     return SnapshotCompletionResult::SUCCESS;
