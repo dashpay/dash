@@ -409,6 +409,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     }
     // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
     const auto minedHeight = GetBlockHeight(m_is_manager, m_chainman.ActiveChainstate(), hashBlock);
+    bool stored{true};
     if (found_transaction) {
         // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
         // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
@@ -421,7 +422,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
         }
         m_is_manager.WriteNewISLock(hash, islock, minedHeight);
     } else {
-        m_is_manager.AddPendingISLock(hash, islock, from);
+        stored = m_is_manager.AddPendingISLock(hash, islock, from);
     }
 
     // This will also add children TXs to pendingRetryTxs
@@ -429,7 +430,16 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
     // We only need the ISLOCK from now on to detect conflicts
     TruncateRecoveredSigsForInputs(*islock);
-    ResolveBlockConflicts(hash, *islock);
+    // A check deferred when this lock was processed before (without its transaction) is superseded by this one
+    std::erase_if(m_deferred_conflict_checks,
+                  [&](const DeferredConflictCheck& check) { return check.islock_hash == hash; });
+    // Read the tip only now that the lock is stored: ConnectBlock rejects later conflicting blocks. A dropped
+    // lock is not deferred, so its resubmissions can't grow the deferred checks past the pending queue's bound.
+    if (const auto* tip = WITH_LOCK(::cs_main, return m_chainman.ActiveTip()); stored && tip != m_notified_tip) {
+        m_deferred_conflict_checks.push_back({tip, hash});
+    } else {
+        ResolveBlockConflicts(hash, *islock);
+    }
 
     if (found_transaction) {
         RemoveMempoolConflictsForLock(hash, *islock);
@@ -459,6 +469,7 @@ void NetInstantSend::WorkThreadMain()
             if (!locks.empty()) {
                 ProcessPendingISLocks(std::move(locks));
             }
+            ResolveDeferredBlockConflicts();
             if (m_signer) {
                 m_signer->ProcessPendingRetryLockTxs(m_is_manager.PrepareTxToRetry());
             }
@@ -563,6 +574,7 @@ void NetInstantSend::TransactionRemovedFromMempool(const CTransactionRef& tx, Me
 void NetInstantSend::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
 {
     if (!m_is_manager.IsInstantSendEnabled()) {
+        m_notified_tip = pindex;
         return;
     }
 
@@ -594,6 +606,7 @@ void NetInstantSend::BlockConnected(const std::shared_ptr<const CBlock>& pblock,
         m_is_manager.RetryUnminedAssetUnlocks();
     }
     m_is_manager.WriteBlockISLocks(pblock, pindex);
+    m_notified_tip = pindex;
 }
 
 void NetInstantSend::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
@@ -601,6 +614,7 @@ void NetInstantSend::BlockDisconnected(const std::shared_ptr<const CBlock>& pblo
     m_is_manager.CacheDisconnectBlock(pindexDisconnected);
     m_is_manager.CacheTipHeight(pindexDisconnected->pprev);
     m_is_manager.RemoveBlockISLocks(pblock, pindexDisconnected);
+    m_notified_tip = pindexDisconnected->pprev;
 }
 
 void NetInstantSend::NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const chainlock::ChainLockSig>& clsig)
@@ -665,6 +679,32 @@ void NetInstantSend::ResolveBlockConflicts(const uint256& islockHash, const inst
             LogPrintf("NetInstantSend::%s -- ActivateBestChain failed: %s\n", __func__, state.ToString());
             // This should not have happened and we are in a state were it's not safe to continue anymore
             assert(false);
+        }
+    }
+}
+
+void NetInstantSend::ResolveDeferredBlockConflicts()
+{
+    const CBlockIndex* const notified_tip{m_notified_tip};
+    if (m_deferred_conflict_checks.empty() || notified_tip == nullptr) return;
+
+    std::vector<DeferredConflictCheck> ready;
+    {
+        LOCK(::cs_main);
+        const CChain& active_chain = m_chainman.ActiveChain();
+        std::erase_if(m_deferred_conflict_checks, [&](const DeferredConflictCheck& check) {
+            // After a reorg only the blocks still active matter, so wait for the notifications up to the fork
+            const CBlockIndex* const fork{active_chain.FindFork(check.tip)};
+            if (fork != nullptr && notified_tip->GetAncestor(fork->nHeight) != fork) return false;
+            ready.push_back(check);
+            return true;
+        });
+    }
+    for (const auto& check : ready) {
+        // Skip a lock dropped meanwhile, or one queued for verification again once its transaction was
+        // announced, which resolves its conflicts when processed
+        if (const auto islock = m_is_manager.GetProcessedInstantSendLock(check.islock_hash)) {
+            ResolveBlockConflicts(check.islock_hash, *islock);
         }
     }
 }
