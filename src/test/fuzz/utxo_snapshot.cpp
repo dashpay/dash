@@ -4,6 +4,7 @@
 
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <evo/evodb.h>
 #include <node/utxo_snapshot.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
@@ -33,6 +34,7 @@ FUZZ_TARGET(utxo_snapshot, .init = initialize_chain)
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
     std::unique_ptr<const TestingSetup> setup{MakeNoLogFileContext<const TestingSetup>()};
     const auto& node = setup->m_node;
+    const ActiveEvoViewScope turn{node.evodb.get()};
     auto& chainman{*node.chainman};
 
     const auto snapshot_path = gArgs.GetDataDirNet() / "fuzzed_snapshot.dat";
