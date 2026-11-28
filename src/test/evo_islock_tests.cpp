@@ -70,6 +70,65 @@ BOOST_FIXTURE_TEST_CASE(chainlocked_conflict_overrides_confirmed_locks, TestChai
     }
 }
 
+BOOST_FIXTURE_TEST_CASE(locked_tx_keeps_its_lock_and_its_place_in_the_mempool, TestChain100Setup)
+{
+    constexpr const char* REGTEST_SPORK_PRIVKEY{"cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"};
+    BOOST_REQUIRE(m_node.sporkman->SetSporkAddress(Params().SporkAddress()));
+    BOOST_REQUIRE(m_node.sporkman->SetPrivKey(REGTEST_SPORK_PRIVKEY));
+    BOOST_REQUIRE(m_node.sporkman->UpdateSpork(SPORK_2_INSTANTSEND_ENABLED, 0).has_value());
+    auto& isman = *m_node.isman;
+
+    const auto& coinbase = m_coinbase_txns[0];
+    const auto tx = MakeTransactionRef(
+        CreateValidMempoolTransaction(coinbase, /*input_vout=*/0, /*input_height=*/1, coinbaseKey,
+                                      GetScriptForRawPubKey(coinbaseKey.GetPubKey()), coinbase->vout[0].nValue - 1000,
+                                      /*submit=*/false));
+    const auto make_lock = [&](const uint256& txid) {
+        auto islock = std::make_shared<instantsend::InstantSendLock>();
+        islock->txid = txid;
+        islock->inputs.push_back(tx->vin[0].prevout);
+        return islock;
+    };
+    const auto islock = make_lock(tx->GetHash());
+    const auto islock_hash = ::SerializeHash(*islock);
+    const auto accept = [&] {
+        return WITH_LOCK(cs_main, return m_node.chainman->ProcessTransaction(tx)).m_result_type ==
+               MempoolAcceptResult::ResultType::VALID;
+    };
+
+    // The fee floor of a full mempool keeps the transaction out until its lock is known
+    MockMempoolMinFee(CFeeRate{100000});
+    BOOST_CHECK(!accept());
+    isman.AddPendingISLock(islock_hash, islock, /*from=*/1);
+    BOOST_REQUIRE(isman.IsWaitingForTx(tx->GetHash()));
+    BOOST_REQUIRE(accept());
+
+    // Neither its age nor a full mempool removes it
+    {
+        LOCK(m_node.mempool->cs);
+        BOOST_CHECK_EQUAL(m_node.mempool->Expire(GetTime<std::chrono::seconds>() + std::chrono::seconds{1}), 0);
+        m_node.mempool->TrimToSize(0);
+    }
+    BOOST_CHECK(m_node.mempool->exists(tx->GetHash()));
+
+    // A second lock on its input is refused once the lock is stored
+    const auto other_lock = make_lock(GetRandHash());
+    const auto other_hash = ::SerializeHash(*other_lock);
+    BOOST_CHECK(isman.PreVerifyIsLock(other_hash, other_lock, /*from=*/2));
+    isman.WriteNewISLock(islock_hash, islock, /*minedHeight=*/std::nullopt);
+    BOOST_REQUIRE(isman.IsLocked(tx->GetHash()));
+    BOOST_CHECK(!isman.PreVerifyIsLock(other_hash, other_lock, /*from=*/2));
+
+    // The lock outlives the transaction leaving the mempool
+    WITH_LOCK(m_node.mempool->cs, m_node.mempool->removeRecursive(*tx, MemPoolRemovalReason::REORG));
+    BOOST_REQUIRE(!m_node.mempool->exists(tx->GetHash()));
+    isman.TransactionIsRemoved(tx);
+    BOOST_CHECK(isman.IsLocked(tx->GetHash()));
+    const auto stored = isman.GetInstantSendLockByTxid(tx->GetHash());
+    BOOST_REQUIRE(stored);
+    BOOST_CHECK(::SerializeHash(*stored) == islock_hash);
+}
+
 uint256 CalculateRequestId(const std::vector<COutPoint>& inputs)
 {
     HashWriter hw{};

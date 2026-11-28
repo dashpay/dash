@@ -395,6 +395,17 @@ void InstantSendSigner::ProcessTx(const CTransaction& tx, bool fRetroactive, con
     // block after we retroactively locked all transactions.
     if (!IsInstantSendMempoolSigningEnabled() && !fRetroactive) return;
 
+    // A locked transaction is never evicted from the mempool, so no more are locked there once
+    // they take up half of it. The rest are locked when they are mined. A mempool larger than
+    // the default does not raise the limit: the other nodes have to hold these transactions too.
+    const uint64_t max_pinned_usage{
+        static_cast<uint64_t>(std::min<int64_t>(m_mempool.m_max_size_bytes, DEFAULT_MAX_MEMPOOL_SIZE_MB * 1'000'000)) / 2};
+    if (!fRetroactive && WITH_LOCK(m_mempool.cs, return m_mempool.GetPinnedUsage()) > max_pinned_usage) {
+        LogPrint(BCLog::INSTANTSEND, "%s -- txid=%s: not signing, locked transactions take up half of the mempool\n",
+                 __func__, tx.GetHash().ToString());
+        return;
+    }
+
     if (!TrySignInputLocks(tx, fRetroactive, params.llmqTypeDIP0024InstantSend, params)) {
         return;
     }

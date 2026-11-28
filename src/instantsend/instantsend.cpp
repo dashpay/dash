@@ -104,8 +104,10 @@ bool CInstantSendManager::PreVerifyIsLock(const uint256& hash, const instantsend
     for (const auto& in : islock->inputs) {
         const auto sameOutpointIsLock = db.GetInstantSendLockByInput(in);
         if (sameOutpointIsLock != nullptr) {
+            // The lock we hold stays until a ChainLock decides between the two
             LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: conflicting outpoint in islock. input=%s, other islock=%s, peer=%d\n", __func__,
                       islock->txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*sameOutpointIsLock).ToString(), from);
+            return false;
         }
     }
     return true;
@@ -142,16 +144,11 @@ void CInstantSendManager::TransactionIsRemoved(const CTransactionRef& tx)
     }
 
     WITH_LOCK(cs_timingsTxSeen, timingsTxSeen.erase(tx->GetHash()));
-    instantsend::InstantSendLockPtr islock = GetInstantSendLockByTxid(tx->GetHash());
-
-    if (islock == nullptr) {
+    // A lock does not depend on its transaction being in the mempool: it stays until the
+    // transaction is confirmed or a conflicting one is ChainLocked
+    if (GetInstantSendLockByTxid(tx->GetHash()) == nullptr) {
         RemoveNonLockedTx(tx->GetHash(), false, /*keepMined=*/!tx->IsPlatformTransfer());
-        return;
     }
-
-    LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- transaction %s was removed from mempool\n", __func__,
-             tx->GetHash().ToString());
-    RemoveConflictingLock(::SerializeHash(*islock), *islock);
 }
 
 void CInstantSendManager::WriteBlockISLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)

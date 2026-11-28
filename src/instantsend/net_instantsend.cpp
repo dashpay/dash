@@ -409,6 +409,7 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
     }
     // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
     const auto minedHeight = GetBlockHeight(m_is_manager, m_chainman.ActiveChainstate(), hashBlock);
+    bool left_mempool{false};
     if (found_transaction) {
         // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
         // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
@@ -419,9 +420,15 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
                      __func__, islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
             return;
         }
+        LOCK(m_mempool.cs);
+        m_mempool.PinInstantSendLocked(islock->txid);
         m_is_manager.WriteNewISLock(hash, islock, minedHeight);
+        left_mempool = hashBlock.IsNull() && !m_mempool.exists(islock->txid);
     } else {
         m_is_manager.AddPendingISLock(hash, islock, from);
+        // The transaction may have arrived since it was looked up, too early to find this lock.
+        // The lock then comes back through here, this time with its transaction.
+        if (const auto arrived{m_mempool.get(islock->txid)}; arrived && m_is_manager.AttachISLockToTx(arrived)) return;
     }
 
     // This will also add children TXs to pendingRetryTxs
@@ -445,8 +452,8 @@ void NetInstantSend::ProcessInstantSendLock(NodeId from, const uint256& hash, co
         m_peer_manager->PeerRelayInvFiltered(inv, *tx);
     } else {
         m_peer_manager->PeerRelayInvFiltered(inv, islock->txid);
-        m_peer_manager->PeerAskPeersForTransaction(islock->txid);
     }
+    if (!found_transaction || left_mempool) m_peer_manager->PeerAskPeersForTransaction(islock->txid);
 }
 
 void NetInstantSend::WorkThreadMain()
