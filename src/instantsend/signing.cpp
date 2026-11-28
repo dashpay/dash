@@ -479,10 +479,6 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
 
     auto id = islock.GetRequestId();
 
-    if (m_sigman.HasRecoveredSigForId(llmqType, id)) {
-        return;
-    }
-
     const auto& llmq_params_opt = Params().GetLLMQ(llmqType);
     assert(llmq_params_opt);
     const CChain& active_chain = *WITH_LOCK(::cs_main, return &m_chainman.ActiveChain());
@@ -501,6 +497,11 @@ void InstantSendSigner::TrySignInstantSendLock(const CTransaction& tx)
             return;
         }
         txToCreatingInstantSendLocks.emplace(tx.GetHash(), &e.first->second);
+    }
+
+    if (llmq::CRecoveredSig recovered_sig; m_sigman.GetRecoveredSigForId(llmqType, id, recovered_sig)) {
+        HandleNewInstantSendLockRecoveredSig(recovered_sig);
+        return;
     }
 
     m_shareman.AsyncSignIfMember(llmqType, id, tx.GetHash(), quorum->m_quorum_base_block_index->GetBlockHash());

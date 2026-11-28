@@ -258,6 +258,7 @@ public:
     bool HasRecoveredSigForSigning(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const;
     bool GetRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash,
                          CRecoveredSig& retRecSig) const;
+    bool GetRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& retRecSig) const;
     bool IsConflicting(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash) const;
 
     bool GetVoteForId(Consensus::LLMQType llmqType, const uint256& id, uint256& msgHashRet) const;
