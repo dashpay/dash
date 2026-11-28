@@ -27,6 +27,10 @@ three positions in the rotation cycle, one of them inside the mining window:
   snapshot does not carry, completes background validation in the same run,
   refuses to start as a masternode, and connects that block once a restart
   has promoted the snapshot.
+
+Before the first dump, node 0 restarts after a block that registers and
+removes a masternode, so it numbers masternodes differently from every other
+node: its dumps still match theirs, and node A still completes and promotes.
 """
 
 import hashlib
@@ -34,6 +38,7 @@ from decimal import Decimal
 from pathlib import Path
 import struct
 
+from test_framework.address import address_to_scriptpubkey
 from test_framework.key import ECKey
 from test_framework.messages import (
     CAssetLockTx,
@@ -43,6 +48,7 @@ from test_framework.messages import (
     CInv,
     CMnEhf,
     COIN,
+    CProRegTx,
     COutPoint,
     CTransaction,
     CTxIn,
@@ -59,15 +65,16 @@ from test_framework.messages import (
     uint256_from_str,
 )
 from test_framework.p2p import P2PInterface
-from test_framework.script import CScript, OP_RETURN
+from test_framework.script import CScript, OP_RETURN, hash160
 from test_framework.script_util import key_to_p2pk_script, key_to_p2pkh_script
-from test_framework.test_framework import DashTestFramework
+from test_framework.test_framework import DashTestFramework, MASTERNODE_COLLATERAL
 from test_framework.test_node import ErrorMatch
 from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
     force_finish_mnsync,
     initialize_datadir,
+    p2p_port,
 )
 from test_framework.wallet_util import bytes_to_wif
 
@@ -143,6 +150,7 @@ class AssumeutxoDashTest(DashTestFramework):
         # Platform quorums, which sign withdrawals, have only EvoNodes as members.
         for _ in range(2):
             self.dynamically_add_masternode(evo=True)
+        self.diverge_mn_numbering()
 
         first = self.cycle_of(self.mine_cycle_quorum()[0]["height"])
         # Signed now, mined only above node A's base, by when its quorum is
@@ -206,6 +214,52 @@ class AssumeutxoDashTest(DashTestFramework):
         self.test_dual_mode()
 
     # Chain building ---------------------------------------------------------
+
+    def diverge_mn_numbering(self):
+        """Mine a ProRegTx together with the spend of its collateral, then
+        restart node 0. The block advances the registration counter, but no
+        list diff records the masternode, so node 0 rebuilds its tip list from
+        the diffs with a counter one lower than the other nodes keep."""
+        self.log.info("Node 0 numbers masternodes differently from the other nodes")
+        node = self.nodes[0]
+        collateral = MASTERNODE_COLLATERAL * COIN
+        coins = []
+        for coin in sorted(node.listunspent(), key=lambda c: c["amount"], reverse=True):
+            if sum(c["amount"] for c in coins) > MASTERNODE_COLLATERAL:
+                break
+            coins.append(coin)
+        funds = int(sum(c["amount"] for c in coins) * COIN)
+        owner, voting = ECKey(), ECKey()
+        owner.generate()
+        voting.generate()
+        # Both transactions pay no fee, which keeps the coinbase of a block
+        # template made without them valid.
+        protx = CTransaction()
+        protx.vin = [CTxIn(COutPoint(int(c["txid"], 16), c["vout"])) for c in coins]
+        protx.vout = [CTxOut(collateral, address_to_scriptpubkey(node.getnewaddress())),
+                      CTxOut(funds - collateral, address_to_scriptpubkey(node.getnewaddress()))]
+        protx.nVersion = 3
+        protx.nType = 1
+        payload = CProRegTx(port=p2p_port(len(self.nodes) + 10), keyIDOwner=hash160(owner.get_pubkey().get_bytes()),
+                            pubKeyOperator=bytes.fromhex(node.bls("generate")["public"]),
+                            keyIDVoting=hash160(voting.get_pubkey().get_bytes()),
+                            scriptPayout=address_to_scriptpubkey(node.getnewaddress()))
+        payload.set_inputs_hash(protx)
+        protx.vExtraPayload = payload.serialize()
+        protx = from_hex(CTransaction(), node.signrawtransactionwithwallet(protx.serialize().hex())["hex"])
+        protx.rehash()
+        spend = CTransaction()
+        spend.vin = [CTxIn(COutPoint(protx.sha256, 0))]
+        spend.vout = [CTxOut(collateral, address_to_scriptpubkey(node.getnewaddress()))]
+        spend = node.signrawtransactionwithwallet(
+            spend.serialize().hex(), [{"txid": protx.hash, "vout": 0, "scriptPubKey": protx.vout[0].scriptPubKey.hex(),
+                                       "amount": MASTERNODE_COLLATERAL}])["hex"]
+        count = node.masternode("count")["total"]
+        self.generateblock(node, node.getnewaddress(), [protx.serialize().hex(), spend])
+        assert_equal(node.masternode("count")["total"], count)
+        self.restart_node(0)
+        for i in range(1, len(self.nodes)):
+            self.connect_nodes(0, i)
 
     def cycle_of(self, height):
         return height - height % CYCLE
@@ -708,6 +762,19 @@ class AssumeutxoDashTest(DashTestFramework):
         self.assert_no_snapshot(importer)
         self.sync_from_blocks(idx)
         assert_equal(importer.getdeploymentinfo(), node.getdeploymentinfo())
+
+        self.log.info("The promoted masternode lists above the base extend the validated ones below it")
+
+        def listdiff(n, start, end):
+            # Each node orders the updates by its own internal ids.
+            diff = n.protx("listdiff", start, end)
+            diff["updatedMNs"] = {k: v for update in diff["updatedMNs"] for k, v in update.items()}
+            return diff
+
+        tip_height = node.getblockcount()
+        for start, end in [(base - 1, base + 1), (base - 1, tip_height), (base + 1, tip_height)]:
+            assert_equal(listdiff(importer, start, end), listdiff(node, start, end))
+            assert_equal(importer.protx("diff", start, end), node.protx("diff", start, end))
 
 
 if __name__ == "__main__":
