@@ -421,6 +421,8 @@ void Chainstate::MaybeUpdateMempoolForReorg(
 
     // Predicate to use for filtering transactions in removeForReorg.
     // Checks whether the transaction is still final and, if it spends a coinbase output, mature.
+    // A provider transaction must also still pass CheckSpecialTx() at the tip, as the reorg may have
+    // changed the masternode list under it.
     // Also updates valid entries' cached LockPoints if needed.
     // If false, the tx is still valid and its lockpoints are updated.
     // If true, the tx would be invalid in the next block; remove this entry and all of its descendants.
@@ -432,6 +434,15 @@ void Chainstate::MaybeUpdateMempoolForReorg(
 
         // The transaction must be final.
         if (!CheckFinalTxAtTip(*Assert(m_chain.Tip()), tx)) return true;
+
+        if (IsProviderTx(tx)) {
+            const CBlockIndex* tip{m_chain.Tip()};
+            TxValidationState state;
+            if (!m_special_tx.CheckSpecialTx(tx, tip, GetSpecialTxRules(tip, m_chainman), CoinsTip(),
+                                             /*check_sigs=*/true, state)) {
+                return true;
+            }
+        }
 
         const LockPoints& lp = it->GetLockPoints();
         // CheckSequenceLocksAtTip checks if the transaction will be final in the next block to be
