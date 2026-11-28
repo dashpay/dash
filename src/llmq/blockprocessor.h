@@ -67,7 +67,7 @@ private:
     CEvoDB& m_evoDb;
     CQuorumSnapshotManager& m_qsnapman;
 
-    CCheckQueue<utils::BlsCheck> m_bls_queue{4};
+    CCheckQueue<utils::BlsCheck> m_bls_queue;
 
     mutable Mutex minableCommitmentsCs;
     std::map<std::pair<Consensus::LLMQType, uint256>, uint256> minableCommitmentsByQuorum GUARDED_BY(minableCommitmentsCs);

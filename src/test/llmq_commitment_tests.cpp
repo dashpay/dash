@@ -510,7 +510,7 @@ BOOST_FIXTURE_TEST_CASE(commitment_signatures_follow_the_given_scheme, Commitmen
         const bool direct{qc.Verify(util_params, verify_scheme)};
 
         // Block validation queues the checks instead of running them inline.
-        CCheckQueue<utils::BlsCheck> queue{4};
+        CCheckQueue<utils::BlsCheck> queue{/*batch_size=*/4, /*worker_threads_num=*/0};
         CCheckQueueControl<utils::BlsCheck> control{&queue};
         const bool queued{qc.VerifySignatureAsync(util_params, &control, verify_scheme) && control.Wait()};
         BOOST_CHECK_EQUAL(direct, queued);

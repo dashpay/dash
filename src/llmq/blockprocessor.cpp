@@ -85,17 +85,14 @@ CQuorumBlockProcessor::CQuorumBlockProcessor(ChainstateManager& chainman, CDeter
     m_chainman{chainman},
     m_dmnman{dmnman},
     m_evoDb{evoDb},
-    m_qsnapman{qsnapman}
+    m_qsnapman{qsnapman},
+    m_bls_queue{/*batch_size=*/4, bls_threads}
 {
     mapMinedCommitmentBlockCache.Init(m_chainman.GetConsensus());
     LogPrintf("BLS verification uses %d additional threads\n", bls_threads);
-    m_bls_queue.StartWorkerThreads(bls_threads);
 }
 
-CQuorumBlockProcessor::~CQuorumBlockProcessor()
-{
-    m_bls_queue.StopWorkerThreads();
-}
+CQuorumBlockProcessor::~CQuorumBlockProcessor() = default;
 
 MessageProcessingResult CQuorumBlockProcessor::ProcessMessage(const CNode& peer, std::string_view msg_type,
                                                               DataStream& vRecv,
