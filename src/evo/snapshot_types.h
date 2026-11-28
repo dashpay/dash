@@ -26,6 +26,14 @@ private:
     std::string m_message;
 };
 
+/** Evo state carried by an assumeutxo snapshot disagrees with state derived
+ *  independently. The snapshot is rejected; the block is not at fault. */
+class SnapshotStateMismatchError : public LocalStateError
+{
+public:
+    using LocalStateError::LocalStateError;
+};
+
 } // namespace evo
 
 /** Thrown when Evo state for a block cannot be reconstructed because the data

@@ -378,7 +378,14 @@ void Chainstate::MaybeUpdateMempoolForReorg(
     DisconnectedBlockTransactions& disconnectpool,
     bool fAddToMempool)
 {
-    if (!m_mempool) return;
+    if (!m_mempool) {
+        // Upstream returns here: only a background chainstate, which never
+        // queues transactions, lacks a mempool there. A snapshot rejected inside
+        // its own step takes the mempool away after the step queued the
+        // transactions of the blocks it disconnected; no chainstate keeps them.
+        disconnectpool.clear();
+        return;
+    }
 
     AssertLockHeld(cs_main);
     AssertLockHeld(m_mempool->cs);
@@ -3382,14 +3389,21 @@ void Chainstate::UpdateTip(const CBlockIndex* pindexNew)
 
 /** Classify an error about this node's own Evo state at a chainstate boundary.
  *  A block body it has but cannot read shuts the node down, as a block
- *  ConnectTip cannot read does; anything else is an error result
- *  (IsLocalEvoStateError). None of them marks the block invalid or blames a
- *  peer. */
+ *  ConnectTip cannot read does, and a rejected snapshot is an ordinary error,
+ *  as the node is shutting down. Anything else, a mismatch that could not
+ *  reject the snapshot included, is an error result (IsLocalEvoStateError).
+ *  None of them marks the block invalid or blames a peer. */
 static bool LocalEvoStateError(ChainstateManager& chainman, const evo::LocalStateError& e, BlockValidationState& state)
 {
     LogPrintf("ERROR: local Evo state error: %s\n", e.what());
     if (dynamic_cast<const BlockDataReadError*>(&e)) {
         return FatalError(chainman.GetNotifications(), state, strprintf("Failed to read block: %s", e.what()));
+    }
+    if (dynamic_cast<const evo::SnapshotStateMismatchError*>(&e)) {
+        if (chainman.HandleSnapshotStateMismatch(e.what())) {
+            return state.Error("invalid assumeutxo evo snapshot state");
+        }
+        return state.LocalEvoStateError(LocalEvoStateResult::MISMATCH, "evo-local-mismatch");
     }
     if (dynamic_cast<const EvoViewBindingError*>(&e)) {
         return state.LocalEvoStateError(LocalEvoStateResult::BINDING, "evo-local-binding");
@@ -3566,21 +3580,31 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     LogPrint(BCLog::BENCHMARK, "  - Load block from disk: %.2fms\n",
              Ticks<MillisecondsDouble>(time_2 - time_1));
     {
-        auto dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
-
+        std::unique_ptr<CEvoDBScopedCommitter> dbTx;
         CCoinsViewCache view(&CoinsTip());
         bool rv{false};
         try {
+            dbTx = m_evoDb.BeginTransaction(EvoDbIdentity());
             rv = ConnectBlock(blockConnecting, state, pindexNew, view);
         } catch (const evo::LocalStateError& e) {
+            // Roll back and evict the candidate first: a snapshot mismatch can
+            // only reject the snapshot with no Evo transaction open, and
+            // rejecting it retires the snapshot state the candidate was cached in.
+            if (dbTx) {
+                dbTx.reset();
+                m_special_tx.DiscardDeterministicMNBlock(pindexNew->GetBlockHash());
+            }
             rv = LocalEvoStateError(m_chainman, e, state);
         }
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             // Other threads read the open transaction, so roll it back before evicting the
-            // candidate or a concurrent lookup could cache it again.
-            dbTx->Rollback();
-            m_special_tx.DiscardDeterministicMNBlock(pindexNew->GetBlockHash());
+            // candidate or a concurrent lookup could cache it again. A local Evo state
+            // error has already done both.
+            if (dbTx) {
+                dbTx->Rollback();
+                m_special_tx.DiscardDeterministicMNBlock(pindexNew->GetBlockHash());
+            }
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
             LogError("%s: ConnectBlock %s failed, %s\n", __func__, pindexNew->GetBlockHash().ToString(), state.ToString());
@@ -6646,25 +6670,44 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
     return true;
 }
 
-void ChainstateManager::InvalidateSnapshot(int snapshot_tip_height, int snapshot_base_height)
+bool ChainstateManager::HandleSnapshotStateMismatch(const std::string& reason)
 {
-    bilingual_str user_error = strprintf(_(
-        "%s failed to validate the -assumeutxo snapshot state. "
-        "This indicates a hardware problem, or a bug in the software, or a "
-        "bad software modification that allowed an invalid snapshot to be "
-        "loaded. As a result of this, the node will shut down and stop using any "
-        "state that was built on the snapshot, resetting the chain height "
-        "from %d to %d. On the next "
-        "restart, the node will resume syncing from %d "
-        "without using any snapshot data. "
-        "Please report this incident to %s, including how you obtained the snapshot. "
-        "The invalid snapshot chainstate will be left on disk in case it is "
-        "helpful in diagnosing the issue that caused this error."),
-        PACKAGE_NAME, snapshot_tip_height, snapshot_base_height, snapshot_base_height, PACKAGE_BUGREPORT
-    );
+    LOCK(::cs_main);
+    if (!m_snapshot_chainstate || m_active_chainstate != m_snapshot_chainstate.get() ||
+        !IsUsable(m_snapshot_chainstate.get()) || !IsUsable(m_ibd_chainstate.get()) ||
+        m_snapshot_chainstate->m_evoDb.HasActiveTransaction()) {
+        return false;
+    }
 
+    const int snapshot_tip_height{m_snapshot_chainstate->m_chain.Height()};
+    const int snapshot_base_height{GetSnapshotBaseHeight().value_or(snapshot_tip_height)};
+    bilingual_str user_error =
+        strprintf(_("%s failed to validate the -assumeutxo snapshot state. "
+                    "This indicates a hardware problem, or a bug in the software, or a "
+                    "bad software modification that allowed an invalid snapshot to be "
+                    "loaded. As a result of this, the node will shut down and stop using any "
+                    "state that was built on the snapshot, resetting the chain height "
+                    "from %d to %d. On the next "
+                    "restart, the node will resume syncing from %d "
+                    "without using any snapshot data. "
+                    "Please report this incident to %s, including how you obtained the snapshot. "
+                    "The invalid snapshot chainstate will be left on disk in case it is "
+                    "helpful in diagnosing the issue that caused this error."),
+                  PACKAGE_NAME, snapshot_tip_height, snapshot_base_height, snapshot_base_height, PACKAGE_BUGREPORT);
+
+    LogPrintf("[snapshot] evo state mismatch: %s\n", reason);
     LogPrintf("[snapshot] !!! %s\n", user_error.original);
     LogPrintf("[snapshot] deleting snapshot, reverting to validated chain, and stopping node\n");
+
+    // DiscardSnapshotMarkers needs both identities' transaction trees fully
+    // committed; a rejection raised mid-connection has not flushed them yet.
+    m_ibd_chainstate->ForceFlushStateToDisk();
+    m_snapshot_chainstate->ForceFlushStateToDisk();
+    const bool evodb_synced{m_ibd_chainstate->m_evoDb.CommitRootTransaction(EvoDbIdentity::NORMAL, /*sync=*/true) &&
+                            m_snapshot_chainstate->m_evoDb.CommitRootTransaction(EvoDbIdentity::SNAPSHOT, /*sync=*/true)};
+    if (!evodb_synced) {
+        user_error += Untranslated("\nFailed to sync EvoDB before invalidating the snapshot.");
+    }
 
     m_active_chainstate = m_ibd_chainstate.get();
     // Hand the mempool back so the again-active background chainstate owns
@@ -6672,17 +6715,19 @@ void ChainstateManager::InvalidateSnapshot(int snapshot_tip_height, int snapshot
     m_ibd_chainstate->m_mempool = m_snapshot_chainstate->m_mempool;
     m_snapshot_chainstate->m_mempool = nullptr;
     m_snapshot_chainstate->m_disabled = true;
-    assert(!this->IsUsable(m_snapshot_chainstate.get()));
-    assert(this->IsUsable(m_ibd_chainstate.get()));
+    assert(!IsUsable(m_snapshot_chainstate.get()));
+    assert(IsUsable(m_ibd_chainstate.get()));
 
     auto rename_result = m_snapshot_chainstate->InvalidateCoinsDBOnDisk();
     if (!rename_result) {
         user_error += Untranslated("\n") + util::ErrorString(rename_result);
-    } else if (!m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers()) {
+    } else if (!evodb_synced || !m_ibd_chainstate->m_evoDb.DiscardSnapshotMarkers()) {
+        // Startup recovery completes the discard for the renamed directory.
         LogPrintf("[snapshot] failed to remove invalid snapshot EvoDB markers\n");
     }
 
     GetNotifications().fatalError(user_error.original, user_error);
+    return true;
 }
 
 // Currently, this function holds cs_main for its duration, which could be for
@@ -6720,7 +6765,6 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation()
         LogPrintf("[snapshot] on-disk snapshot base block is missing from the block index\n");
         return SnapshotCompletionResult::BASE_BLOCKHASH_MISMATCH;
     }
-    const int snapshot_tip_height = this->ActiveHeight();
     const int snapshot_base_height = *snapshot_base_height_opt;
     const CBlockIndex& index_new = *Assert(m_ibd_chainstate->m_chain.Tip());
 
@@ -6748,7 +6792,8 @@ SnapshotCompletionResult ChainstateManager::MaybeCompleteSnapshotValidation()
     }
 
     auto handle_invalid_snapshot = [&]() EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-        InvalidateSnapshot(snapshot_tip_height, snapshot_base_height);
+        const bool handled{HandleSnapshotStateMismatch("snapshot completion mismatch")};
+        Assume(handled);
     };
 
     if (index_new.GetBlockHash() != snapshot_blockhash) {

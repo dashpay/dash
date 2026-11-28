@@ -123,6 +123,7 @@ enum class LocalEvoStateResult {
     NONE = 0,    //!< not a local Evo state error
     UNAVAILABLE, //!< state the block needs is not available to this chainstate
     BINDING,     //!< the operation was not bound to this chainstate's Evo view
+    MISMATCH,    //!< state disagrees with the snapshot, which could not be rejected
 };
 
 class TxValidationState : public ValidationState<TxValidationResult> {};
