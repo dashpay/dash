@@ -3162,7 +3162,7 @@ static RPCHelpMan dumptxoutset()
 {
     return RPCHelpMan{
         "dumptxoutset",
-        "Write the serialized UTXO set to a file.",
+        "Write the serialized UTXO set to a file. This can be used in loadtxoutset afterwards if this snapshot height is supported in the chainparams as well.",
         {
             {"path", RPCArg::Type::STR, RPCArg::Optional::NO, "Path to the output file. If relative, will be prefixed by datadir."},
         },
@@ -3397,9 +3397,7 @@ static RPCHelpMan loadtxoutset()
         "contents are always checked by hash.\n\n"
 
         "You can find more information on this process in the `assumeutxo` design "
-        "document (<https://github.com/dashpay/dash/blob/develop/doc/design/assumeutxo.md>).\n\n"
-
-        "This command is for regression testing (-regtest mode) only.",
+        "document (<https://github.com/dashpay/dash/blob/develop/doc/design/assumeutxo.md>).",
         {
             {"path",
                 RPCArg::Type::STR,
@@ -3420,9 +3418,6 @@ static RPCHelpMan loadtxoutset()
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    if (Params().GetChainType() != ChainType::REGTEST) {
-        throw std::runtime_error("loadtxoutset is for regression testing (-regtest mode) only");
-    }
     NodeContext& node = EnsureAnyNodeContext(request.context);
     ChainstateManager& chainman = EnsureChainman(node);
     fs::path path{AbsPathForConfigVal(EnsureArgsman(node), fs::u8path(request.params[0].get_str()))};
@@ -3477,8 +3472,7 @@ static RPCHelpMan getchainstates()
 {
 return RPCHelpMan{
         "getchainstates",
-        "\nReturn information about chainstates.\n"
-        "This command is for regression testing (-regtest mode) only.\n",
+        "\nReturn information about chainstates.\n",
         {},
         RPCResult{
             RPCResult::Type::OBJ, "", "", {
@@ -3492,9 +3486,6 @@ return RPCHelpMan{
         },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    if (Params().GetChainType() != ChainType::REGTEST) {
-        throw std::runtime_error("getchainstates is for regression testing (-regtest mode) only");
-    }
     LOCK(cs_main);
     UniValue obj(UniValue::VOBJ);
 
@@ -3564,15 +3555,15 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"blockchain", &scantxoutset},
         {"blockchain", &scanblocks},
         {"blockchain", &getblockfilter},
+        {"blockchain", &dumptxoutset},
+        {"blockchain", &loadtxoutset},
+        {"blockchain", &getchainstates},
         {"hidden", &invalidateblock},
         {"hidden", &reconsiderblock},
         {"hidden", &waitfornewblock},
         {"hidden", &waitforblock},
         {"hidden", &waitforblockheight},
         {"hidden", &syncwithvalidationinterfacequeue},
-        {"hidden", &dumptxoutset},
-        {"hidden", &loadtxoutset},
-        {"hidden", &getchainstates},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);

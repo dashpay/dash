@@ -264,7 +264,7 @@ class AssumeutxoRefusalsTest(BitcoinTestFramework):
         assert_equal(chainstate.get('snapshot_blockhash'), None)
 
     def test_assumeutxodata_off_regtest(self):
-        self.log.info("-assumeutxodata is regtest-only")
+        self.log.info("-assumeutxodata is regtest-only, the snapshot RPCs are not")
         node = self.nodes[0]
         self.stop_node(0)
         conf_file = node.datadir_path / "dash.conf"
@@ -273,11 +273,26 @@ class AssumeutxoRefusalsTest(BitcoinTestFramework):
         for chain_name in ["", "testnet3", "devnet"]:
             write_config(conf_file, n=0, chain=chain_name, extra_config=f"assumeutxodata={pin}\n")
             node.assert_start_raises_init_error(expected_msg="Error: -assumeutxodata is only available on regtest.")
+        # The framework finds the RPC cookie under the regtest directory only.
+        for chain_name in ["", "testnet3"]:
+            write_config(conf_file, n=0, chain=chain_name, extra_config="rpcuser=snapshot\nrpcpassword=snapshot\n")
+            self.start_node(0)
+            chainstates = node.getchainstates()
+            assert_equal(len(chainstates['chainstates']), 1)
+            assert_equal(chainstates['chainstates'][0]['blocks'], 0)
+            assert_raises_rpc_error(-32603, f"assumeutxo block hash in snapshot metadata not recognized ({self.base_hash})", node.loadtxoutset, self.snapshot_path)
+            # A first start warns when the tmpdir is smaller than the network's assumed chain size.
+            node.stderr.seek(0)
+            stderr = node.stderr.read().decode('utf-8').strip()
+            assert stderr == "" or "may not accommodate the block files" in stderr, stderr
+            self.stop_node(0, expected_stderr=stderr)
         write_config(conf_file, n=0, chain="regtest")
-        # Remove the chain dirs the failed starts created, as feature_config_args.py does.
+        # Remove what the starts on other networks created; mainnet writes into the datadir itself.
         for path in set(node.datadir_path.iterdir()) - existing_paths:
             if path.is_dir():
                 shutil.rmtree(path)
+            else:
+                path.unlink()
         self.start_node(0)
 
 
