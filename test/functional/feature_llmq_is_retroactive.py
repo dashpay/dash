@@ -6,8 +6,7 @@
 '''
 feature_llmq_is_retroactive.py
 
-Tests retroactive signing. See feature_llmq_is_retroactive_session_timeout.py
-for retroactive signing after the signing session timed out.
+Tests retroactive signing
 
 We have 5 nodes where node 0 is the control node, nodes 1-4 are masternodes.
 Mempool inconsistencies are simulated via disconnecting/reconnecting node 3
@@ -17,6 +16,7 @@ and by having a higher relay fee on node 4.
 import time
 
 from test_framework.test_framework import DashTestFramework
+from test_framework.util import set_node_times
 
 
 class LLMQ_IS_RetroactiveSigning(DashTestFramework):
@@ -37,6 +37,27 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
     def sleep_and_assert_no_instantlock(self, txid, node, sleep=5):
         time.sleep(sleep)
         self.assert_no_instantlock(txid, node)
+
+    def wait_for_log_line(self, nodes, fragment):
+        def logged(node):
+            with open(node.debug_log_path, "rb") as f:
+                return fragment.encode() in f.read()
+        for node in nodes:
+            self.wait_until(lambda: logged(node))
+
+    def wait_for_sigshares(self, nodes, txid):
+        # Members sign asynchronously and the sig share log line is the only signal that they are done
+        self.wait_for_log_line(nodes, f"msgHash={txid}, llmqType=")
+
+    def assert_not_relayed_to_node3(self, txid):
+        # Node 4 rejects a new TX on fee, so its IS lock needs node 3's share: once it forms, node 3 is
+        # reconnected and signing, and it would have signed txid too if the TX had reached it
+        # (skip_sync: a mocktime bump would time out the members' signing session for txid)
+        rawtx = self.nodes[0].createrawtransaction([], {self.nodes[0].getnewaddress(): 1})
+        rawtx = self.nodes[0].fundrawtransaction(rawtx, {"minconf": 1})['hex']
+        self.wait_for_instantlock(self.nodes[0].sendrawtransaction(self.nodes[0].signrawtransactionwithwallet(rawtx)['hex']), nodes=[self.nodes[0]], skip_sync=True)
+        assert txid not in self.nodes[3].getrawmempool()
+        self.assert_no_instantlock(txid, self.nodes[0])
 
     def create_fund_sign_tx(self):
         rawtx = self.nodes[0].createrawtransaction([], {self.nodes[0].getnewaddress(): 1})
@@ -97,7 +118,7 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.bump_mocktime(30)
         self.wait_for_mnauth(self.nodes[3], 2)
         # node 3 fully reconnected but the TX wasn't relayed to it, so there should be no IS lock
-        self.sleep_and_assert_no_instantlock(txid, self.nodes[0])
+        self.assert_not_relayed_to_node3(txid)
         # push the tx directly via rpc
         self.nodes[3].sendrawtransaction(self.nodes[0].getrawtransaction(txid))
         # node 3 should vote on a tx now since it became aware of it via sendrawtransaction
@@ -126,11 +147,68 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.bump_mocktime(30)
         self.wait_for_mnauth(self.nodes[3], 2)
         # node 3 fully reconnected but the TX wasn't relayed to it, so there should be no IS lock
-        self.sleep_and_assert_no_instantlock(txid, self.nodes[0])
+        self.assert_not_relayed_to_node3(txid)
         # Make node0 consider the TX as safe
         self.bump_mocktime(10 * 60 + 1)
         block = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
         assert txid in self.nodes[0].getblock(block, 1)['tx']
+        self.wait_for_chainlocked_block_all_nodes(block)
+
+        self.log.info("testing retroactive signing with partially known TX and session timeout")
+        self.test_session_timeout(False)
+        self.log.info("repeating test, but with cycled LLMQs")
+        self.test_session_timeout(True)
+
+
+    def test_session_timeout(self, do_cycle_llmqs):
+        set_node_times(self.nodes, self.mocktime)
+        self.isolate_node(3)
+        rawtx = self.create_fund_sign_tx()
+        txid_all_nodes = self.nodes[0].sendrawtransaction(rawtx)
+        txid_all_nodes = self.nodes[3].sendrawtransaction(rawtx)
+
+        rawtx_1 = self.create_fund_sign_tx()
+        txid_single_node = self.nodes[3].sendrawtransaction(rawtx_1)
+
+        # Make sure connected nodes received the TX before we continue
+        self.bump_mocktime(30)
+        self.sync_mempools(self.nodes[:3])
+        # Make sure signing is done on nodes 1 and 2 (it's async)
+        self.wait_for_sigshares(self.nodes[1:3], txid_all_nodes)
+        self.wait_for_sigshares([self.nodes[3]], txid_single_node)
+        # Make the signing session for the IS lock timeout on nodes 1-3
+        self.bump_mocktime(61)
+        time.sleep(2) # make sure Cleanup() is called
+        self.reconnect_isolated_node(3, 0)
+        # Make sure nodes actually try re-connecting quorum connections
+        self.bump_mocktime(30)
+        self.wait_for_mnauth(self.nodes[3], 2)
+
+        self.nodes[0].sendrawtransaction(rawtx_1)
+        # Make sure connected nodes received the TX
+        self.bump_mocktime(30)
+        self.sync_mempools(self.nodes[:3])
+        self.bump_mocktime(30)
+
+        # Make sure signing is done on nodes 1 and 2 (it's async)
+        self.wait_for_sigshares(self.nodes[1:3], txid_single_node)
+
+        # node 3 fully reconnected but the signing session is already timed out, so no IS lock
+        self.assert_no_instantlock(txid_all_nodes, self.nodes[0])
+        self.assert_no_instantlock(txid_single_node, self.nodes[0])
+        if do_cycle_llmqs:
+            self.mine_cycle_quorum()
+            self.mine_cycle_quorum()
+            self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash(), timeout=30)
+
+            time.sleep(5)
+            self.assert_no_instantlock(txid_all_nodes, self.nodes[0])
+            self.assert_no_instantlock(txid_single_node, self.nodes[0])
+        # Make node 0 consider the TX as safe
+        self.bump_mocktime(10 * 60 + 1)
+        block = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
+        assert txid_all_nodes in self.nodes[0].getblock(block, 1)['tx']
+        assert txid_single_node in self.nodes[0].getblock(block, 1)['tx']
         self.wait_for_chainlocked_block_all_nodes(block)
 
 if __name__ == '__main__':

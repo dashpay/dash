@@ -131,7 +131,6 @@ BASE_SCRIPTS = [
     'feature_asset_locks_v24.py', # NOTE: needs dash_hash to pass
     'feature_llmq_signing.py', # NOTE: needs dash_hash to pass
     'feature_llmq_is_retroactive.py', # NOTE: needs dash_hash to pass
-    'feature_llmq_is_retroactive_session_timeout.py', # NOTE: needs dash_hash to pass
     'feature_llmq_chainlocks.py', # NOTE: needs dash_hash to pass
     'feature_llmq_chainlocks_automatic.py', # NOTE: needs dash_hash to pass
     'feature_quorum_proof_chain.py',
